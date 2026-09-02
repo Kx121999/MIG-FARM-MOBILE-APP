@@ -7,7 +7,9 @@
     "scheme": "migfarm",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.migfarm.app"
@@ -50,7 +52,11 @@
     },
     "extra": {
       "apiUrl": "https://mig-farm-api.onrender.com",
-      "aiApiUrl": "https://mig-farm-ai-backend.vercel.app/api/chat"
+      "aiApiUrl": "https://mig-farm-ai-backend.vercel.app/api/chat",
+      "router": {},
+      "eas": {
+        "projectId": "c8afa207-58bc-4e62-9341-0b4d2e1b8661"
+      }
     }
   }
 }

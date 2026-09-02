@@ -13,6 +13,14 @@
         "buildType": "apk"
       }
     },
+    "ios-simulator": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mig-farm-api.onrender.com"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
     "production": {
       "autoIncrement": true,
       "env": {
