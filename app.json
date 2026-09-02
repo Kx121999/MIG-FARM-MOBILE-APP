@@ -49,7 +49,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "http://127.0.0.1:8787",
+      "apiUrl": "https://mig-farm-api.onrender.com",
       "aiApiUrl": "https://mig-farm-ai-backend.vercel.app/api/chat"
     }
   }

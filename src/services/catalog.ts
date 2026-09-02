@@ -4,8 +4,8 @@ import { Product, ProductImage, ProductVariant } from '@/types';
 
 const env = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
 
-export const API_ORIGIN = (env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:8787').replace(/\/+$/, '');
-export const APP_ORIGIN = (env.EXPO_PUBLIC_APP_URL || 'http://127.0.0.1:8081').replace(/\/+$/, '');
+export const API_ORIGIN = (env.EXPO_PUBLIC_API_URL || 'https://mig-farm-api.onrender.com').replace(/\/+$/, '');
+export const APP_ORIGIN = (env.EXPO_PUBLIC_APP_URL || API_ORIGIN).replace(/\/+$/, '');
 
 const PRODUCTS_CACHE_KEY = 'mig_farm_catalog_cache_v2';
 const CACHE_TTL_MS = 10 * 60 * 1000;
