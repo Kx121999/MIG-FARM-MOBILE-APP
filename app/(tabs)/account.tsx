@@ -1,162 +1,269 @@
-import React from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import {
-  BookOpenText,
   Bell,
   Box,
-  ChevronLeft,
-  ChevronRight,
-  Globe2,
   Heart,
-  Languages,
+  History,
+  LogOut,
   MapPin,
   MessageCircle,
-  Phone,
+  Settings,
   ShieldCheck,
-  ShoppingBag,
   UserRound,
-  type LucideIcon,
+  Headphones,
+  FileText,
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
-import { colors, radius } from '@/constants/theme';
+import { AppButton } from '@/components/AppButton';
+import { MotionPressable } from '@/components/Motion';
+import { UserAvatar } from '@/components/account/UserAvatar';
+import {
+  AccountRow,
+  AccountHeading,
+  ConfirmSheet,
+  Notice,
+  ui,
+} from '@/components/account/AccountUI';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-type MenuRowProps = {
-  icon: LucideIcon;
-  title: string;
-  subtitle?: string;
-  onPress: () => void;
-  isRTL: boolean;
-  last?: boolean;
-};
-
-function MenuRow({ icon: Icon, title, subtitle, onPress, isRTL, last = false }: MenuRowProps) {
-  const Chevron = isRTL ? ChevronLeft : ChevronRight;
-  return (
-    <Pressable accessibilityRole="button" style={({ pressed }) => [styles.menuRow, last && styles.menuRowLast, { flexDirection: isRTL ? 'row-reverse' : 'row' }, pressed && styles.pressed]} onPress={onPress}>
-      <View style={styles.menuIcon}><Icon size={19} color={colors.primary} strokeWidth={2.1} /></View>
-      <View style={styles.menuCopy}>
-        <Text style={[styles.menuTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{title}</Text>
-        {subtitle ? <Text numberOfLines={1} style={[styles.menuSubtitle, { textAlign: isRTL ? 'right' : 'left' }]}>{subtitle}</Text> : null}
-      </View>
-      <Chevron size={18} color={colors.textSubtle} strokeWidth={2.1} />
-    </Pressable>
-  );
-}
+import { colors, typography } from '@/constants/theme';
+import { customerError } from '@/services/customer';
 
 export default function AccountScreen() {
-  const { favorites, cartCount, profile } = useCommerce();
-  const { language, setLanguage, isRTL, t } = useLanguage();
-  const open = (url: string) => Linking.openURL(url).catch(() => undefined);
-
+  const { user, ready, logout } = useAuth();
+  const { favorites } = useCommerce();
+  const { language, isRTL: ar, setLanguage } = useLanguage();
+  const [confirm, setConfirm] = useState(false),
+    [error, setError] = useState(''),
+    [busy, setBusy] = useState(false);
+  const quick = [
+    { icon: Box, title: ar ? 'طلباتي' : 'Orders', path: '/orders' as const },
+    {
+      icon: MapPin,
+      title: ar ? 'عناويني' : 'Addresses',
+      path: '/addresses' as const,
+    },
+    {
+      icon: Heart,
+      title: ar ? 'المفضلة' : 'Favorites',
+      path: '/favorites' as const,
+    },
+    {
+      icon: Bell,
+      title: ar ? 'الإشعارات' : 'Notifications',
+      path: '/notifications' as const,
+    },
+  ];
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={ui.safe} edges={['top']}>
       <AppHeader compact />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.page}>
-          <View style={[styles.profile, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <View style={styles.avatar}><UserRound size={30} color={colors.primaryDark} strokeWidth={1.8} /></View>
-            <View style={styles.profileCopy}>
-              <View style={[styles.verifiedRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <Text style={[styles.profileTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{profile.name || t('accountTitle')}</Text>
-                <ShieldCheck size={17} color={colors.sun} fill={colors.sun} strokeWidth={1.8} />
-              </View>
-              <Text style={[styles.profileBody, { textAlign: isRTL ? 'right' : 'left' }]}>{profile.email || (language === 'ar' ? 'تابع طلباتك واحفظ منتجاتك المفضلة' : 'Track orders and keep your favorite products')}</Text>
-            </View>
+      <ScrollView
+        contentContainerStyle={ui.page}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={{
+            flexDirection: ar ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            gap: 14,
+            paddingVertical: 12,
+          }}
+        >
+          <UserAvatar user={user} size={56} loading={!ready} />
+          <View style={ui.flex}>
+            <Text
+              accessibilityRole="header"
+              style={{
+                ...typography.section,
+                color: colors.text,
+                textAlign: ar ? 'right' : 'left',
+              }}
+            >
+              {user
+                ? ar
+                  ? 'مرحباً، ' + user.name.split(' ')[0]
+                  : 'Hello, ' + user.name.split(' ')[0]
+                : ar
+                  ? 'مرحباً بك في ميغ فارم'
+                  : 'Welcome to MIG FARM'}
+            </Text>
+            <Text
+              style={[
+                ui.body,
+                { textAlign: ar ? 'right' : 'left', marginTop: 6 },
+              ]}
+            >
+              {user
+                ? user.email || user.phone
+                : ar
+                  ? 'سجل الدخول لحفظ طلباتك وعناوينك والوصول إليها من أي جهاز.'
+                  : 'Sign in to access your orders and addresses across devices.'}
+            </Text>
           </View>
-
-          <View style={styles.stats}>
-            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.stat, pressed && styles.pressed]} onPress={() => router.push('/(tabs)/cart')}>
-              <ShoppingBag size={20} color={colors.primary} strokeWidth={2.1} />
-              <Text style={styles.statValue}>{cartCount}</Text>
-              <Text style={styles.statLabel}>{t('cart')}</Text>
-            </Pressable>
-            <View style={styles.statDivider} />
-            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.stat, pressed && styles.pressed]} onPress={() => router.push({ pathname: '/(tabs)/catalog', params: { favorites: '1' } })}>
-              <Heart size={20} color={colors.orange} strokeWidth={2.1} />
-              <Text style={styles.statValue}>{favorites.length}</Text>
-              <Text style={styles.statLabel}>{t('favorites')}</Text>
-            </Pressable>
-          </View>
-
-          <Pressable accessibilityRole="button" style={({ pressed }) => [styles.signIn, pressed && styles.primaryPressed]} onPress={() => router.push('/orders')}>
-            <Box size={18} color="#FFFFFF" strokeWidth={2.2} />
-            <Text style={styles.signInText}>{language === 'ar' ? 'متابعة الطلبات' : 'Track orders'}</Text>
-          </Pressable>
-
-          <Text style={[styles.sectionTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'حسابك' : 'Your account'}</Text>
-          <View style={styles.menu}>
-            <MenuRow icon={UserRound} title={t('profile')} subtitle={language === 'ar' ? 'بياناتك وعناوين التوصيل' : 'Your details and delivery addresses'} onPress={() => router.push('/profile')} isRTL={isRTL} />
-            <MenuRow icon={Box} title={t('orders')} subtitle={language === 'ar' ? 'عرض حالة الطلبات السابقة' : 'View previous order status'} onPress={() => router.push('/orders')} isRTL={isRTL} />
-            <MenuRow icon={Bell} title={t('notifications')} subtitle={language === 'ar' ? 'تحكم في التنبيهات والتحديثات' : 'Control alerts and updates'} onPress={() => router.push('/notifications')} isRTL={isRTL} />
-            <MenuRow icon={Heart} title={t('favorites')} subtitle={`${favorites.length} ${language === 'ar' ? 'منتج محفوظ' : 'saved products'}`} onPress={() => router.push({ pathname: '/(tabs)/catalog', params: { favorites: '1' } })} isRTL={isRTL} />
-            <MenuRow icon={BookOpenText} title={t('articles')} subtitle={language === 'ar' ? 'اسأل المهندس عن الزراعة' : 'Ask the engineer for growing advice'} onPress={() => router.push('/(tabs)/assistant')} isRTL={isRTL} last />
-          </View>
-
-          <Text style={[styles.sectionTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('contact')}</Text>
-          <View style={styles.menu}>
-            <MenuRow icon={MessageCircle} title="WhatsApp" subtitle="+971 58 176 8215" onPress={() => open('https://wa.me/971581768215')} isRTL={isRTL} />
-            <MenuRow icon={Phone} title={language === 'ar' ? 'اتصل بنا' : 'Call us'} subtitle="058 176 8215" onPress={() => open('tel:+971581768215')} isRTL={isRTL} />
-            <MenuRow icon={MapPin} title={t('branches')} subtitle={language === 'ar' ? 'مليحة، الشارقة | العين' : 'Mleiha, Sharjah | Al Ain'} onPress={() => open('https://www.google.com/maps/search/?api=1&query=MIG+Farm+UAE')} isRTL={isRTL} last />
-          </View>
-
-          <View style={[styles.languageTitleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <Text style={[styles.sectionTitle, styles.languageHeading, { textAlign: isRTL ? 'right' : 'left' }]}>{t('language')}</Text>
-            <Languages size={18} color={colors.primary} strokeWidth={2.1} />
-          </View>
-          <View style={[styles.language, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-            <Pressable accessibilityRole="radio" accessibilityState={{ checked: language === 'ar' }} onPress={() => setLanguage('ar')} style={({ pressed }) => [styles.languageButton, language === 'ar' && styles.languageActive, pressed && styles.pressed]}>
-              <Text style={[styles.languageText, language === 'ar' && styles.languageTextActive]}>{t('arabic')}</Text>
-            </Pressable>
-            <Pressable accessibilityRole="radio" accessibilityState={{ checked: language === 'en' }} onPress={() => setLanguage('en')} style={({ pressed }) => [styles.languageButton, language === 'en' && styles.languageActive, pressed && styles.pressed]}>
-              <Text style={[styles.languageText, language === 'en' && styles.languageTextActive]}>{t('english')}</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.versionRow}><Globe2 size={13} color={colors.textSubtle} /><Text style={styles.version}>MIG FARM Mobile 2.0 | UAE</Text></View>
         </View>
+        {!user ? (
+          <View style={{ flexDirection: ar ? 'row-reverse' : 'row', gap: 10 }}>
+            <AppButton
+              style={ui.flex}
+              label={ar ? 'تسجيل الدخول' : 'Sign in'}
+              onPress={() => router.push('/auth/login')}
+            />
+            <AppButton
+              style={ui.flex}
+              secondary
+              label={ar ? 'إنشاء حساب' : 'Create account'}
+              onPress={() => router.push('/auth/register')}
+            />
+          </View>
+        ) : null}
+        <View
+          style={{
+            flexDirection: ar ? 'row-reverse' : 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+            gap: 10,
+            marginTop: 8,
+          }}
+        >
+          {quick.map(({ icon: Icon, title, path }) => (
+            <MotionPressable
+              key={path}
+              accessibilityRole="button"
+              accessibilityLabel={title}
+              onPress={() => router.push(path)}
+              style={{
+                width: '48%',
+                minHeight: 88,
+                padding: 12,
+                backgroundColor: colors.surface,
+                borderRadius: 8,
+                gap: 8,
+                alignItems: ar ? 'flex-end' : 'flex-start',
+              }}
+            >
+              <Icon size={22} color={colors.primary} />
+              <Text style={ui.label}>
+                {title}
+                {path === '/favorites' && favorites.length
+                  ? ' (' + favorites.length + ')'
+                  : ''}
+              </Text>
+            </MotionPressable>
+          ))}
+        </View>
+        <AccountHeading>{ar ? 'حسابك' : 'Your account'}</AccountHeading>
+        <AccountRow
+          icon={UserRound}
+          title={ar ? 'الملف الشخصي' : 'Personal profile'}
+          detail={
+            !user
+              ? ar
+                ? 'بيانات هذا الجهاز'
+                : 'Details on this device'
+              : undefined
+          }
+          onPress={() => router.push('/profile')}
+        />
+        <AccountRow
+          icon={History}
+          title={ar ? 'شوهد مؤخراً' : 'Recently viewed'}
+          onPress={() => router.push('/recently-viewed')}
+        />
+        <AccountRow
+          icon={MessageCircle}
+          title={ar ? 'مساعد ميغ فارم' : 'MIG FARM assistant'}
+          onPress={() => router.push('/(tabs)/assistant')}
+        />
+        <AccountRow
+          icon={Headphones}
+          title={ar ? 'الدعم' : 'Support'}
+          onPress={() => router.push('/support')}
+        />
+        <AccountRow
+          icon={Settings}
+          title={ar ? 'الإعدادات والأمان' : 'Settings & security'}
+          onPress={() => router.push('/settings')}
+        />
+        <AccountHeading>{ar ? 'اللغة' : 'Language'}</AccountHeading>
+        <View style={{ flexDirection: ar ? 'row-reverse' : 'row', gap: 10 }}>
+          {(['ar', 'en'] as const).map((value) => (
+            <MotionPressable
+              key={value}
+              accessibilityRole="radio"
+              accessibilityLabel={value === 'ar' ? 'العربية' : 'English'}
+              accessibilityState={{ checked: language === value }}
+              onPress={() => setLanguage(value)}
+              style={{
+                flex: 1,
+                minHeight: 48,
+                borderRadius: 8,
+                backgroundColor:
+                  language === value ? colors.primary : colors.surface,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  ...typography.button,
+                  color: language === value ? colors.surface : colors.text,
+                }}
+              >
+                {value === 'ar' ? 'العربية' : 'English'}
+              </Text>
+            </MotionPressable>
+          ))}
+        </View>
+        <AccountRow
+          icon={ShieldCheck}
+          title={ar ? 'سياسة الخصوصية' : 'Privacy policy'}
+          onPress={() =>
+            router.push({ pathname: '/legal', params: { document: 'privacy' } })
+          }
+        />
+        <AccountRow
+          icon={FileText}
+          title={ar ? 'الشروط والأحكام' : 'Terms & conditions'}
+          onPress={() =>
+            router.push({ pathname: '/legal', params: { document: 'terms' } })
+          }
+        />
+        {user ? (
+          <AccountRow
+            icon={LogOut}
+            title={ar ? 'تسجيل الخروج' : 'Sign out'}
+            onPress={() => setConfirm(true)}
+          />
+        ) : null}
+        {error ? <Notice error text={error} /> : null}
       </ScrollView>
+      <ConfirmSheet
+        visible={confirm}
+        title={ar ? 'تسجيل الخروج' : 'Sign out'}
+        body={
+          ar
+            ? 'سيتم إنهاء جلسة الحساب على هذا الجهاز.'
+            : 'End your account session on this device?'
+        }
+        busy={busy}
+        onCancel={() => setConfirm(false)}
+        onConfirm={async () => {
+          setBusy(true);
+          try {
+            await logout();
+            setConfirm(false);
+          } catch (e) {
+            setError(customerError(e, ar));
+            setConfirm(false);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  content: { paddingBottom: 32 },
-  page: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 16 },
-  profile: { padding: 17, backgroundColor: colors.primaryDark, borderRadius: radius.lg, alignItems: 'center', gap: 13 },
-  avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.sun, alignItems: 'center', justifyContent: 'center' },
-  profileCopy: { flex: 1 },
-  verifiedRow: { alignItems: 'center', gap: 6 },
-  profileTitle: { color: '#FFFFFF', fontSize: 19, fontWeight: '900' },
-  profileBody: { color: '#D7E8DC', fontSize: 11, lineHeight: 18, marginTop: 4 },
-  stats: { height: 78, marginTop: 10, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center' },
-  stat: { flex: 1, height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  statDivider: { width: 1, height: 36, backgroundColor: colors.border },
-  statValue: { color: colors.text, fontSize: 17, fontWeight: '900' },
-  statLabel: { color: colors.muted, fontSize: 10, fontWeight: '800' },
-  signIn: { height: 49, marginTop: 10, borderRadius: radius.md, backgroundColor: colors.primary, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
-  signInText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
-  sectionTitle: { color: colors.text, fontSize: 17, fontWeight: '900', marginTop: 23, marginBottom: 9 },
-  menu: { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  menuRow: { minHeight: 68, alignItems: 'center', paddingHorizontal: 12, gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  menuRowLast: { borderBottomWidth: 0 },
-  menuIcon: { width: 38, height: 38, borderRadius: radius.md, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  menuCopy: { flex: 1 },
-  menuTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  menuSubtitle: { color: colors.muted, fontSize: 10, marginTop: 3 },
-  languageTitleRow: { alignItems: 'center', gap: 7, marginTop: 23, marginBottom: 9 },
-  languageHeading: { flex: 1, marginTop: 0, marginBottom: 0 },
-  language: { gap: 9 },
-  languageButton: { flex: 1, height: 46, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  languageActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  languageText: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  languageTextActive: { color: '#FFFFFF' },
-  versionRow: { flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', marginTop: 26 },
-  version: { color: colors.textSubtle, fontSize: 9, fontWeight: '700' },
-  pressed: { opacity: 0.68 },
-  primaryPressed: { opacity: 0.82 },
-});

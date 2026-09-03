@@ -7,13 +7,15 @@ import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { AppIconButton } from '@/components/AppIconButton';
 import { BrandLogo } from '@/components/BrandLogo';
+import { AccountAvatarButton } from '@/components/account/UserAvatar';
 
 export function AppHeader({ compact = false }: { compact?: boolean }) {
   const { cartCount } = useCommerce();
   const { isRTL, t } = useLanguage();
   return <View style={styles.surface}>
     <View style={[styles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }, compact && styles.compact]}>
-      <BrandLogo width={compact ? 104 : 120} />
+      <AccountAvatarButton />
+      <BrandLogo width={compact ? 96 : 108} />
       <View style={[styles.actions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <AppIconButton icon={Bell} label={t('notifications')} onPress={() => router.push('/notifications')} />
         <AppIconButton icon={ShoppingBag} label={t('cart')} count={cartCount} onPress={() => router.push('/(tabs)/cart')} />

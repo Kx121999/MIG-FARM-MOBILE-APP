@@ -17,6 +17,9 @@ import { useProducts } from '@/hooks/useProducts';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { sortProducts } from '@/services/catalog';
 import { Product } from '@/types';
+import { useRetention } from '@/contexts/RetentionContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { categories as discoveryCategories, productMatchesCategory } from '@/constants/categories';
 
 const heroSource = require('../../assets/home-farm.webp');
 const homeCategories = categories.filter((item) => item.id !== 'all');
@@ -26,9 +29,16 @@ export default function HomeScreen() {
   const { fontScale } = useWindowDimensions();
   const { products, loading, error, reload } = useProducts();
   const { recentProductIds } = useCommerce();
+  const { personalization } = useRetention();
+  const { user } = useAuth();
   const arrivals = useMemo(() => sortProducts(products, 'newest').slice(0, 6), [products]);
   const selected = useMemo(() => products.filter((product) => !arrivals.some((item) => item.id === product.id)).slice(0, 6), [products, arrivals]);
   const recent = useMemo(() => recentProductIds.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item)).slice(0, 4), [products, recentProductIds]);
+  const personalized = useMemo(() => {
+    if (!personalization || !recent.length) return [];
+    const category = discoveryCategories.find(item => item.id !== 'all' && productMatchesCategory(recent[0],item.id));
+    return category ? products.filter(item => !recentProductIds.includes(item.id) && productMatchesCategory(item,category.id)).slice(0,4) : [];
+  }, [personalization,recent,products,recentProductIds]);
   const Arrow = isRTL ? ArrowLeft : ArrowRight;
   const openCategory = (category: CategoryId) => router.push({ pathname: '/(tabs)/catalog', params: { category } });
   const openStore = () => router.push('/(tabs)/catalog');
@@ -37,6 +47,7 @@ export default function HomeScreen() {
     <AppHeader />
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
       <View style={styles.page}>
+        {user ? <Text style={[styles.deliveryText,{textAlign:isRTL?'right':'left',paddingHorizontal:16,paddingTop:8}]}>{language==='ar'?`مرحباً، ${user.name.split(' ')[0]}`:`Hello, ${user.name.split(' ')[0]}`}</Text> : null}
         <MotionPressable accessibilityRole="button" accessibilityLabel={t('search')} style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={() => router.push('/(tabs)/search')}>
           <Search size={20} color={colors.muted} /><Text numberOfLines={1} style={[styles.searchText, { textAlign: isRTL ? 'right' : 'left' }]}>{t('search')}</Text>
         </MotionPressable>
@@ -63,8 +74,8 @@ export default function HomeScreen() {
           {arrivals.length ? <ProductRail products={arrivals} /> : null}
         </View>
         {selected.length ? <View style={styles.section}>
-          <SectionTitle title={language === 'ar' ? 'مختارات ميغ فارم' : 'MIG FARM selection'} action={t('viewAll')} onPress={openStore} />
-          <ProductRail products={selected} />
+          <SectionTitle title={personalized.length?(language==='ar'?'قد يعجبك':'You may like'):(language === 'ar' ? 'مختارات ميغ فارم' : 'MIG FARM selection')} action={t('viewAll')} onPress={openStore} />
+          <ProductRail products={personalized.length?personalized:selected} />
         </View> : null}
         <MotionPressable accessibilityRole="button" accessibilityLabel={language === 'ar' ? 'مساعد ميغ فارم' : 'MIG FARM assistant'} onPress={() => router.push('/(tabs)/assistant')}
           style={[styles.assistant, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>

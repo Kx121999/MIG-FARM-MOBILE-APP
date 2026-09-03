@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { CartItem, CustomerProfile, Product, ProductVariant, SavedAddress } from '@/types';
 import { productImage } from '@/services/catalog';
+import { upsertAddress, withoutAddress } from '@/utils/customer';
 
 const CART_KEY = 'mig_farm_cart_v1';
 const FAVORITES_KEY = 'mig_farm_favorites_v1';
@@ -12,6 +13,7 @@ const ADDRESSES_KEY = 'mig_farm_addresses_v1';
 const LOCATION_KEY = 'mig_farm_location_v1';
 
 type CommerceValue = {
+  hydrated: boolean;
   cart: CartItem[];
   favorites: number[];
   compareIds: number[];
@@ -31,8 +33,10 @@ type CommerceValue = {
   toggleCompare: (productId: number) => void;
   clearCompare: () => void;
   recordRecentProduct: (productId: number) => void;
+  clearRecentProducts: () => void;
   setProfile: (profile: CustomerProfile) => void;
-  saveAddress: (address: Omit<SavedAddress, 'id'>) => void;
+  saveAddress: (address: Omit<SavedAddress, 'id'> & { id?: string }) => void;
+  setDefaultAddress: (id: string) => void;
   removeAddress: (id: string) => void;
   setDeliveryEmirate: (emirate: string) => void;
 };
@@ -87,6 +91,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { if (hydrated) AsyncStorage.setItem(LOCATION_KEY, deliveryEmirate).catch(() => undefined); }, [deliveryEmirate, hydrated]);
 
   const value = useMemo<CommerceValue>(() => ({
+    hydrated,
     cart,
     favorites,
     compareIds,
@@ -100,7 +105,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
       const key = `${product.id}:${variant.id}`;
       setCart((current) => {
         const existing = current.find((item) => item.key === key);
-        if (existing) return current.map((item) => item.key === key ? { ...item, quantity: item.quantity + quantity } : item);
+        if (existing) return current.map((item) => item.key === key ? { ...item, variant, quantity: item.quantity + quantity } : item);
         return [...current, {
           key,
           productId: product.id,
@@ -133,13 +138,12 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
       return current.length === next.length && current.every((id, index) => id === next[index]) ? current : next;
     }),
     setProfile: (next) => setProfileState(next),
-    saveAddress: (address) => setAddresses((current) => {
-      const next = { ...address, id: `address-${Date.now()}` };
-      return address.isDefault ? [next, ...current.map((item) => ({ ...item, isDefault: false }))] : [...current, next];
-    }),
-    removeAddress: (id) => setAddresses((current) => current.filter((item) => item.id !== id)),
+    clearRecentProducts: () => setRecentProductIds([]),
+    saveAddress: (address) => setAddresses((current) => upsertAddress(current, { ...address, id: address.id || `address-${Date.now()}-${Math.random().toString(36).slice(2,8)}` })),
+    setDefaultAddress: (id) => setAddresses((current) => current.some((item) => item.id === id) ? current.map((item) => ({ ...item, isDefault: item.id === id })) : current),
+    removeAddress: (id) => setAddresses((current) => withoutAddress(current,id)),
     setDeliveryEmirate: (emirate) => setDeliveryEmirateState(emirate),
-  }), [addresses, cart, compareIds, deliveryEmirate, favorites, profile, recentProductIds]);
+  }), [addresses, cart, compareIds, deliveryEmirate, favorites, profile, recentProductIds, hydrated]);
 
   return <CommerceContext.Provider value={value}>{children}</CommerceContext.Provider>;
 }

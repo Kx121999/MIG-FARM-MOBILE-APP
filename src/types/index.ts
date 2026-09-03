@@ -59,6 +59,7 @@ export type CustomerProfile = {
   name: string;
   email: string;
   phone: string;
+  emirate?: string;
 };
 
 export type SavedAddress = {
@@ -68,6 +69,11 @@ export type SavedAddress = {
   city: string;
   addressLine: string;
   isDefault: boolean;
+  category?: 'home' | 'farm' | 'company' | 'other';
+  name?: string;
+  phone?: string;
+  unit?: string;
+  notes?: string;
 };
 
 export type AIProductResult = {

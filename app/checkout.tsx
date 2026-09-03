@@ -10,6 +10,10 @@ import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatAED } from '@/services/catalog';
 import { CheckoutCustomer, CheckoutError, createCheckoutSession, PaymentSession, ShippingAddress } from '@/services/payments';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCustomerAddresses } from '@/hooks/useCustomerAddresses';
+import { ChoiceGroup } from '@/components/account/ChoiceGroup';
+import { Notice } from '@/components/account/AccountUI';
 
 const ORDER_REFS_KEY = 'mig_farm_order_refs_v1';
 const emirates = [
@@ -23,7 +27,11 @@ const emirates = [
 ];
 
 export default function CheckoutScreen() {
-  const { cart, subtotal, clearCart, profile, addresses } = useCommerce();
+  const { cart, subtotal, clearCart, profile: guestProfile } = useCommerce();
+  const { user } = useAuth();
+  const profile = user || guestProfile;
+  const { addresses, error: addressError } = useCustomerAddresses();
+  const [selectedAddress, setSelectedAddress] = useState('');
   const { language, isRTL } = useLanguage();
   const [customer, setCustomer] = useState<CheckoutCustomer>({ name: '', email: '', phone: '' });
   const [address, setAddress] = useState<ShippingAddress>({ emirate: 'Dubai', city: '', addressLine: '', notes: '' });
@@ -43,7 +51,7 @@ export default function CheckoutScreen() {
       phone: current.phone || profile.phone,
     }));
     const defaultAddress = addresses.find((item) => item.isDefault);
-    if (defaultAddress) setAddress((current) => current.city || current.addressLine ? current : { ...current, emirate: defaultAddress.emirate, city: defaultAddress.city, addressLine: defaultAddress.addressLine });
+    if (defaultAddress) setAddress((current) => current.city || current.addressLine ? current : { ...current, emirate: defaultAddress.emirate, city: defaultAddress.city, addressLine: [defaultAddress.addressLine,defaultAddress.unit].filter(Boolean).join(', '), notes:defaultAddress.notes||'' });
   }, [addresses, profile]);
 
   const valid = customer.name.trim() && customer.email.includes('@') && customer.phone.trim() && address.emirate && address.city.trim() && address.addressLine.trim();
@@ -118,6 +126,8 @@ export default function CheckoutScreen() {
 
             <View style={styles.section}>
               <View style={[styles.sectionHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><MapPin size={19} color={colors.primary} /><Text style={styles.sectionTitle}>{language === 'ar' ? 'عنوان التوصيل' : 'Delivery address'}</Text></View>
+              {addresses.length && !session ? <ChoiceGroup label={language==='ar'?'العناوين المحفوظة':'Saved addresses'} value={selectedAddress} options={addresses.map(item=>({value:item.id,label:item.label}))} onChange={(id)=>{const saved=addresses.find(item=>item.id===id);if(!saved)return;setSelectedAddress(id);setAddress({emirate:saved.emirate,city:saved.city,addressLine:[saved.addressLine,saved.unit].filter(Boolean).join(', '),notes:saved.notes||''});setCustomer(current=>({...current,name:saved.name||current.name,phone:saved.phone||current.phone}));}}/> : null}
+              {addressError?<Notice text={language==='ar'?'تعذر تحميل العناوين. يمكنك إدخال العنوان يدويًا.':'Saved addresses could not be loaded. You can enter an address manually.'}/>:null}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emirates}>
                 {emirates.map((item) => <Pressable key={item.value} onPress={() => setAddress((current) => ({ ...current, emirate: item.value }))} style={[styles.emirate, address.emirate === item.value && styles.emirateActive]}><Text style={[styles.emirateText, address.emirate === item.value && styles.emirateTextActive]}>{language === 'ar' ? item.ar : item.value}</Text></Pressable>)}
               </ScrollView>
