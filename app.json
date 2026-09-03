@@ -12,7 +12,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.migfarm.app"
+      "bundleIdentifier": "com.migfarm.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.migfarm.app",
