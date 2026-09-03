@@ -15,7 +15,7 @@ import type { Product } from '@/types';
 
 export function SavedProductsScreen({ recent = false }: { recent?: boolean }) {
   const { products, loading, error, reload } = useProducts();
-  const { favorites, recentProductIds, clearRecentProducts, hydrated } =
+  const { favorites, recentProductIds, clearRecentProducts, hydrated, favoritesError, favoritesLoading, retryFavorites } =
     useCommerce();
   const { isRTL: ar } = useLanguage();
   const [limit, setLimit] = useState(16),
@@ -59,10 +59,12 @@ export function SavedProductsScreen({ recent = false }: { recent?: boolean }) {
           />
         ) : null}
       </View>
-      {loading || !hydrated ? (
+      {loading || !hydrated || (!recent && favoritesLoading) ? (
         <View style={{ padding: 16 }}>
           <ScreenState loading />
         </View>
+      ) : !recent && favoritesError ? (
+        <ScreenState error={favoritesError} onRetry={retryFavorites} />
       ) : error ? (
         <ScreenState error={error} onRetry={reload} />
       ) : !selected.length ? (

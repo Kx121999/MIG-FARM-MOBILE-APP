@@ -77,6 +77,10 @@ export default function RootLayout() {
                           options={{ headerShown: false }}
                         />
                         <Stack.Screen
+                          name="auth/reset-password"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
                           name="addresses"
                           options={{ headerShown: false }}
                         />

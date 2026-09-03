@@ -13,6 +13,8 @@ import {
   CustomerServiceError,
 } from '@/services/customer';
 import { sessionStore } from '@/services/sessionStore';
+import { apiSession, refreshSession, validSession } from '@/services/apiClient';
+import { useLanguage } from '@/contexts/LanguageContext';
 import type {
   AuthSession,
   AvatarSelection,
@@ -33,29 +35,29 @@ type AuthValue = {
 };
 const AuthContext = createContext<AuthValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { language } = useLanguage();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [ready, setReady] = useState(false);
   const session = useRef<AuthSession | null>(null);
   const generation = useRef(0);
   const accept = useCallback(
     async (next: AuthSession, expected = generation.current) => {
-      if (
-        !next.user.id ||
-        !next.accessToken ||
-        !next.refreshToken ||
-        next.expiresAt <= Date.now()
-      )
+      if (!validSession(next))
         throw new CustomerServiceError('invalid');
       if (expected !== generation.current) return;
       await sessionStore.write(next.refreshToken);
       if (expected !== generation.current) return;
       session.current = next;
+      apiSession.set(next);
       setUser(next.user);
     },
     [],
   );
   useEffect(() => {
     let active = true;
+    const unsubscribe = apiSession.subscribe(next => {
+      if (active) { session.current = next; setUser(next?.user ?? null); }
+    });
     let restoring = false;
     const restore = async () => {
       if (restoring) return;
@@ -65,12 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (authService.available) {
           const token = await sessionStore.read();
           if (token && active) {
-            const next = await authService.refresh(token);
-            if (active) await accept(next, version);
+            await refreshSession();
           }
         }
       } catch {
-        if (active && version === generation.current) {
+        if (active && version === generation.current && !apiSession.get()) {
           session.current = null;
           setUser(null);
         }
@@ -83,8 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const subscription = AppState.addEventListener('change', (state) => {
       if (
         state === 'active' &&
-        session.current &&
-        session.current.expiresAt <= Date.now()
+        (!session.current || session.current.expiresAt <= Date.now())
       )
         void restore();
     });
@@ -92,17 +92,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       active = false;
       generation.current++;
       subscription.remove();
+      unsubscribe();
     };
   }, [accept]);
   const logout = async () => {
-    const version = generation.current;
     const token = session.current?.refreshToken;
-    if (token) await authService.logout(token);
-    if (version !== generation.current) return;
     generation.current++;
     session.current = null;
     setUser(null);
-    await sessionStore.clear();
+    await apiSession.clear();
+    if (token) await authService.logout(token);
   };
   const authenticated = () => {
     if (!session.current) throw new CustomerServiceError('unauthorized');
@@ -116,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     if (updated.id !== id) throw new CustomerServiceError('invalid');
     session.current = { ...session.current, user: updated };
+    apiSession.updateUser(updated);
     setUser(updated);
   };
   const value: AuthValue = {
@@ -127,8 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     register: async (name, email, password) => {
       const version = ++generation.current;
-      const result = await authService.register(name, email, password);
-      if ('verificationRequired' in result) return false;
+      const result = await authService.register(name, email, password, language);
       await accept(result, version);
       return true;
     },
@@ -146,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       generation.current++;
       session.current = null;
       setUser(null);
-      await sessionStore.clear();
+      await apiSession.clear();
     },
   };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

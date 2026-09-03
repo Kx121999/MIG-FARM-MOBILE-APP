@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { Language } from '@/types';
+import { getLocales } from 'expo-localization';
+import { resolveLaunchLanguage } from '@/utils/launchLanguage';
 
 const STORAGE_KEY = 'mig_farm_language_v1';
 
@@ -223,16 +225,15 @@ type LanguageValue = {
 const LanguageContext = createContext<LanguageValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('ar');
+  const [language, setLanguageState] = useState<Language>(() => resolveLaunchLanguage(null, getLocales()[0]?.languageTag));
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let active = true;
-    const timeout = setTimeout(() => { if (active) setReady(true); }, 2000);
     AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      if (active && (stored === 'ar' || stored === 'en')) setLanguageState(stored);
-    }).catch(() => undefined).finally(() => { clearTimeout(timeout); if (active) setReady(true); });
-    return () => { active = false; clearTimeout(timeout); };
+      if (active) setLanguageState(resolveLaunchLanguage(stored, getLocales()[0]?.languageTag));
+    }).catch(() => undefined).finally(() => { if (active) setReady(true); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {

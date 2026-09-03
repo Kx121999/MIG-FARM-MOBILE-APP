@@ -1,0 +1,249 @@
+{
+  "name": "MIG FARM Customer Backend + Bilingual Launch Patch",
+  "deployment": "Code update only. Render deployment and Neon migrations are not applied.",
+  "applyAt": "Existing project root; back up and follow PRODUCTION_CUSTOMER_BACKEND_REPORT_AR.md first.",
+  "preserved": [
+    "app.json",
+    "eas.json",
+    "src/services/ai.ts",
+    "src/services/catalog.ts",
+    "server/data/products.json"
+  ],
+  "files": [
+    {
+      "path": ".env.example",
+      "bytes": 590,
+      "sha256": "BA3CF85F20EAFEE006AAB538B14240A069D1D86E8099E6F11942128EFA3D1935"
+    },
+    {
+      "path": "PRODUCTION_CUSTOMER_BACKEND_REPORT_AR.md",
+      "bytes": 14563,
+      "sha256": "DDB7FE89699712C06800A42A1754D8366FC19B637B11E6359CFA86B3CD75899F"
+    },
+    {
+      "path": "README_AR.md",
+      "bytes": 5309,
+      "sha256": "BD2B55BA03D4DAC2D508EC1C257DBA8C5DF1A3DEFEB571A575B81BE1353DFF64"
+    },
+    {
+      "path": "app/_layout.tsx",
+      "bytes": 4883,
+      "sha256": "62A91206345185ABE493FCCBC8D8C7B3E6A48085746FA05ECE1C080B04F3D5FA"
+    },
+    {
+      "path": "app/auth/reset-password.tsx",
+      "bytes": 3877,
+      "sha256": "EE3680B5978BEAA22A134CD4080A2689886B51126413C9762CCD2D67ED1473D7"
+    },
+    {
+      "path": "app/checkout.tsx",
+      "bytes": 17399,
+      "sha256": "CDA75DDB888D2A79838868D5305903E101389600E885CBC4C67C701DA8270372"
+    },
+    {
+      "path": "app/notifications.tsx",
+      "bytes": 5395,
+      "sha256": "0C64406DFA2A3A6D4F80427FB026D90764B71CB846B539B680E855D68AA3C7CF"
+    },
+    {
+      "path": "app/settings.tsx",
+      "bytes": 6186,
+      "sha256": "6623C6E0270DA90DF7BA77C0F0CFE809BB43AA3739BABF572328E6A733E1CC52"
+    },
+    {
+      "path": "assets/launch/mig-farm-launch-ar.png",
+      "bytes": 2260318,
+      "sha256": "AAE3CA389168BFD0AEF4483A2C81F5D44C40A8F1847BDC0E2B8809F401A8760B"
+    },
+    {
+      "path": "assets/launch/mig-farm-launch-en.png",
+      "bytes": 2246019,
+      "sha256": "A0674F51ACC66E1CBF4AA2C8EE534252D048D1F9211E8CE924334CCECED9041F"
+    },
+    {
+      "path": "package.json",
+      "bytes": 1865,
+      "sha256": "BD88537D6A323946A206D389318B22FB6736B8192E2587BF26BDEF804EBDCF06"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "bytes": 306501,
+      "sha256": "B277B7B4E7E88375276BD62C03E5008CF792D863C86957D894E9366B12DF3825"
+    },
+    {
+      "path": "scripts/customer-client.test.mjs",
+      "bytes": 5632,
+      "sha256": "7C009BA07C002E292177854A5ACF1CD15BA8943D147A81027E846CD86C4550F1"
+    },
+    {
+      "path": "scripts/customer-domain.test.mjs",
+      "bytes": 8256,
+      "sha256": "C5E85FC156F7B3A8DA09DEE754538D850D6033EC47FF5C82F9CFAF74BF27EFD3"
+    },
+    {
+      "path": "scripts/launch.test.mjs",
+      "bytes": 2644,
+      "sha256": "FA67D287E7DDA51A690B5A1AD86BA86B2C26B4F4FC607D7F109E6E0863A123AD"
+    },
+    {
+      "path": "scripts/verify-phase1.test.mjs",
+      "bytes": 5224,
+      "sha256": "91B1D9DC1BED2492E6CE50D11AF07EA19DF52FFA32DB3029043E44080A817BDA"
+    },
+    {
+      "path": "server/.env.example",
+      "bytes": 308,
+      "sha256": "60CBB66F0336C9FA53F254149FBA3D01A28D640FE81DB31F233CCA7A34054A72"
+    },
+    {
+      "path": "server/auth/security.mjs",
+      "bytes": 1551,
+      "sha256": "FE4360D534483BB68D49BF3E4C53A39D1594244150AAE23081709324742B6016"
+    },
+    {
+      "path": "server/auth/service.mjs",
+      "bytes": 13693,
+      "sha256": "CC1BBF7E56D087B6086152B8144C61D225D1EDD1CD2FB57BB1840F221BC2397F"
+    },
+    {
+      "path": "server/db/cleanup.mjs",
+      "bytes": 1031,
+      "sha256": "F4752793D793388FF5D63978DDD418849E3176BEE062EABDCC6BD25A7BAF5BDE"
+    },
+    {
+      "path": "server/db/client.mjs",
+      "bytes": 1044,
+      "sha256": "0BBACC52214C54EA68A00CC70DB6CA050351DD5DCC0ABAECCBBE034CBB91AE93"
+    },
+    {
+      "path": "server/db/import-orders.mjs",
+      "bytes": 995,
+      "sha256": "4A612BF0CB6B6AE55C617B8B9B666FD0F954FB5C7DACB46F2C350947DA5690EF"
+    },
+    {
+      "path": "server/db/migrate.mjs",
+      "bytes": 1972,
+      "sha256": "F9D20353EE143CC35FB1AC32871B1058C43592A4EC552704C054D55C6541CA11"
+    },
+    {
+      "path": "server/db/migrations/001_customer_foundation.sql",
+      "bytes": 4844,
+      "sha256": "29EFD57A6E5FCAEA95D897F85B1CF9C16C9421D36EA00AA5A36A63A627DEFDDF"
+    },
+    {
+      "path": "server/lib/env.mjs",
+      "bytes": 174,
+      "sha256": "6E0B200EE3CE83C32612F663E3EF13969C9B772F6E1145DBFF974CA39FD1E3C4"
+    },
+    {
+      "path": "server/lib/validation.mjs",
+      "bytes": 2632,
+      "sha256": "A5B0FB571F21944735706711F1A5EA6EC671CC064849F7B14714F0FE0B6F3629"
+    },
+    {
+      "path": "server/services/adapters.mjs",
+      "bytes": 491,
+      "sha256": "C1C759379FCF05C283473E9E275CCFFD212E12CAADDD0401B1D0E4EAE4055848"
+    },
+    {
+      "path": "server/services/customers.mjs",
+      "bytes": 9221,
+      "sha256": "EF6CEF8EA64C1C28D451552B87BD89EA93CA21C878953097E7F324BACC1E204C"
+    },
+    {
+      "path": "server/services/orders.mjs",
+      "bytes": 12738,
+      "sha256": "B1E8830244E575827AA4E78E82FE5B2E903FFFBA9A3E61B3486A9BF5F0C99A52"
+    },
+    {
+      "path": "server/services/stripe.mjs",
+      "bytes": 2418,
+      "sha256": "7B57A12A26B60CD8F13CCD7C197CE95FAEAF18A9E5DC8F5CDE035C9507C170C0"
+    },
+    {
+      "path": "server/src/app.mjs",
+      "bytes": 12223,
+      "sha256": "883081D6162D4094EC0CC191E7E683700D63CE3CEC3CC8E3F15DF37D1D902F3E"
+    },
+    {
+      "path": "server/src/server.mjs",
+      "bytes": 817,
+      "sha256": "411C86406AE9839CE1C1F7C381FC2FF135040DBB52D42AC82DC9AB45C3FA2400"
+    },
+    {
+      "path": "server/tests/customer-api.test.mjs",
+      "bytes": 23836,
+      "sha256": "25F71814D7C66E884298900ED720E8246462B5FDF3999F87965FEBEB40F96180"
+    },
+    {
+      "path": "src/components/AppEntry.tsx",
+      "bytes": 2906,
+      "sha256": "7149EE217A93747AAD2027DAB3432956424135AA5EE689514DD4357BA9ECF798"
+    },
+    {
+      "path": "src/components/LocalizedLaunchScreen.tsx",
+      "bytes": 3065,
+      "sha256": "73CB0966B393232627D607626CE4B55394A2B9F6F5C0B4CC6EA84CC73030D4F9"
+    },
+    {
+      "path": "src/components/account/AuthForm.tsx",
+      "bytes": 7867,
+      "sha256": "7041AE2EA51B0A2EC2E659813C97A0764A22DFA1D8DFB01F35DBB4B0640DB887"
+    },
+    {
+      "path": "src/components/account/NotificationSettings.tsx",
+      "bytes": 3085,
+      "sha256": "B3477389E7E5FB96FE1FF556401E8F451B0F89400FEBD7DFDDF2B88F73313EB2"
+    },
+    {
+      "path": "src/components/account/SavedProductsScreen.tsx",
+      "bytes": 4651,
+      "sha256": "0B9B22A3CC1211B439FDDA13312343310620B8A75AD231E596BF3A712B7BCD48"
+    },
+    {
+      "path": "src/contexts/AuthContext.tsx",
+      "bytes": 5095,
+      "sha256": "5B62712DA1EDA71A39F764B79C1B4144BBD0E23B27B33F50BEFEF78662735DDB"
+    },
+    {
+      "path": "src/contexts/CommerceContext.tsx",
+      "bytes": 8128,
+      "sha256": "40B537BB1E4E0CC3A9D3A2AFD2EB691A6961FCDE10A9849DEE2F39B16B1A8BE2"
+    },
+    {
+      "path": "src/contexts/LanguageContext.tsx",
+      "bytes": 10423,
+      "sha256": "00745630C0B7582B8B754DA7ED49A4B6DE0DC47E9B5F08909E0A43E65C545941"
+    },
+    {
+      "path": "src/contexts/RetentionContext.tsx",
+      "bytes": 3396,
+      "sha256": "1A845860CD50E10AB70D47D8DF0559219C4DB3737FBB4630AC5EAD17E03CC32B"
+    },
+    {
+      "path": "src/hooks/useAccountFavorites.ts",
+      "bytes": 3445,
+      "sha256": "4D554980B915EB9D9AA80D7E7026C96CA651E13475645BB982E215129F4EE51D"
+    },
+    {
+      "path": "src/services/apiClient.ts",
+      "bytes": 5563,
+      "sha256": "2960EDB698A7B20240FF91B9829E363A98484DF1F2A6F2DBAC076ADEB1E8BD54"
+    },
+    {
+      "path": "src/services/customer.ts",
+      "bytes": 8074,
+      "sha256": "33D69EB786F09E6E33E737EF1054BE2FF3E4185F5C05030FCFE0AC8D00B659EA"
+    },
+    {
+      "path": "src/services/payments.ts",
+      "bytes": 2807,
+      "sha256": "4E53BB4366636ABF7605239770B894DFF0082C8949D10F43B4D13387F4A20F3C"
+    },
+    {
+      "path": "src/utils/launchLanguage.ts",
+      "bytes": 251,
+      "sha256": "EE4D45C6E290DD2FA631C0269941CE05AAF629142C3F2EFFF6A51A4665CDCF2A"
+    }
+  ]
+}

@@ -3,12 +3,13 @@ import { Switch, Text, View } from 'react-native';
 import { useRetention } from '@/contexts/RetentionContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { customerService, customerError } from '@/services/customer';
+import { customerError } from '@/services/customer';
+import { AppButton } from '@/components/AppButton';
 import { Notice, ui } from './AccountUI';
 import type { NotificationPreference } from '@/types/customer';
 
 export function NotificationSettings() {
-  const { preferences, savePreferences, ready } = useRetention();
+  const { preferences, savePreferences, ready, error, retry } = useRetention();
   const { user } = useAuth();
   const { isRTL: ar } = useLanguage();
   const [message, setMessage] = useState(''),
@@ -32,12 +33,11 @@ export function NotificationSettings() {
     };
     setBusy(true);
     try {
-      if (user) await customerService.updateNotificationPreferences(next);
       await savePreferences(next);
       setMessage(
         ar
-          ? 'تم حفظ التفضيلات على هذا الجهاز.'
-          : 'Preferences saved on this device.',
+          ? (user ? 'تم حفظ التفضيلات في حسابك.' : 'تم حفظ التفضيلات على هذا الجهاز.')
+          : (user ? 'Preferences saved to your account.' : 'Preferences saved on this device.'),
       );
     } catch (e) {
       setMessage(customerError(e, ar));
@@ -47,6 +47,7 @@ export function NotificationSettings() {
   };
   return (
     <>
+      {error ? <><Notice error text={ar ? 'تعذر تحميل التفضيلات.' : 'Unable to load preferences.'} /><AppButton secondary label={ar ? 'إعادة المحاولة' : 'Retry'} onPress={retry} /></> : null}
       {options.map((option) => (
         <View
           key={option.key}

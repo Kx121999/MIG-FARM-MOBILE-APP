@@ -9,7 +9,7 @@ import { colors, radius } from '@/constants/theme';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatAED } from '@/services/catalog';
-import { CheckoutCustomer, CheckoutError, createCheckoutSession, PaymentSession, ShippingAddress } from '@/services/payments';
+import { CheckoutCustomer, CheckoutError, createCheckoutSession, completeCheckoutAttempt, PaymentSession, ShippingAddress } from '@/services/payments';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCustomerAddresses } from '@/hooks/useCustomerAddresses';
 import { ChoiceGroup } from '@/components/account/ChoiceGroup';
@@ -82,6 +82,7 @@ export default function CheckoutScreen() {
     if (!session) return;
     setCompletedOrder(session.orderId);
     clearCart();
+    void completeCheckoutAttempt();
     try {
       const stored = JSON.parse(await AsyncStorage.getItem(ORDER_REFS_KEY) || '[]');
       await AsyncStorage.setItem(ORDER_REFS_KEY, JSON.stringify([{ id: session.orderId, token: session.orderToken, createdAt: Date.now() }, ...stored].slice(0, 30)));

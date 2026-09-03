@@ -13,8 +13,6 @@ const { ONBOARDING_KEY, hasCompletedOnboarding, completeOnboarding } = await imp
 const baseline = {
   "eas.json": "BCC06A141B717EB1BD13E51E8598B214AC0A5855C2A9DA75AE73AA9F0AC0C254",
   "src/services/ai.ts": "FC1759322E47125A39328944322778A6DB83FA5BDA84B5EBCB7DE9079699A8E2",
-  "server/src/server.mjs": "779525D1E20ED24993578F506D8A99A32667EB309AED6D9DB8AF61DDA3FCAD87",
-  "src/services/payments.ts": "236CEED94A1F76CAFEAE1914567EF0C24E281732F4F99121B57E645A40D5B5EE",
   "src/services/catalog.ts": "8EA136FE17A9289763BC7352D13FFD868F06A2EB47904A62285395C21DE73395"
 };
 const app = JSON.parse(await readFile('app.json', 'utf8')).expo;
@@ -36,7 +34,7 @@ test('storage errors never block guest access', async () => {
 test('unresponsive storage has a bounded wait', async () => {
   assert.equal(await hasCompletedOnboarding({ getItem: () => new Promise(() => {}), setItem: async () => {} }), true);
 });
-test('existing backend, catalog, payment services and EAS code remains byte-for-byte unchanged', async () => {
+test('catalog, AI service and EAS configuration remain byte-for-byte unchanged', async () => {
   for (const [file, expected] of Object.entries(baseline)) {
     const hash = createHash('sha256').update(await readFile(file)).digest('hex').toUpperCase();
     assert.equal(hash, expected, file);

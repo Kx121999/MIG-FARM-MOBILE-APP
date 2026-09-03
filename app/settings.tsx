@@ -24,11 +24,11 @@ export default function SettingsScreen() {
     [confirm, setConfirm] = useState(false),
     [busy, setBusy] = useState(false);
   const change = async () => {
-    if (!password || next.length < 8) {
+    if (!password || next.length < 10) {
       setMessage(
         ar
-          ? 'أدخل كلمة المرور الحالية والجديدة (8 أحرف على الأقل).'
-          : 'Enter the current password and a new password of at least 8 characters.',
+          ? 'أدخل كلمة المرور الحالية والجديدة (10 أحرف على الأقل).'
+          : 'Enter the current password and a new password of at least 10 characters.',
       );
       return;
     }
@@ -103,6 +103,7 @@ export default function SettingsScreen() {
             autoCapitalize="none"
             maxLength={128}
           />
+          <Notice text={ar ? 'كلمة مرور غير شائعة من 10 أحرف على الأقل. ستحتاج لتسجيل الدخول مجددًا.' : 'Use an uncommon password of at least 10 characters. You will need to sign in again.'} />
           <AppButton
             disabled={busy}
             label={ar ? 'تغيير كلمة المرور' : 'Change password'}

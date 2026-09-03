@@ -17,7 +17,6 @@ async function moduleFrom(file) {
 }
 const domain = await moduleFrom('src/utils/customer.ts');
 const orders = await moduleFrom('src/utils/orders.ts');
-const services = await moduleFrom('src/services/customer.ts');
 test('phone normalization: UAE, duplicate trunk prefix, international and Arabic digits', () => {
   for (const value of [
     '0501234567',
@@ -233,14 +232,12 @@ test('order DTO does not expose tokens, payment intent or customer contact data'
     ),
   );
 });
-test('all missing backend capabilities reject rather than returning mock success', async () => {
-  assert.equal(services.authService.available, false);
-  for (const fn of Object.values(services.authService).filter(
-    (value) => typeof value === 'function',
-  ))
-    await assert.rejects(fn(), (error) => error.code === 'unavailable');
-  for (const fn of Object.values(services.customerService))
-    await assert.rejects(fn(), (error) => error.code === 'unavailable');
+test('provider adapters reject rather than returning mock upload/email success', async () => {
+  const { emailDelivery, avatarStorage } = await import('../server/services/adapters.mjs');
+  assert.equal(emailDelivery.available, false);
+  assert.equal(avatarStorage.available, false);
+  await assert.rejects(emailDelivery.sendPasswordReset(), error => error.code === 'email_provider_not_configured');
+  await assert.rejects(avatarStorage.upload(), error => error.code === 'avatar_storage_not_configured');
 });
 test('auth tokens and selected images never use AsyncStorage persistence', async () => {
   const session = await readFile('src/services/sessionStore.ts', 'utf8');

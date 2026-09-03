@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { CartItem, CustomerProfile, Product, ProductVariant, SavedAddress } from '@/types';
 import { productImage } from '@/services/catalog';
 import { upsertAddress, withoutAddress } from '@/utils/customer';
+import { useAccountFavorites } from '@/hooks/useAccountFavorites';
 
 const CART_KEY = 'mig_farm_cart_v1';
 const FAVORITES_KEY = 'mig_farm_favorites_v1';
@@ -16,6 +17,9 @@ type CommerceValue = {
   hydrated: boolean;
   cart: CartItem[];
   favorites: number[];
+  favoritesError: string;
+  favoritesLoading: boolean;
+  retryFavorites: () => void;
   compareIds: number[];
   recentProductIds: number[];
   profile: CustomerProfile;
@@ -45,13 +49,15 @@ const CommerceContext = createContext<CommerceValue | null>(null);
 
 export function CommerceProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [guestFavorites, setFavorites] = useState<number[]>([]);
   const [compareIds, setCompareIds] = useState<number[]>([]);
   const [recentProductIds, setRecentProductIds] = useState<number[]>([]);
   const [profile, setProfileState] = useState<CustomerProfile>({ name: '', email: '', phone: '' });
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [deliveryEmirate, setDeliveryEmirateState] = useState('Dubai');
   const [hydrated, setHydrated] = useState(false);
+  const toggleGuestFavorite = useCallback((id: number) => setFavorites(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]), []);
+  const { favorites, toggleFavorite, favoritesError, favoritesLoading, retryFavorites } = useAccountFavorites(guestFavorites, hydrated, toggleGuestFavorite);
 
   useEffect(() => {
     Promise.all([
@@ -81,8 +87,8 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
   }, [cart, hydrated]);
 
   useEffect(() => {
-    if (hydrated) AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)).catch(() => undefined);
-  }, [favorites, hydrated]);
+    if (hydrated) AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(guestFavorites)).catch(() => undefined);
+  }, [guestFavorites, hydrated]);
 
   useEffect(() => { if (hydrated) AsyncStorage.setItem(COMPARE_KEY, JSON.stringify(compareIds)).catch(() => undefined); }, [compareIds, hydrated]);
   useEffect(() => { if (hydrated) AsyncStorage.setItem(RECENT_KEY, JSON.stringify(recentProductIds)).catch(() => undefined); }, [recentProductIds, hydrated]);
@@ -94,6 +100,9 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
     hydrated,
     cart,
     favorites,
+    favoritesError,
+    favoritesLoading,
+    retryFavorites,
     compareIds,
     recentProductIds,
     profile,
@@ -125,9 +134,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
     removeFromCart: (key) => setCart((current) => current.filter((item) => item.key !== key)),
     clearCart: () => setCart([]),
     isFavorite: (productId) => favorites.includes(productId),
-    toggleFavorite: (productId) => setFavorites((current) => current.includes(productId)
-      ? current.filter((id) => id !== productId)
-      : [...current, productId]),
+    toggleFavorite,
     isCompared: (productId) => compareIds.includes(productId),
     toggleCompare: (productId) => setCompareIds((current) => current.includes(productId)
       ? current.filter((id) => id !== productId)
@@ -143,7 +150,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
     setDefaultAddress: (id) => setAddresses((current) => current.some((item) => item.id === id) ? current.map((item) => ({ ...item, isDefault: item.id === id })) : current),
     removeAddress: (id) => setAddresses((current) => withoutAddress(current,id)),
     setDeliveryEmirate: (emirate) => setDeliveryEmirateState(emirate),
-  }), [addresses, cart, compareIds, deliveryEmirate, favorites, profile, recentProductIds, hydrated]);
+  }), [addresses, cart, compareIds, deliveryEmirate, favorites, profile, recentProductIds, hydrated, toggleFavorite, favoritesError, favoritesLoading, retryFavorites]);
 
   return <CommerceContext.Provider value={value}>{children}</CommerceContext.Provider>;
 }

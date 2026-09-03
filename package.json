@@ -6,6 +6,11 @@
   "scripts": {
     "start": "expo start",
     "server": "node server/src/server.mjs",
+    "db:migrate": "node server/db/migrate.mjs",
+    "db:cleanup": "node server/db/cleanup.mjs",
+    "db:import-orders": "node server/db/import-orders.mjs",
+    "test:backend": "node --test server/tests/*.test.mjs",
+    "test": "node --test scripts/*.test.mjs server/tests/*.test.mjs",
     "migrate:catalog": "node scripts/migrate-shopify-catalog.mjs",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -19,17 +24,21 @@
     "@stripe/stripe-js": "^9.13.0",
     "@stripe/stripe-react-native": "0.64.0",
     "expo": "~57.0.0",
+    "expo-asset": "^57.0.16",
     "expo-constants": "~57.0.12",
+    "expo-crypto": "~57.0.2",
     "expo-haptics": "~57.0.1",
     "expo-image-manipulator": "~57.0.15",
     "expo-image-picker": "~57.0.11",
     "expo-linear-gradient": "~57.0.1",
     "expo-linking": "~57.0.6",
+    "expo-localization": "^57.0.1",
     "expo-router": "~57.0.14",
     "expo-secure-store": "~57.0.3",
     "expo-splash-screen": "~57.0.7",
     "expo-status-bar": "~57.0.1",
     "lucide-react-native": "1.32.0",
+    "pg": "^8.23.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.2",
@@ -39,8 +48,10 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/react": "~19.2.0",
     "expo-doctor": "^1.20.2",
+    "sharp": "^0.35.4",
     "typescript": "~6.0.3"
   }
 }

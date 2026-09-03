@@ -58,12 +58,12 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
     if (
       mode !== 'forgot' &&
       !phoneMode &&
-      password.length < (mode === 'register' ? 8 : 1)
+      password.length < (mode === 'register' ? 10 : 1)
     ) {
       setMessage(
         ar
-          ? 'أدخل كلمة مرور صالحة، 8 أحرف على الأقل للحساب الجديد.'
-          : 'Enter a valid password; new accounts need at least 8 characters.',
+          ? 'أدخل كلمة مرور صالحة، 10 أحرف على الأقل للحساب الجديد.'
+          : 'Enter a valid password; new accounts need at least 10 characters.',
       );
       return;
     }
@@ -170,6 +170,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
           </View>
         </View>
       ) : null}
+      {mode === 'register' ? <Notice text={ar ? 'كلمة مرور غير شائعة من 10 أحرف على الأقل.' : 'An uncommon password of at least 10 characters.'} /> : null}
       {message ? <Notice error text={message} /> : null}
       <AppButton
         label={

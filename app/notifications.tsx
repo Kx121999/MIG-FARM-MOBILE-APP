@@ -77,6 +77,13 @@ function NotificationsContent() {
         ]}
         onChange={setCategory}
       />
+      {user && items.some(item => !item.read) ? <AppButton secondary disabled={busy}
+        label={ar ? 'تحديد الكل كمقروء' : 'Mark all as read'} onPress={async () => {
+          setBusy(true);
+          try { await customerService.markAllNotificationsRead(); setItems(current => current.map(item => ({ ...item, read: true }))); }
+          catch (e) { setError(customerError(e, ar)); }
+          finally { setBusy(false); }
+        }} /> : null}
       {busy && !items.length ? (
         <ScreenState loading />
       ) : error ? (
