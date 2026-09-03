@@ -6,10 +6,8 @@
     "orientation": "portrait",
     "scheme": "migfarm",
     "userInterfaceStyle": "light",
-    "icon": "./assets/icon.png",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "icon": "./assets/icon-mig-farm.png",
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.migfarm.app",
@@ -20,8 +18,8 @@
     "android": {
       "package": "com.migfarm.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F4F8F2"
+        "foregroundImage": "./assets/adaptive-icon-mig-farm.png",
+        "backgroundColor": "#FFFFFF"
       }
     },
     "plugins": [
@@ -29,7 +27,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash.png",
+          "image": "./assets/splash-mig-farm.png",
+          "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
         }
@@ -37,10 +36,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "نستخدم صورك لتحليل حالة النبات أو قراءة ملصق المنتج.",
-          "cameraPermission": "نستخدم الكاميرا لتصوير النبات أو المنتج وتحليله.",
+          "photosPermission": "يمكنك اختيار صورة للحساب، أو إرسال صورة نبات أو منتج للتحليل عند طلبك. صورة الحساب لا تُرسل للمساعد.",
+          "cameraPermission": "نستخدم الكاميرا عند طلبك لالتقاط صورة اختيارية للحساب أو لتصوير نبات أو منتج.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-secure-store",
+        { "configureAndroidBackup": true, "faceIDPermission": false }
       ],
       [
         "@stripe/stripe-react-native",

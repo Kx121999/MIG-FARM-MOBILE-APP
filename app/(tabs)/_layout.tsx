@@ -1,65 +1,64 @@
-import React from 'react';
-import { ColorValue, Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Keyboard, StyleSheet, Text, View } from 'react-native';
 import { Tabs } from 'expo-router';
-import { House, Search, ShoppingBag, Store, UserRound, type LucideIcon } from 'lucide-react-native';
-import { colors } from '@/constants/theme';
+import { House, MessageCircle, ShoppingBag, Store, UserRound } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing, typography } from '@/constants/theme';
 import { useCommerce } from '@/contexts/CommerceContext';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useLanguage, CopyKey } from '@/contexts/LanguageContext';
+import { CountBadge } from '@/components/AppIconButton';
+import { MotionPressable } from '@/components/Motion';
 
-function TabIcon({ icon: Icon, color, focused }: { icon: LucideIcon; color: ColorValue; focused: boolean }) {
-  return <Icon size={21} color={color} strokeWidth={focused ? 2.5 : 2} />;
+type TabBarProps = Parameters<NonNullable<React.ComponentProps<typeof Tabs>['tabBar']>>[0];
+const destinations = [
+  { name: 'index', label: 'home', icon: House },
+  { name: 'catalog', label: 'store', icon: Store },
+  { name: 'assistant', label: 'assistant', icon: MessageCircle },
+  { name: 'cart', label: 'cart', icon: ShoppingBag },
+  { name: 'account', label: 'account', icon: UserRound },
+] satisfies Array<{ name: string; label: CopyKey; icon: typeof House }>;
+
+function AppTabBar({ state, navigation }: TabBarProps) {
+  const { cartCount } = useCommerce();
+  const { t, isRTL } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  if (keyboardVisible) return null;
+  return <View accessibilityRole="tablist" style={[styles.bar, { flexDirection: isRTL ? 'row-reverse' : 'row', paddingBottom: Math.max(insets.bottom, spacing.sm), paddingLeft: insets.left, paddingRight: insets.right }]}>
+    {destinations.map(({ name, label, icon: Icon }) => {
+      const route = state.routes.find((item) => item.name === name);
+      if (!route) return null;
+      const focused = state.routes[state.index].key === route.key;
+      const color = focused ? colors.primary : colors.muted;
+      return <MotionPressable key={name} accessibilityRole="tab" accessibilityLabel={t(label)} accessibilityState={{ selected: focused }}
+        onPress={() => { const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true }); if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params); }}
+        onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })} style={styles.item}>
+        <View style={[styles.icon, focused && styles.activeIcon]}><Icon size={22} color={color} strokeWidth={focused ? 2.1 : 1.7} />{name === 'cart' ? <CountBadge count={cartCount} /> : null}</View>
+        <Text maxFontSizeMultiplier={1.3} numberOfLines={1} style={[styles.label, { color, fontWeight: focused ? '700' : '500' }]}>{t(label)}</Text>
+      </MotionPressable>;
+    })}
+  </View>;
 }
 
 export default function TabLayout() {
-  const { cartCount } = useCommerce();
-  const { t } = useLanguage();
-
-  return (
-    <Tabs screenOptions={{
-      headerShown: false,
-      tabBarActiveTintColor: colors.primary,
-      tabBarInactiveTintColor: colors.textSubtle,
-      tabBarHideOnKeyboard: true,
-      tabBarStyle: styles.tabBar,
-      tabBarLabelStyle: styles.tabLabel,
-      tabBarItemStyle: styles.tabItem,
-      tabBarIconStyle: styles.tabIcon,
-    }}>
-      <Tabs.Screen name="index" options={{ title: t('home'), tabBarIcon: ({ color, focused }) => <TabIcon icon={House} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="catalog" options={{ title: t('departments'), tabBarIcon: ({ color, focused }) => <TabIcon icon={Store} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="search" options={{ title: t('searchTab'), tabBarIcon: ({ color, focused }) => <TabIcon icon={Search} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="cart" options={{ title: t('cart'), tabBarBadge: cartCount || undefined, tabBarBadgeStyle: styles.badge, tabBarIcon: ({ color, focused }) => <TabIcon icon={ShoppingBag} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="account" options={{ title: t('account'), tabBarIcon: ({ color, focused }) => <TabIcon icon={UserRound} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="assistant" options={{ href: null }} />
-    </Tabs>
-  );
+  return <Tabs tabBar={(props) => <AppTabBar {...props} />} screenOptions={{ headerShown: false }}>
+    <Tabs.Screen name="index" />
+    <Tabs.Screen name="catalog" />
+    <Tabs.Screen name="assistant" />
+    <Tabs.Screen name="cart" />
+    <Tabs.Screen name="account" />
+    <Tabs.Screen name="search" options={{ href: null }} />
+  </Tabs>;
 }
-
 const styles = StyleSheet.create({
-  tabBar: {
-    minHeight: 68,
-    paddingTop: 8,
-    paddingBottom: 10,
-    backgroundColor: colors.surface,
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    ...Platform.select({
-      web: { boxShadow: '0 -4px 12px rgba(16, 37, 26, 0.06)' },
-      default: {
-        elevation: 8,
-        shadowColor: colors.shadow,
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: -4 },
-      },
-    }),
-  },
-  tabItem: { paddingVertical: 3 },
-  tabIcon: { marginTop: 1 },
-  tabLabel: { fontSize: 10, lineHeight: 13, fontWeight: '700' },
-  badge: { backgroundColor: colors.orange, color: '#FFFFFF', fontSize: 9, fontWeight: '800' },
+  bar: { paddingTop: spacing.xs, backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, alignItems: 'stretch' },
+  item: { flex: 1, minWidth: 0, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  icon: { width: 40, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  activeIcon: { backgroundColor: colors.primarySoft },
+  label: { ...typography.caption, fontSize: 12, lineHeight: 18, textAlign: 'center' },
 });
-
-function languageAware(t: (key: string) => string, key: string) {
-  return t(key);
-}

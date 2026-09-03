@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
+import { EmptyState } from '@/components/ScreenState';
 import { colors, radius, shadow } from '@/constants/theme';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -97,13 +98,7 @@ export default function CartScreen() {
 
         {!cart.length ? (
           <View style={styles.empty}>
-            <View style={styles.emptyIcon}><ShoppingBag size={40} color={colors.primary} strokeWidth={1.7} /></View>
-            <Text style={styles.emptyTitle}>{t('emptyCart')}</Text>
-            <Text style={styles.emptyBody}>{t('emptyCartBody')}</Text>
-            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.shopButton, pressed && styles.primaryPressed]} onPress={() => router.push('/(tabs)/catalog')}>
-              <Text style={styles.shopButtonText}>{t('continueShopping')}</Text>
-              <ForwardIcon size={17} color="#FFFFFF" strokeWidth={2.5} />
-            </Pressable>
+            <EmptyState icon={ShoppingBag} title={t('emptyCart')} body={t('emptyCartBody')} action={t('continueShopping')} onAction={() => router.push('/(tabs)/catalog')} />
           </View>
         ) : (
           <FlatList
@@ -208,12 +203,7 @@ const styles = StyleSheet.create({
   secureText: { color: colors.muted, fontSize: 9, fontWeight: '700', textAlign: 'center' },
   continueButton: { height: 42, marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   continueText: { color: colors.primary, fontSize: 11, fontWeight: '900' },
-  empty: { flex: 1, padding: 32, alignItems: 'center', justifyContent: 'center' },
-  emptyIcon: { width: 92, height: 92, borderRadius: 46, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { color: colors.text, fontSize: 23, fontWeight: '900', marginTop: 18 },
-  emptyBody: { color: colors.muted, fontSize: 13, lineHeight: 21, textAlign: 'center', marginTop: 8, maxWidth: 290 },
-  shopButton: { height: 48, paddingHorizontal: 20, borderRadius: radius.md, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20 },
-  shopButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  empty: { flex: 1, justifyContent: 'center' },
   pressed: { opacity: 0.68 },
   primaryPressed: { opacity: 0.82 },
 });

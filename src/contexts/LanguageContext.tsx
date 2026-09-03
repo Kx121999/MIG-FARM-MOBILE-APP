@@ -10,7 +10,7 @@ const copy = {
     home: 'الرئيسية',
     store: 'المتجر',
     departments: 'الأقسام',
-    assistant: 'المهندس',
+    assistant: 'المساعد',
     cart: 'السلة',
     account: 'حسابي',
     welcome: 'كل اللي تحتاجه للزراعة',
@@ -23,7 +23,7 @@ const copy = {
     freeShipping: 'شحن سريع لكل الإمارات',
     aiTitle: 'مش متأكد تختار إيه؟',
     aiBody: 'صوّر المشكلة أو اكتب سؤالك، والمساعد الزراعي يساعدك تختار الحل المناسب.',
-    search: 'دور على منتج أو بذور…',
+    search: 'ابحث عن منتج أو بذور أو سماد...',
     searchTab: 'البحث',
     searchSuggestions: 'اقتراحات البحث',
     recentSearches: 'عمليات البحث الأخيرة',
@@ -41,7 +41,7 @@ const copy = {
     newestSort: 'الأحدث',
     loading: 'بنجهز المنتجات…',
     retry: 'إعادة المحاولة',
-    noProducts: 'ما لقيناش منتجات مطابقة',
+    noProducts: 'لا توجد منتجات متاحة حالياً',
     addToCart: 'أضف للسلة',
     added: 'اتضاف للسلة',
     productDetails: 'تفاصيل المنتج',
@@ -51,8 +51,8 @@ const copy = {
     quantity: 'الكمية',
     subtotal: 'الإجمالي المبدئي',
     checkout: 'إكمال الطلب والدفع',
-    emptyCart: 'سلتك فاضية',
-    emptyCartBody: 'ضيف المنتجات اللي محتاجها وارجع هنا لإكمال الطلب.',
+    emptyCart: 'سلتك فاضية حالياً',
+    emptyCartBody: 'ابدأ بإضافة المنتجات اللي تحتاجها وسنجهز طلبك.',
     continueShopping: 'ابدأ التسوق',
     clearCart: 'تفريغ السلة',
     chatWelcome: 'هلا! أنا مهندس MIG FARM الزراعي. اكتب سؤالك أو ارفع صورة للنبات أو المنتج.',
@@ -88,7 +88,7 @@ const copy = {
     compareProducts: 'مقارنة المنتجات',
     compareLimit: 'يمكن مقارنة 3 منتجات كحد أقصى',
     noCompare: 'اختر منتجات لمقارنتها',
-    recentlyViewed: 'شوفتها مؤخراً',
+    recentlyViewed: 'شاهدتها مؤخراً',
     profile: 'بياناتي',
     save: 'حفظ',
     fullName: 'الاسم الكامل',
@@ -111,7 +111,7 @@ const copy = {
     home: 'Home',
     store: 'Store',
     departments: 'Departments',
-    assistant: 'Engineer',
+    assistant: 'Assistant',
     cart: 'Cart',
     account: 'Account',
     welcome: 'Everything you need to grow',
@@ -124,7 +124,7 @@ const copy = {
     freeShipping: 'Fast shipping across the UAE',
     aiTitle: 'Not sure what to choose?',
     aiBody: 'Share a photo or ask a question and our agricultural assistant will guide you.',
-    search: 'Search products or seeds…',
+    search: 'Search products, seeds or fertilizers...',
     searchTab: 'Search',
     searchSuggestions: 'Search suggestions',
     recentSearches: 'Recent searches',
@@ -213,6 +213,7 @@ const copy = {
 export type CopyKey = keyof typeof copy.ar;
 
 type LanguageValue = {
+  ready: boolean;
   language: Language;
   isRTL: boolean;
   setLanguage: (language: Language) => void;
@@ -223,11 +224,15 @@ const LanguageContext = createContext<LanguageValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>('ar');
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let active = true;
+    const timeout = setTimeout(() => { if (active) setReady(true); }, 2000);
     AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      if (stored === 'ar' || stored === 'en') setLanguageState(stored);
-    });
+      if (active && (stored === 'ar' || stored === 'en')) setLanguageState(stored);
+    }).catch(() => undefined).finally(() => { clearTimeout(timeout); if (active) setReady(true); });
+    return () => { active = false; clearTimeout(timeout); };
   }, []);
 
   useEffect(() => {
@@ -242,11 +247,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo<LanguageValue>(() => ({
+    ready,
     language,
     isRTL: language === 'ar',
     setLanguage,
     t: (key) => copy[language][key],
-  }), [language]);
+  }), [language, ready]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }

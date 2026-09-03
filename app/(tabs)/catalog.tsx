@@ -9,7 +9,7 @@ import { CategoryIcon } from '@/components/CategoryIcon';
 import { ProductCard, ProductCardSkeleton } from '@/components/ProductCard';
 import { ScreenState } from '@/components/ScreenState';
 import { CategoryId, categories } from '@/constants/categories';
-import { colors, radius } from '@/constants/theme';
+import { colors, radius, sizes, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useProducts } from '@/hooks/useProducts';
@@ -129,6 +129,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
         <View style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Search color={colors.primary} size={20} strokeWidth={2.2} />
           <TextInput
+            accessibilityLabel={t('search')}
             value={query}
             onChangeText={setQuery}
             placeholder={t('search')}
@@ -221,13 +222,16 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
           </Pressable>
         ) : null}
 
-        {loading ? <View style={styles.skeletonGrid}>{Array.from({ length: 6 }).map((_, index) => <ProductCardSkeleton key={index} />)}</View> : <ScreenState error={error} empty={!error && !visible.length} onRetry={reload} />}
+        {loading ? <View accessibilityLabel={t('loading')} style={styles.skeletonGrid}>{Array.from({ length: 4 }).map((_, index) => <ProductCardSkeleton key={index} />)}</View> : error || !visible.length ? <ScrollView style={styles.productList} contentContainerStyle={{ flexGrow: 1 }}><ScreenState error={error} empty={!error && !visible.length} onRetry={reload}
+          emptyTitle={query ? (language === 'ar' ? 'لم نجد نتائج مطابقة' : 'No matching results') : undefined}
+          emptyAction={query ? (language === 'ar' ? 'مسح البحث' : 'Clear search') : t('resetFilters')}
+          onEmptyAction={() => { setQuery(''); resetFilters(); }} /></ScrollView> : null}
         {!loading && !error && visible.length ? (
           <FlatList
             data={visible.slice(0, shownCount)}
             keyExtractor={(item) => String(item.id)}
             numColumns={2}
-            columnWrapperStyle={styles.productRow}
+            columnWrapperStyle={[styles.productRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
             contentContainerStyle={styles.products}
             style={styles.productList}
             showsVerticalScrollIndicator={false}
@@ -296,18 +300,18 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   page: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center' },
   titleRow: { paddingHorizontal: 16, paddingTop: 15, paddingBottom: 12, justifyContent: 'space-between', alignItems: 'center' },
-  title: { color: colors.text, fontSize: 27, fontWeight: '900' },
+  title: { ...typography.page, color: colors.text },
   count: { color: colors.muted, fontSize: 12, marginTop: 3 },
-  search: { height: 50, marginHorizontal: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, alignItems: 'center', paddingHorizontal: 14, gap: 9 },
+  search: { height: sizes.input, marginHorizontal: 16, backgroundColor: colors.surfaceMuted, borderRadius: radius.md, alignItems: 'center', paddingHorizontal: 14, gap: 9 },
   input: { flex: 1, height: '100%', color: colors.text, fontSize: 14 },
   pressed: { opacity: 0.7 },
   controlRow: { minHeight: 38, marginHorizontal: 16, alignItems: 'center', justifyContent: 'space-between' },
-  resultHint: { color: colors.muted, fontSize: 10, fontWeight: '800' },
-  filterChip: { minHeight: 34, paddingHorizontal: 10, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 5 },
-  filterChipText: { color: colors.primaryDark, fontSize: 10, fontWeight: '900' },
+  resultHint: { ...typography.caption, color: colors.muted },
+  filterChip: { minHeight: sizes.touch, paddingHorizontal: 10, borderRadius: radius.md, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  filterChipText: { ...typography.caption, color: colors.primaryDark },
   discoveryPanel: { marginHorizontal: 16, marginBottom: 8, padding: 12, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   discoveryHeader: { alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  discoveryTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  discoveryTitle: { ...typography.secondary, color: colors.text, fontWeight: '600' },
   clearRecent: { color: colors.primary, fontSize: 10, fontWeight: '800' },
   recentSearchList: { flexWrap: 'wrap', gap: 7, marginBottom: 14 },
   recentSearch: { maxWidth: 150, minHeight: 30, paddingHorizontal: 9, borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -318,7 +322,7 @@ const styles = StyleSheet.create({
   discoveryProductPrice: { color: colors.primary, fontSize: 10, fontWeight: '900', marginTop: 5 },
   suggestionPanel: { marginHorizontal: 16, marginBottom: 8, padding: 12, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   suggestionRow: { minHeight: 36, alignItems: 'center', gap: 7, borderBottomWidth: 1, borderBottomColor: colors.border },
-  suggestionText: { flex: 1, color: colors.text, fontSize: 11, fontWeight: '700' },
+  suggestionText: { ...typography.secondary, flex: 1, color: colors.text },
   compareBar: { minHeight: 42, marginHorizontal: 16, marginBottom: 7, paddingHorizontal: 13, borderRadius: radius.md, backgroundColor: colors.primaryDark, flexDirection: 'row', alignItems: 'center', gap: 7, position: 'relative', zIndex: 20, elevation: 6 },
   compareBarText: { flex: 1, color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   compareBarAction: { color: colors.sun, fontSize: 10, fontWeight: '900' },
@@ -331,7 +335,7 @@ const styles = StyleSheet.create({
   products: { paddingHorizontal: 14, paddingBottom: 30 },
   productRow: { justifyContent: 'space-between' },
   productList: { flex: 1 },
-  skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 14, gap: 12 },
+  skeletonGrid: { flex: 1, overflow: 'hidden', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 14, gap: 12 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(8, 27, 17, 0.34)' },
   filterSheet: { maxHeight: '88%', borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: colors.surface },
   filterSheetContent: { padding: 18, paddingBottom: 28 },
