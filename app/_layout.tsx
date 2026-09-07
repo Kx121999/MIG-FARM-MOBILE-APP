@@ -14,6 +14,7 @@ import {
 } from '@/components/Connectivity';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RetentionProvider } from '@/contexts/RetentionContext';
+import { FarmProvider } from '@/contexts/FarmContext';
 
 export default function RootLayout() {
   return (
@@ -25,9 +26,10 @@ export default function RootLayout() {
             <AuthProvider>
               <ConnectivityProvider>
                 <ConnectionNotice />
-                <PaymentProvider>
-                  <CommerceProvider>
-                    <RetentionProvider>
+                <FarmProvider>
+                  <PaymentProvider>
+                    <CommerceProvider>
+                      <RetentionProvider>
                       <Stack
                         screenOptions={{
                           headerStyle: { backgroundColor: colors.surface },
@@ -108,10 +110,15 @@ export default function RootLayout() {
                           name="legal"
                           options={{ headerShown: false }}
                         />
+                        <Stack.Screen
+                          name="my-farm"
+                          options={{ headerShown: false }}
+                        />
                       </Stack>
-                    </RetentionProvider>
-                  </CommerceProvider>
-                </PaymentProvider>
+                      </RetentionProvider>
+                    </CommerceProvider>
+                  </PaymentProvider>
+                </FarmProvider>
               </ConnectivityProvider>
             </AuthProvider>
           </AppEntry>

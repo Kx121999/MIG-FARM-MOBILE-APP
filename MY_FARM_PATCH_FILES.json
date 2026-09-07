@@ -1,0 +1,41 @@
+{
+  "name": "MIG FARM Smart My Farm OS Patch",
+  "createdAt": "2026-09-07",
+  "applyTo": "latest MIG FARM mobile project",
+  "files": [
+    "app/_layout.tsx",
+    "app/(tabs)/index.tsx",
+    "app/(tabs)/account.tsx",
+    "app/(tabs)/assistant.tsx",
+    "app/my-farm/index.tsx",
+    "app/my-farm/farm-form.tsx",
+    "app/my-farm/[farmId].tsx",
+    "app/my-farm/crop/[id].tsx",
+    "app/my-farm/add.tsx",
+    "app/my-farm/calendar.tsx",
+    "app/my-farm/search.tsx",
+    "app/my-farm/problems.tsx",
+    "app/my-farm/problem/[id].tsx",
+    "app/my-farm/inventory.tsx",
+    "app/my-farm/analyses.tsx",
+    "app/my-farm/report.tsx",
+    "src/components/farm/FarmUI.tsx",
+    "src/contexts/FarmContext.tsx",
+    "src/services/farm.ts",
+    "src/types/farm.ts",
+    "server/db/migrations/002_my_farm_os.sql",
+    "server/db/cleanup.mjs",
+    "server/services/farms.mjs",
+    "server/src/app.mjs",
+    "server/tests/my-farm-api.test.mjs",
+    "package.json",
+    "pnpm-lock.yaml",
+    "SMART_MY_FARM_OS_REPORT_AR.md"
+  ],
+  "verification": {
+    "typecheck": "passed",
+    "tests": "59/59 passed",
+    "myFarmTests": "9/9 passed",
+    "expoDoctor": "21/21 passed"
+  }
+}

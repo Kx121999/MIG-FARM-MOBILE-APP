@@ -4,6 +4,7 @@ import { resolve, sep, extname } from 'node:path';
 import { createAuth, profile } from '../auth/service.mjs';
 import { createCustomers } from '../services/customers.mjs';
 import { createOrders } from '../services/orders.mjs';
+import { createFarmOS } from '../services/farms.mjs';
 import { stripeGateway } from '../services/stripe.mjs';
 import { fail, page } from '../lib/validation.mjs';
 export function createApp({
@@ -18,7 +19,8 @@ export function createApp({
   const products = catalog.products || [],
     auth = createAuth(db, authOptions),
     customers = createCustomers(db, products),
-    orders = createOrders(db, products, stripe, orderOptions);
+    orders = createOrders(db, products, stripe, orderOptions),
+    farmOS = createFarmOS(db);
   const allowed = (env.CORS_ORIGIN || '*')
     .split(',')
     .map((value) => value.trim());
@@ -173,6 +175,123 @@ export function createApp({
         if (action === 'logout-all') await auth.logoutAll(user);
         else await auth.changePassword(user, body);
         return send(response, 200, { ok: true });
+      }
+      if (
+        /^\/api\/(?:my-farm|farms|zones|crops|farm-tasks|irrigation-records|farm-operations|farm-problems|farm-media|harvest-records|farm-notes|farm-inventory|farm-analyses|diagnosis-sessions)(?:\/|$)/.test(path)
+      ) {
+        const user = await auth.authenticate(request);
+        const body = () => jsonBody(request);
+        const mutate = async (status, operation) => {
+          const payload = await body();
+          return send(
+            response,
+            status,
+            await rememberedFarmMutation(
+              db,
+              user,
+              request.headers['idempotency-key'],
+              method,
+              path,
+              () => operation(payload),
+            ),
+          );
+        };
+        if (method === 'GET' && path === '/api/my-farm/dashboard')
+          return send(response, 200, await farmOS.dashboard(user));
+        if (method === 'GET' && path === '/api/my-farm/search')
+          return send(response, 200, await farmOS.search(user, url.searchParams.get('q')));
+        if (method === 'GET' && path === '/api/my-farm/report')
+          return send(response, 200, await farmOS.report(user, url));
+        if (path === '/api/farms') {
+          if (method === 'GET') return send(response, 200, { farms: await farmOS.listFarms(user) });
+          if (method === 'POST') return send(response, 201, { farm: await farmOS.createFarm(user, await body()) });
+        }
+        const farm = /^\/api\/farms\/([^/]+)$/.exec(path);
+        if (farm) {
+          if (method === 'GET') return send(response, 200, { farm: await farmOS.getFarm(user, farm[1]) });
+          if (method === 'PATCH') return send(response, 200, { farm: await farmOS.updateFarm(user, farm[1], await body()) });
+          if (method === 'DELETE') { await farmOS.deleteFarm(user, farm[1]); return send(response, 200, { ok: true }); }
+        }
+        const zones = /^\/api\/farms\/([^/]+)\/zones$/.exec(path);
+        if (zones) {
+          if (method === 'GET') return send(response, 200, { zones: await farmOS.listZones(user, zones[1]) });
+          if (method === 'POST') return send(response, 201, { zone: await farmOS.createZone(user, zones[1], await body()) });
+        }
+        const zone = /^\/api\/zones\/([^/]+)$/.exec(path);
+        if (zone) {
+          if (method === 'PATCH') return send(response, 200, { zone: await farmOS.updateZone(user, zone[1], await body()) });
+          if (method === 'DELETE') { await farmOS.deleteZone(user, zone[1]); return send(response, 200, { ok: true }); }
+        }
+        const crops = /^\/api\/farms\/([^/]+)\/crops$/.exec(path);
+        if (method === 'GET' && crops) return send(response, 200, { crops: await farmOS.listCrops(user, crops[1]) });
+        if (method === 'POST' && path === '/api/crops') return send(response, 201, { crop: await farmOS.createCrop(user, await body()) });
+        const cropTimeline = /^\/api\/crops\/([^/]+)\/timeline$/.exec(path);
+        if (method === 'GET' && cropTimeline) return send(response, 200, { timeline: await farmOS.cropTimeline(user, cropTimeline[1]) });
+        const cropHarvests = /^\/api\/crops\/([^/]+)\/harvests$/.exec(path);
+        if (method === 'GET' && cropHarvests) return send(response, 200, { harvests: await farmOS.listHarvests(user, cropHarvests[1]) });
+        const cropComplete = /^\/api\/crops\/([^/]+)\/complete$/.exec(path);
+        if (method === 'POST' && cropComplete) return send(response, 200, { crop: await farmOS.completeCrop(user, cropComplete[1], await body()) });
+        const crop = /^\/api\/crops\/([^/]+)$/.exec(path);
+        if (crop) {
+          if (method === 'GET') return send(response, 200, { crop: await farmOS.getCrop(user, crop[1]) });
+          if (method === 'PATCH') return send(response, 200, { crop: await farmOS.updateCrop(user, crop[1], await body()) });
+        }
+        if (path === '/api/farm-tasks') {
+          if (method === 'GET') return send(response, 200, await farmOS.listTasks(user, url));
+          if (method === 'POST') return await mutate(201, async (payload) => ({ task: await farmOS.createTask(user, payload) }));
+        }
+        const taskComplete = /^\/api\/farm-tasks\/([^/]+)\/complete$/.exec(path);
+        if (method === 'POST' && taskComplete) return await mutate(200, async (payload) => ({ task: await farmOS.completeTask(user, taskComplete[1], payload) }));
+        const task = /^\/api\/farm-tasks\/([^/]+)$/.exec(path);
+        if (task) {
+          if (method === 'PATCH') return send(response, 200, { task: await farmOS.updateTask(user, task[1], await body()) });
+          if (method === 'DELETE') { await farmOS.deleteTask(user, task[1]); return send(response, 200, { ok: true }); }
+        }
+        if (path === '/api/irrigation-records') {
+          if (method === 'GET') return send(response, 200, { records: await farmOS.listIrrigation(user, url) });
+          if (method === 'POST') return await mutate(201, async (payload) => ({ record: await farmOS.createIrrigation(user, payload) }));
+        }
+        const irrigation = /^\/api\/irrigation-records\/([^/]+)$/.exec(path);
+        if (method === 'PATCH' && irrigation) return send(response, 200, { record: await farmOS.updateIrrigation(user, irrigation[1], await body()) });
+        if (path === '/api/farm-operations') {
+          if (method === 'GET') return send(response, 200, { operations: await farmOS.listOperations(user, url) });
+          if (method === 'POST') return await mutate(201, async (payload) => ({ operation: await farmOS.createOperation(user, payload) }));
+        }
+        if (path === '/api/farm-problems') {
+          if (method === 'GET') return send(response, 200, { problems: await farmOS.listProblems(user, url) });
+          if (method === 'POST') return await mutate(201, async (payload) => ({ problem: await farmOS.createProblem(user, payload) }));
+        }
+        const followUp = /^\/api\/farm-problems\/([^/]+)\/follow-up$/.exec(path);
+        if (method === 'POST' && followUp) return send(response, 200, await farmOS.followUp(user, followUp[1], await body()));
+        const problemState = /^\/api\/farm-problems\/([^/]+)\/(resolve|reopen)$/.exec(path);
+        if (method === 'POST' && problemState) return send(response, 200, { problem: await farmOS.setProblemState(user, problemState[1], problemState[2] === 'resolve' ? 'resolved' : 'reopened', await body()) });
+        const problem = /^\/api\/farm-problems\/([^/]+)$/.exec(path);
+        if (problem) {
+          if (method === 'GET') return send(response, 200, await farmOS.problemDetail(user, problem[1]));
+          if (method === 'PATCH') return send(response, 200, { problem: await farmOS.updateProblem(user, problem[1], await body()) });
+        }
+        if (method === 'POST' && path === '/api/farm-media') return send(response, 201, { media: await farmOS.uploadMedia(user, await body()) });
+        const media = /^\/api\/farm-media\/([^/]+)$/.exec(path);
+        if (method === 'DELETE' && media) { await farmOS.deleteMedia(user, media[1]); return send(response, 200, { ok: true }); }
+        if (method === 'POST' && path === '/api/harvest-records') return await mutate(201, async (payload) => ({ harvest: await farmOS.createHarvest(user, payload) }));
+        if (method === 'POST' && path === '/api/farm-notes') return await mutate(201, async (payload) => ({ note: await farmOS.createNote(user, payload) }));
+        if (path === '/api/farm-inventory') {
+          if (method === 'GET') return send(response, 200, { items: await farmOS.listInventory(user, url.searchParams.get('farmId')) });
+          if (method === 'POST') return await mutate(201, async (payload) => ({ item: await farmOS.createInventory(user, payload) }));
+        }
+        const inventory = /^\/api\/farm-inventory\/([^/]+)$/.exec(path);
+        if (inventory) {
+          if (method === 'PATCH') return send(response, 200, { item: await farmOS.updateInventory(user, inventory[1], await body()) });
+          if (method === 'DELETE') { await farmOS.deleteInventory(user, inventory[1]); return send(response, 200, { ok:true }); }
+        }
+        if (path === '/api/farm-analyses') {
+          if (method === 'GET') return send(response, 200, { analyses: await farmOS.listAnalyses(user, url.searchParams.get('farmId')) });
+          if (method === 'POST') return await mutate(201, async (payload) => ({ analysis: await farmOS.createAnalysis(user, payload) }));
+        }
+        const diagnoses = /^\/api\/farm-problems\/([^/]+)\/diagnoses$/.exec(path);
+        if (method === 'GET' && diagnoses) return send(response, 200, { sessions: await farmOS.listDiagnoses(user, diagnoses[1]) });
+        if (method === 'POST' && path === '/api/diagnosis-sessions') return await mutate(201, async (payload) => ({ session: await farmOS.createDiagnosis(user, payload) }));
+        throw fail(404, 'not_found');
       }
       if (
         !/^\/api\/(me(?:\/|$)|addresses(?:\/|$)|favorites(?:\/|$)|notifications(?:\/|$)|notification-preferences$)/.test(
@@ -337,3 +456,27 @@ function parseJson(raw) {
   }
 }
 const jsonBody = async (request) => parseJson(await readBody(request));
+async function rememberedFarmMutation(db, user, rawKey, method, path, operation) {
+  if (!rawKey) return operation();
+  if (Array.isArray(rawKey) || !/^[A-Za-z0-9._:-]{1,120}$/.test(rawKey))
+    throw fail(400, 'invalid_idempotency_key');
+  const previous = (
+    await db.query(
+      'SELECT response_json,method,path FROM mig_farm.farm_request_keys WHERE user_id=$1 AND request_key=$2',
+      [user.id, rawKey],
+    )
+  ).rows[0];
+  if (previous) {
+    if (previous.method !== method || previous.path !== path)
+      throw fail(409, 'idempotency_conflict');
+    return typeof previous.response_json === 'string'
+      ? JSON.parse(previous.response_json)
+      : previous.response_json;
+  }
+  const result = await operation();
+  await db.query(
+    'INSERT INTO mig_farm.farm_request_keys(user_id,request_key,method,path,response_json) VALUES($1,$2,$3,$4,$5) ON CONFLICT(user_id,request_key) DO NOTHING',
+    [user.id, rawKey, method, path, JSON.stringify(result)],
+  );
+  return result;
+}

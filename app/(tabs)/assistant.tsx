@@ -62,7 +62,7 @@ function absoluteUrl(value?: string) {
 }
 
 export default function AssistantScreen() {
-  const params = useLocalSearchParams<{ product?: string }>();
+  const params = useLocalSearchParams<{ product?: string; farm?: string }>();
   const { language, isRTL, t } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationState, setConversationState] = useState<Record<string, unknown>>({});
@@ -115,6 +115,15 @@ export default function AssistantScreen() {
       }
     } catch { /* invalid route data is ignored */ }
   }, [params.product, language]);
+
+  useEffect(() => {
+    if (!params.farm) return;
+    try {
+      const context = JSON.parse(params.farm) as { crop?: string; growthStage?: string; problem?: string; recentOperations?: string[] };
+      const selected = [context.crop && `${language === 'ar' ? 'المحصول' : 'Crop'}: ${context.crop}`, context.growthStage && `${language === 'ar' ? 'مرحلة النمو' : 'Growth stage'}: ${context.growthStage}`, context.problem && `${language === 'ar' ? 'المشكلة' : 'Problem'}: ${context.problem}`].filter(Boolean).join('\n');
+      if (selected) setInput(language === 'ar' ? `أشارك معك هذا السياق الذي اخترته من مزرعتي:\n${selected}\nساعدني بأسئلة فحص آمنة، ولا تعطِ جرعات أو أرقاماً بلا مصدر موثق.` : `I am sharing this selected My Farm context:\n${selected}\nHelp with safe inspection questions, and do not provide doses or numeric instructions without a verified source.`);
+    } catch { /* invalid route data is ignored */ }
+  }, [params.farm, language]);
 
   const pickImage = async (camera: boolean) => {
     try {

@@ -14,6 +14,9 @@ export async function cleanup(db) {
     await client.query(
       'DELETE FROM mig_farm.rate_limits WHERE expires_at < now()',
     );
+    await client.query(
+      "DELETE FROM mig_farm.farm_request_keys WHERE created_at < now()-interval '30 days'",
+    );
   });
 }
 if (

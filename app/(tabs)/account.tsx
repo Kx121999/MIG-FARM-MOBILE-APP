@@ -14,6 +14,7 @@ import {
   UserRound,
   Headphones,
   FileText,
+  Sprout,
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
@@ -155,6 +156,12 @@ export default function AccountScreen() {
             </MotionPressable>
           ))}
         </View>
+        <AccountRow
+          icon={Sprout}
+          title={ar ? 'مزرعتي' : 'My Farm'}
+          detail={ar ? 'المحاصيل والري والمهام والمشكلات' : 'Crops, irrigation, tasks and problems'}
+          onPress={() => router.push('/my-farm' as never)}
+        />
         <AccountHeading>{ar ? 'حسابك' : 'Your account'}</AccountHeading>
         <AccountRow
           icon={UserRound}

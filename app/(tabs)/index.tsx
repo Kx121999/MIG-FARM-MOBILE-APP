@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { FlatList, ImageBackground, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, MessageCircle, Search, Truck } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, MessageCircle, Search, Sprout, Truck } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
 import { AppButton } from '@/components/AppButton';
@@ -20,6 +20,7 @@ import { Product } from '@/types';
 import { useRetention } from '@/contexts/RetentionContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { categories as discoveryCategories, productMatchesCategory } from '@/constants/categories';
+import { useFarm } from '@/contexts/FarmContext';
 
 const heroSource = require('../../assets/home-farm.webp');
 const homeCategories = categories.filter((item) => item.id !== 'all');
@@ -31,6 +32,7 @@ export default function HomeScreen() {
   const { recentProductIds } = useCommerce();
   const { personalization } = useRetention();
   const { user } = useAuth();
+  const { dashboard: farmDashboard } = useFarm();
   const arrivals = useMemo(() => sortProducts(products, 'newest').slice(0, 6), [products]);
   const selected = useMemo(() => products.filter((product) => !arrivals.some((item) => item.id === product.id)).slice(0, 6), [products, arrivals]);
   const recent = useMemo(() => recentProductIds.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item)).slice(0, 4), [products, recentProductIds]);
@@ -62,6 +64,14 @@ export default function HomeScreen() {
           <Truck size={17} color={colors.primary} /><Text style={styles.deliveryText}>{language === 'ar' ? 'توصيل داخل الإمارات' : 'Delivery across the UAE'}</Text>
           <View style={styles.deliveryDivider} /><Text style={styles.deliveryText}>{language === 'ar' ? 'منتجات زراعية مختارة' : 'Selected growing essentials'}</Text>
         </View>
+        <MotionPressable accessibilityRole="button" accessibilityLabel={language === 'ar' ? 'فتح مزرعتي' : 'Open My Farm'} onPress={() => router.push('/my-farm' as never)}
+          style={[styles.myFarm, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={styles.myFarmIcon}><Sprout size={25} color={colors.primary} /></View>
+          <View style={styles.assistantCopy}>
+            <Text style={[styles.myFarmTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'مزرعتي' : 'My Farm'}</Text>
+            <Text style={[styles.assistantBody, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? (language === 'ar' ? `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} مهام قادمة · ${farmDashboard.problems.length} مشكلات تحتاج متابعة` : `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} upcoming tasks · ${farmDashboard.problems.length} problems to follow up`) : (language === 'ar' ? 'ابدأ بإضافة مزرعتك وتابع يومك الزراعي' : 'Add your farm and manage each growing day')}</Text>
+          </View><Arrow size={20} color={colors.primary} />
+        </MotionPressable>
         <View style={styles.section}>
           <SectionTitle title={t('categories')} action={t('viewAll')} onPress={openStore} />
           <FlatList horizontal inverted={isRTL} data={homeCategories} keyExtractor={(item) => item.id} showsHorizontalScrollIndicator={false}
@@ -105,6 +115,9 @@ const styles = StyleSheet.create({
   delivery: { paddingVertical: spacing.lg, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   deliveryText: { ...typography.caption, color: colors.muted, flexShrink: 1, textAlign: 'center' },
   deliveryDivider: { width: 1, height: 16, backgroundColor: colors.borderStrong },
+  myFarm: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.lg, borderRadius: 8, backgroundColor: colors.surface, alignItems: 'center', gap: spacing.md },
+  myFarmIcon: { width: 48, height: 48, borderRadius: 8, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  myFarmTitle: { ...typography.section, fontSize: 18, color: colors.text },
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.sm },
   categoryRail: { flexGrow: 0 },
   categories: { gap: spacing.md },
