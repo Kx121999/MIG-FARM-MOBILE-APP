@@ -51,7 +51,8 @@
           "merchantIdentifier": "merchant.com.migfarm.app",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "./plugins/withStripeAndroidVersion"
     ],
     "experiments": {
       "typedRoutes": true
