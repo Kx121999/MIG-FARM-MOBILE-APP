@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Keyboard, StyleSheet, Text, View } from 'react-native';
 import { Tabs } from 'expo-router';
-import { House, MessageCircle, ShoppingBag, Store, UserRound } from 'lucide-react-native';
+import { House, ShoppingBag, Sprout, Store, UserRound } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography } from '@/constants/theme';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -13,7 +13,7 @@ type TabBarProps = Parameters<NonNullable<React.ComponentProps<typeof Tabs>['tab
 const destinations = [
   { name: 'index', label: 'home', icon: House },
   { name: 'catalog', label: 'store', icon: Store },
-  { name: 'assistant', label: 'assistant', icon: MessageCircle },
+  { name: 'my-farm', label: 'myFarm', icon: Sprout },
   { name: 'cart', label: 'cart', icon: ShoppingBag },
   { name: 'account', label: 'account', icon: UserRound },
 ] satisfies Array<{ name: string; label: CopyKey; icon: typeof House }>;
@@ -49,9 +49,10 @@ export default function TabLayout() {
   return <Tabs tabBar={(props) => <AppTabBar {...props} />} screenOptions={{ headerShown: false }}>
     <Tabs.Screen name="index" />
     <Tabs.Screen name="catalog" />
-    <Tabs.Screen name="assistant" />
+    <Tabs.Screen name="my-farm" />
     <Tabs.Screen name="cart" />
     <Tabs.Screen name="account" />
+    <Tabs.Screen name="assistant" options={{ href: null }} />
     <Tabs.Screen name="search" options={{ href: null }} />
   </Tabs>;
 }

@@ -11,6 +11,7 @@ const copy = {
   ar: {
     home: 'الرئيسية',
     store: 'المتجر',
+    myFarm: 'مزرعتي',
     departments: 'الأقسام',
     assistant: 'المساعد',
     cart: 'السلة',
@@ -112,6 +113,7 @@ const copy = {
   en: {
     home: 'Home',
     store: 'Store',
+    myFarm: 'My Farm',
     departments: 'Departments',
     assistant: 'Assistant',
     cart: 'Cart',

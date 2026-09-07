@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Image, ImageSourcePropType, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { CategoryId, categories } from '@/constants/categories';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors, radius, shadow, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { API_ORIGIN } from '@/services/catalog';
 import { MotionPressable } from '@/components/Motion';
@@ -27,18 +27,19 @@ export function CategoryCard({ id, onPress, image }: { id: CategoryId; onPress: 
   useEffect(() => { setRemoteFailed(false); setLocalFailed(false); setLoaded(false); }, [id, remote]);
   const usingLocal = remoteFailed || !remote;
   const source = usingLocal ? (localFailed ? null : localCategoryImages[id]) : { uri: remote, cache: 'force-cache' as const };
-  return <MotionPressable accessibilityRole="button" accessibilityLabel={item[language]} onPress={onPress} style={[styles.card, { height: 144 + 42 * Math.min(1.6, Math.max(1, fontScale)) }]}>
+  const scale = Math.min(1.6, Math.max(1, fontScale));
+  return <MotionPressable accessibilityRole="button" accessibilityLabel={item[language]} onPress={onPress} style={[styles.card, shadow, { height: 136 + 38 * scale }]}>
     <View style={styles.imageArea}>
       {!loaded && source ? <Skeleton style={StyleSheet.absoluteFill} /> : null}
       {source ? <Image source={source} style={styles.image} resizeMode={item.imageFit || 'contain'} onLoad={() => setLoaded(true)} onError={() => { if (usingLocal) setLocalFailed(true); else setRemoteFailed(true); }} />
         : <Text style={styles.fallback}>MIG FARM</Text>}
     </View>
-    <Text maxFontSizeMultiplier={1.6} numberOfLines={2} style={[styles.label, { textAlign: isRTL ? 'right' : 'left' }]}>{item[language]}</Text>
+    <Text maxFontSizeMultiplier={1.6} numberOfLines={2} style={[styles.label, { height: 38 * scale, textAlign: isRTL ? 'right' : 'left' }]}>{item[language]}</Text>
   </MotionPressable>;
 }
 const styles = StyleSheet.create({
-  card: { width: 132, padding: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden' },
-  imageArea: { height: 124, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, marginBottom: spacing.sm, overflow: 'hidden' },
+  card: { width: 136, padding: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden' },
+  imageArea: { height: 112, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, marginBottom: spacing.sm, overflow: 'hidden', borderRadius: radius.sm },
   image: { width: '100%', height: '100%' },
   fallback: { ...typography.caption, color: colors.muted },
   label: { ...typography.product, color: colors.text },

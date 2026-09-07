@@ -144,11 +144,16 @@ export default function CheckoutScreen() {
             </View>
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            {session ? <CheckoutPayment session={session} customer={customer} language={language} onSuccess={paymentSucceeded} onError={setError} /> : (
-              <Pressable accessibilityRole="button" disabled={busy || !cart.length} style={({ pressed }) => [styles.continueButton, (busy || !cart.length) && styles.disabled, pressed && styles.primaryPressed]} onPress={preparePayment}><Text style={styles.continueButtonText}>{busy ? (language === 'ar' ? 'جاري تجهيز الدفع…' : 'Preparing payment…') : (language === 'ar' ? 'المتابعة لبيانات البطاقة' : 'Continue to card details')}</Text></Pressable>
-            )}
+            {session && Platform.OS === 'web' ? <CheckoutPayment session={session} customer={customer} language={language} onSuccess={paymentSucceeded} onError={setError} /> : null}
           </View>
         </ScrollView>
+        {Platform.OS !== 'web' && session ? (
+          <View style={styles.stickyAction}><CheckoutPayment session={session} customer={customer} language={language} onSuccess={paymentSucceeded} onError={setError} /></View>
+        ) : !session ? (
+          <View style={styles.stickyAction}>
+            <Pressable accessibilityRole="button" disabled={busy || !cart.length} style={({ pressed }) => [styles.continueButton, (busy || !cart.length) && styles.disabled, pressed && styles.primaryPressed]} onPress={preparePayment}><Text style={styles.continueButtonText}>{busy ? (language === 'ar' ? 'جاري تجهيز الدفع…' : 'Preparing payment…') : (language === 'ar' ? 'المتابعة لبيانات البطاقة' : 'Continue to card details')}</Text></Pressable>
+          </View>
+        ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -161,13 +166,13 @@ function Field({ label, isRTL, ...props }: React.ComponentProps<typeof TextInput
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  topBar: { minHeight: 62, paddingHorizontal: 14, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  topBar: { minHeight: 56, paddingHorizontal: 12, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   topBarTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
   secureBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  content: { paddingBottom: 32 },
-  page: { width: '100%', maxWidth: 680, alignSelf: 'center', padding: 14, gap: 12 },
-  steps: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  content: { paddingBottom: 16 },
+  page: { width: '100%', maxWidth: 680, alignSelf: 'center', padding: 16, gap: 10 },
+  steps: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   stepDone: { alignItems: 'center', gap: 2 },
   stepDoneText: { color: colors.success, fontSize: 8, fontWeight: '900' },
   stepActive: { height: 34, paddingHorizontal: 11, borderRadius: radius.pill, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -175,19 +180,19 @@ const styles = StyleSheet.create({
   stepFuture: { alignItems: 'center', gap: 2 },
   stepFutureText: { color: colors.textSubtle, fontSize: 8, fontWeight: '800' },
   stepLine: { width: 34, height: 1, marginHorizontal: 7, backgroundColor: colors.borderStrong },
-  section: { padding: 14, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 11 },
+  section: { padding: 12, borderRadius: radius.md, backgroundColor: colors.surface, gap: 9 },
   sectionHeader: { alignItems: 'center', gap: 7, marginBottom: 1 },
   sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
   field: { gap: 5 },
   fieldLabel: { color: colors.muted, fontSize: 10, fontWeight: '800' },
-  input: { minHeight: 46, paddingHorizontal: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.background, color: colors.text, fontSize: 13 },
-  inputMultiline: { minHeight: 72, paddingTop: 12, textAlignVertical: 'top' },
-  emirates: { gap: 7, paddingVertical: 2 },
+  input: { minHeight: 44, paddingHorizontal: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.background, color: colors.text, fontSize: 13 },
+  inputMultiline: { minHeight: 66, paddingTop: 10, textAlignVertical: 'top' },
+  emirates: { gap: 7, paddingVertical: 2, paddingEnd: 14 },
   emirate: { height: 36, paddingHorizontal: 11, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
   emirateActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   emirateText: { color: colors.text, fontSize: 10, fontWeight: '800' },
   emirateTextActive: { color: '#FFFFFF' },
-  summary: { padding: 14, borderRadius: radius.md, backgroundColor: colors.primarySoft, borderWidth: 1, borderColor: '#CBE3CF' },
+  summary: { padding: 13, borderRadius: radius.md, backgroundColor: colors.primarySoft },
   summaryTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
   totalRow: { marginTop: 11, alignItems: 'center', justifyContent: 'space-between' },
   totalLabel: { color: colors.muted, fontSize: 11 },
@@ -195,7 +200,8 @@ const styles = StyleSheet.create({
   secureRow: { marginTop: 10, alignItems: 'center', gap: 5 },
   secureText: { color: colors.success, fontSize: 9, fontWeight: '800' },
   error: { color: colors.danger, fontSize: 11, lineHeight: 18, fontWeight: '800', textAlign: 'center', paddingHorizontal: 8 },
-  continueButton: { height: 54, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  stickyAction: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  continueButton: { height: 50, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   continueButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.55 },
   pressed: { opacity: 0.68 },

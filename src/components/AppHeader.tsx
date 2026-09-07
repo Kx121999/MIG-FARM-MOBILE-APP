@@ -14,9 +14,9 @@ export function AppHeader({ compact = false }: { compact?: boolean }) {
   const { isRTL, t } = useLanguage();
   return <View style={styles.surface}>
     <View style={[styles.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }, compact && styles.compact]}>
-      <AccountAvatarButton />
-      <BrandLogo width={compact ? 96 : 108} />
-      <View style={[styles.actions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[styles.side, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}><AccountAvatarButton /></View>
+      <View pointerEvents="box-none" style={styles.brand}><BrandLogo width={compact ? 92 : 100} /></View>
+      <View style={[styles.side, styles.actions, { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
         <AppIconButton icon={Bell} label={t('notifications')} onPress={() => router.push('/notifications')} />
         <AppIconButton icon={ShoppingBag} label={t('cart')} count={cartCount} onPress={() => router.push('/(tabs)/cart')} />
       </View>
@@ -24,8 +24,10 @@ export function AppHeader({ compact = false }: { compact?: boolean }) {
   </View>;
 }
 const styles = StyleSheet.create({
-  surface: { backgroundColor: colors.surface },
-  row: { minHeight: 64, width: '100%', maxWidth: 760, alignSelf: 'center', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
-  compact: { minHeight: 56 },
-  actions: { alignItems: 'center', gap: spacing.xs },
+  surface: { backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  row: { position: 'relative', minHeight: 58, width: '100%', maxWidth: 760, alignSelf: 'center', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md },
+  compact: { minHeight: 54 },
+  side: { width: 96, minWidth: 96, justifyContent: 'center' },
+  brand: { position: 'absolute', left: 96, right: 96, alignItems: 'center', justifyContent: 'center' },
+  actions: { alignItems: 'center', gap: 0 },
 });

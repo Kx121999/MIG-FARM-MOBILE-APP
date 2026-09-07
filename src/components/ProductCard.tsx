@@ -3,7 +3,7 @@ import { Image, Platform, StyleSheet, Text, useWindowDimensions, View } from 're
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Check, GitCompareArrows, Heart, ImageOff, Plus } from 'lucide-react-native';
-import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
+import { colors, radius, shadow, sizes, spacing, typography } from '@/constants/theme';
 import { MotionPressable } from '@/components/Motion';
 import { Skeleton } from '@/components/Skeleton';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -14,10 +14,10 @@ import { Product } from '@/types';
 function useCardMetrics() {
   const { fontScale } = useWindowDimensions();
   const scale = Math.min(1.6, Math.max(1, fontScale));
-  return { titleHeight: 42 * scale, priceHeight: 44 * scale, height: 264 + 86 * scale };
+  return { titleHeight: 42 * scale, priceHeight: 42 * scale };
 }
 
-export function ProductCard({ product, wide = false }: { product: Product; wide?: boolean }) {
+export function ProductCard({ product, wide = false, cardWidth }: { product: Product; wide?: boolean; cardWidth?: number }) {
   const { addToCart, isFavorite, toggleFavorite, isCompared, toggleCompare } = useCommerce();
   const { language, isRTL, t } = useLanguage();
   const metrics = useCardMetrics();
@@ -45,7 +45,7 @@ export function ProductCard({ product, wide = false }: { product: Product; wide?
     timerRef.current = setTimeout(() => setAdded(false), 1500);
   };
 
-  return <View testID="product-card" style={[styles.card, wide ? styles.wide : styles.grid, { height: metrics.height }]}>
+  return <View testID="product-card" style={[styles.card, shadow, wide ? styles.wide : styles.grid, cardWidth ? { width: cardWidth } : null]}>
     <MotionPressable accessibilityRole="button" accessibilityLabel={title} style={styles.productTap} onPress={() => router.push({ pathname: '/product/[handle]', params: { handle: product.handle } })}>
       <View style={styles.imageWrap}>
         {!imageLoaded && !imageFailed && uri ? <Skeleton style={StyleSheet.absoluteFill} /> : null}
@@ -77,7 +77,7 @@ export function ProductCard({ product, wide = false }: { product: Product; wide?
 
 export function ProductCardSkeleton({ wide = false }: { wide?: boolean }) {
   const metrics = useCardMetrics();
-  return <View testID="product-skeleton" style={[styles.card, wide ? styles.wide : styles.grid, { height: metrics.height }]}>
+  return <View testID="product-skeleton" style={[styles.card, wide ? styles.wide : styles.grid]}>
     <Skeleton style={styles.imageWrap} />
     <View style={{ height: metrics.titleHeight, gap: 8, paddingTop: 4 }}><Skeleton style={{ height: 12, width: '92%' }} /><Skeleton style={{ height: 12, width: '66%' }} /></View>
     <View style={{ height: metrics.priceHeight, paddingTop: 8 }}><Skeleton style={{ height: 16, width: '48%' }} /></View>
@@ -85,21 +85,21 @@ export function ProductCardSkeleton({ wide = false }: { wide?: boolean }) {
   </View>;
 }
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm, overflow: 'hidden' },
+  card: { minWidth: 0, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm },
   grid: { width: '48.4%', marginBottom: spacing.md },
-  wide: { width: 180, marginEnd: spacing.md },
-  productTap: { flex: 1 },
-  imageWrap: { height: 180, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, marginBottom: spacing.sm, overflow: 'hidden', borderRadius: radius.sm },
+  wide: { width: 180 },
+  productTap: { minWidth: 0 },
+  imageWrap: { width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, marginBottom: spacing.sm, overflow: 'hidden', borderRadius: radius.sm },
   image: { width: '100%', height: '100%' },
   fallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, gap: spacing.sm },
   fallbackText: { ...typography.caption, color: colors.muted, textAlign: 'center' },
-  favorite: { position: 'absolute', top: 8, width: sizes.touch, height: sizes.touch, borderRadius: sizes.touch / 2, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  favorite: { position: 'absolute', top: 8, width: sizes.touch, height: sizes.touch, borderRadius: sizes.touch / 2, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow },
   name: { ...typography.product, color: colors.text },
   priceArea: { justifyContent: 'center', marginTop: spacing.xs },
   price: { fontSize: 16, lineHeight: 23, fontWeight: '700', letterSpacing: 0, color: colors.danger, writingDirection: 'ltr' },
   oldPrice: { ...typography.caption, color: colors.textSubtle, textDecorationLine: 'line-through', writingDirection: 'ltr' },
   unavailable: { ...typography.caption, fontSize: 11, color: colors.muted },
-  actions: { alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm, gap: spacing.sm },
+  actions: { minHeight: sizes.touch, alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm, gap: spacing.sm },
   compare: { width: sizes.touch, height: sizes.touch, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   compareActive: { backgroundColor: colors.primarySoft },
   addButton: { width: sizes.touch, height: sizes.touch, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },

@@ -101,6 +101,7 @@ export default function CartScreen() {
             <EmptyState icon={ShoppingBag} title={t('emptyCart')} body={t('emptyCartBody')} action={t('continueShopping')} onAction={() => router.push('/(tabs)/catalog')} />
           </View>
         ) : (
+          <>
           <FlatList
             data={cart}
             keyExtractor={(item) => item.key}
@@ -123,15 +124,6 @@ export default function CartScreen() {
                   <Text style={styles.summaryLineLabel}>{language === 'ar' ? 'الشحن والخصومات' : 'Shipping and discounts'}</Text>
                   <Text style={styles.summaryLineValue}>{language === 'ar' ? 'عند الدفع' : 'At checkout'}</Text>
                 </View>
-                <Pressable accessibilityRole="button" style={({ pressed }) => [styles.checkout, pressed && styles.primaryPressed]} onPress={checkout}>
-                  <LockKeyhole size={18} color="#FFFFFF" strokeWidth={2.2} />
-                  <Text style={styles.checkoutText}>{t('checkout')}</Text>
-                  <ForwardIcon size={17} color="#FFFFFF" strokeWidth={2.5} />
-                </Pressable>
-                <View style={[styles.secureRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <ShieldCheck size={14} color={colors.success} strokeWidth={2.2} />
-                  <Text style={styles.secureText}>{language === 'ar' ? 'دفع آمن ومشفّر داخل التطبيق' : 'Secure encrypted in-app payment'}</Text>
-                </View>
                 <Pressable accessibilityRole="button" style={({ pressed }) => [styles.continueButton, pressed && styles.pressed]} onPress={() => router.push('/(tabs)/catalog')}>
                   <Text style={styles.continueText}>{language === 'ar' ? 'إضافة منتجات أخرى' : 'Add more products'}</Text>
                   <RowIcon size={16} color={colors.primary} strokeWidth={2.3} />
@@ -139,6 +131,24 @@ export default function CartScreen() {
               </View>
             )}
           />
+          <View style={styles.stickyCheckout}>
+            <View style={[styles.stickyTotalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View>
+                <Text style={[styles.stickyLabel, { textAlign: isRTL ? 'right' : 'left' }]}>{t('subtotal')}</Text>
+                <Text style={styles.stickyTotal}>{formatAED(subtotal)}</Text>
+              </View>
+              <View style={[styles.secureRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <ShieldCheck size={14} color={colors.success} strokeWidth={2.2} />
+                <Text style={styles.secureText}>{language === 'ar' ? 'دفع آمن ومشفّر' : 'Secure encrypted payment'}</Text>
+              </View>
+            </View>
+            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.checkout, pressed && styles.primaryPressed]} onPress={checkout}>
+              <LockKeyhole size={18} color="#FFFFFF" strokeWidth={2.2} />
+              <Text style={styles.checkoutText}>{t('checkout')}</Text>
+              <ForwardIcon size={17} color="#FFFFFF" strokeWidth={2.5} />
+            </Pressable>
+          </View>
+          </>
         )}
       </View>
     </SafeAreaView>
@@ -165,7 +175,7 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.muted, fontSize: 12, marginTop: 3 },
   clearButton: { minHeight: 36, paddingHorizontal: 10, borderRadius: radius.md, borderWidth: 1, borderColor: '#F0D4D1', backgroundColor: '#FFF7F6', flexDirection: 'row', alignItems: 'center', gap: 6 },
   clear: { color: colors.danger, fontSize: 11, fontWeight: '900' },
-  list: { paddingHorizontal: 14, paddingBottom: 28, gap: 10 },
+  list: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
   steps: { minHeight: 58, marginBottom: 4, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   stepActive: { height: 34, paddingHorizontal: 11, borderRadius: radius.pill, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 5 },
   stepActiveText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
@@ -197,9 +207,13 @@ const styles = StyleSheet.create({
   summaryLine: { alignItems: 'center', justifyContent: 'space-between', marginTop: 9 },
   summaryLineLabel: { color: colors.muted, fontSize: 10 },
   summaryLineValue: { color: colors.text, fontSize: 10, fontWeight: '800' },
-  checkout: { height: 52, marginTop: 15, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  stickyCheckout: { paddingHorizontal: 16, paddingTop: 9, paddingBottom: 10, backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  stickyTotalRow: { minHeight: 37, alignItems: 'center', justifyContent: 'space-between' },
+  stickyLabel: { color: colors.muted, fontSize: 9, fontWeight: '700' },
+  stickyTotal: { color: colors.primary, fontSize: 18, lineHeight: 22, fontWeight: '900', writingDirection: 'ltr' },
+  checkout: { height: 48, marginTop: 7, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   checkoutText: { flex: 1, color: '#FFFFFF', fontSize: 13, fontWeight: '900', textAlign: 'center' },
-  secureRow: { marginTop: 10, alignItems: 'center', justifyContent: 'center', gap: 5 },
+  secureRow: { alignItems: 'center', justifyContent: 'center', gap: 5 },
   secureText: { color: colors.muted, fontSize: 9, fontWeight: '700', textAlign: 'center' },
   continueButton: { height: 42, marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   continueText: { color: colors.primary, fontSize: 11, fontWeight: '900' },

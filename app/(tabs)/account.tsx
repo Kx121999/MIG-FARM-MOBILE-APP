@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import {
   Bell,
@@ -14,7 +14,6 @@ import {
   UserRound,
   Headphones,
   FileText,
-  Sprout,
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
@@ -41,24 +40,6 @@ export default function AccountScreen() {
   const [confirm, setConfirm] = useState(false),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
-  const quick = [
-    { icon: Box, title: ar ? 'طلباتي' : 'Orders', path: '/orders' as const },
-    {
-      icon: MapPin,
-      title: ar ? 'عناويني' : 'Addresses',
-      path: '/addresses' as const,
-    },
-    {
-      icon: Heart,
-      title: ar ? 'المفضلة' : 'Favorites',
-      path: '/favorites' as const,
-    },
-    {
-      icon: Bell,
-      title: ar ? 'الإشعارات' : 'Notifications',
-      path: '/notifications' as const,
-    },
-  ];
   return (
     <SafeAreaView style={ui.safe} edges={['top']}>
       <AppHeader compact />
@@ -121,80 +102,35 @@ export default function AccountScreen() {
             />
           </View>
         ) : null}
-        <View
-          style={{
-            flexDirection: ar ? 'row-reverse' : 'row',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            gap: 10,
-            marginTop: 8,
-          }}
-        >
-          {quick.map(({ icon: Icon, title, path }) => (
-            <MotionPressable
-              key={path}
-              accessibilityRole="button"
-              accessibilityLabel={title}
-              onPress={() => router.push(path)}
-              style={{
-                width: '48%',
-                minHeight: 88,
-                padding: 12,
-                backgroundColor: colors.surface,
-                borderRadius: 8,
-                gap: 8,
-                alignItems: ar ? 'flex-end' : 'flex-start',
-              }}
-            >
-              <Icon size={22} color={colors.primary} />
-              <Text style={ui.label}>
-                {title}
-                {path === '/favorites' && favorites.length
-                  ? ' (' + favorites.length + ')'
-                  : ''}
-              </Text>
-            </MotionPressable>
-          ))}
+        <AccountHeading>{ar ? 'الملف الشخصي' : 'Profile'}</AccountHeading>
+        <View style={styles.group}>
+          <AccountRow
+            icon={UserRound}
+            title={ar ? 'الملف الشخصي' : 'Personal profile'}
+            detail={!user ? (ar ? 'بيانات هذا الجهاز' : 'Details on this device') : undefined}
+            onPress={() => router.push('/profile')}
+          />
         </View>
-        <AccountRow
-          icon={Sprout}
-          title={ar ? 'مزرعتي' : 'My Farm'}
-          detail={ar ? 'المحاصيل والري والمهام والمشكلات' : 'Crops, irrigation, tasks and problems'}
-          onPress={() => router.push('/my-farm' as never)}
-        />
-        <AccountHeading>{ar ? 'حسابك' : 'Your account'}</AccountHeading>
-        <AccountRow
-          icon={UserRound}
-          title={ar ? 'الملف الشخصي' : 'Personal profile'}
-          detail={
-            !user
-              ? ar
-                ? 'بيانات هذا الجهاز'
-                : 'Details on this device'
-              : undefined
-          }
-          onPress={() => router.push('/profile')}
-        />
-        <AccountRow
-          icon={History}
-          title={ar ? 'شوهد مؤخراً' : 'Recently viewed'}
-          onPress={() => router.push('/recently-viewed')}
-        />
-        <AccountRow
-          icon={MessageCircle}
-          title={ar ? 'مساعد ميغ فارم' : 'MIG FARM assistant'}
-          onPress={() => router.push('/(tabs)/assistant')}
-        />
-        <AccountRow
-          icon={Headphones}
-          title={ar ? 'الدعم' : 'Support'}
-          onPress={() => router.push('/support')}
-        />
-        <AccountRow
-          icon={Settings}
-          title={ar ? 'الإعدادات والأمان' : 'Settings & security'}
-          onPress={() => router.push('/settings')}
-        />
+
+        <AccountHeading>{ar ? 'الطلبات والحفظ' : 'Orders and saved items'}</AccountHeading>
+        <View style={styles.group}>
+          <AccountRow icon={Box} title={ar ? 'طلباتي' : 'Orders'} onPress={() => router.push('/orders')} />
+          <AccountRow icon={MapPin} title={ar ? 'عناويني' : 'Addresses'} onPress={() => router.push('/addresses')} />
+          <AccountRow icon={Heart} title={`${ar ? 'المفضلة' : 'Favorites'}${favorites.length ? ` (${favorites.length})` : ''}`} onPress={() => router.push('/favorites')} />
+          <AccountRow icon={Bell} title={ar ? 'الإشعارات' : 'Notifications'} onPress={() => router.push('/notifications')} />
+          <AccountRow icon={History} title={ar ? 'شوهد مؤخراً' : 'Recently viewed'} onPress={() => router.push('/recently-viewed')} />
+        </View>
+
+        <AccountHeading>{ar ? 'الدعم' : 'Support'}</AccountHeading>
+        <View style={styles.group}>
+          <AccountRow icon={MessageCircle} title={ar ? 'مساعد ميغ فارم' : 'MIG FARM assistant'} onPress={() => router.push('/(tabs)/assistant')} />
+          <AccountRow icon={Headphones} title={ar ? 'الدعم' : 'Support'} onPress={() => router.push('/support')} />
+        </View>
+
+        <AccountHeading>{ar ? 'الإعدادات' : 'Settings'}</AccountHeading>
+        <View style={styles.group}>
+          <AccountRow icon={Settings} title={ar ? 'الإعدادات والأمان' : 'Settings & security'} onPress={() => router.push('/settings')} />
+        </View>
         <AccountHeading>{ar ? 'اللغة' : 'Language'}</AccountHeading>
         <View style={{ flexDirection: ar ? 'row-reverse' : 'row', gap: 10 }}>
           {(['ar', 'en'] as const).map((value) => (
@@ -225,20 +161,11 @@ export default function AccountScreen() {
             </MotionPressable>
           ))}
         </View>
-        <AccountRow
-          icon={ShieldCheck}
-          title={ar ? 'سياسة الخصوصية' : 'Privacy policy'}
-          onPress={() =>
-            router.push({ pathname: '/legal', params: { document: 'privacy' } })
-          }
-        />
-        <AccountRow
-          icon={FileText}
-          title={ar ? 'الشروط والأحكام' : 'Terms & conditions'}
-          onPress={() =>
-            router.push({ pathname: '/legal', params: { document: 'terms' } })
-          }
-        />
+        <AccountHeading>{ar ? 'الخصوصية والشروط' : 'Privacy and terms'}</AccountHeading>
+        <View style={styles.group}>
+          <AccountRow icon={ShieldCheck} title={ar ? 'سياسة الخصوصية' : 'Privacy policy'} onPress={() => router.push({ pathname: '/legal', params: { document: 'privacy' } })} />
+          <AccountRow icon={FileText} title={ar ? 'الشروط والأحكام' : 'Terms & conditions'} onPress={() => router.push({ pathname: '/legal', params: { document: 'terms' } })} />
+        </View>
         {user ? (
           <AccountRow
             icon={LogOut}
@@ -274,3 +201,11 @@ export default function AccountScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  group: {
+    paddingHorizontal: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+  },
+});

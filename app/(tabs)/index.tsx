@@ -11,7 +11,7 @@ import { ScreenState } from '@/components/ScreenState';
 import { SectionTitle } from '@/components/SectionTitle';
 import { MotionPressable } from '@/components/Motion';
 import { categories, CategoryId } from '@/constants/categories';
-import { colors, sizes, spacing, typography } from '@/constants/theme';
+import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProducts } from '@/hooks/useProducts';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -53,7 +53,7 @@ export default function HomeScreen() {
         <MotionPressable accessibilityRole="button" accessibilityLabel={t('search')} style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={() => router.push('/(tabs)/search')}>
           <Search size={20} color={colors.muted} /><Text numberOfLines={1} style={[styles.searchText, { textAlign: isRTL ? 'right' : 'left' }]}>{t('search')}</Text>
         </MotionPressable>
-        <ImageBackground source={heroSource} resizeMode="cover" style={[styles.hero, { height: 260 + 140 * (Math.min(1.6, Math.max(1, fontScale)) - 1) }]}>
+        <ImageBackground source={heroSource} resizeMode="cover" style={[styles.hero, { height: 232 + 72 * (Math.min(1.6, Math.max(1, fontScale)) - 1) }]}>
           <View style={[styles.heroContent, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
             <Text accessibilityRole="header" maxFontSizeMultiplier={1.4} style={styles.heroBrand}>MIG FARM</Text>
             <Text maxFontSizeMultiplier={1.4} style={[styles.heroTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'كل احتياجات زراعتك\nفي مكان واحد' : 'Everything you need\nto grow, in one place'}</Text>
@@ -64,13 +64,13 @@ export default function HomeScreen() {
           <Truck size={17} color={colors.primary} /><Text style={styles.deliveryText}>{language === 'ar' ? 'توصيل داخل الإمارات' : 'Delivery across the UAE'}</Text>
           <View style={styles.deliveryDivider} /><Text style={styles.deliveryText}>{language === 'ar' ? 'منتجات زراعية مختارة' : 'Selected growing essentials'}</Text>
         </View>
-        <MotionPressable accessibilityRole="button" accessibilityLabel={language === 'ar' ? 'فتح مزرعتي' : 'Open My Farm'} onPress={() => router.push('/my-farm' as never)}
+        <MotionPressable accessibilityRole="button" accessibilityLabel={language === 'ar' ? 'فتح مزرعتي' : 'Open My Farm'} onPress={() => router.push('/(tabs)/my-farm' as never)}
           style={[styles.myFarm, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View style={styles.myFarmIcon}><Sprout size={25} color={colors.primary} /></View>
+          <View style={styles.myFarmIcon}><Sprout size={25} color={colors.surface} /></View>
           <View style={styles.assistantCopy}>
             <Text style={[styles.myFarmTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'مزرعتي' : 'My Farm'}</Text>
-            <Text style={[styles.assistantBody, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? (language === 'ar' ? `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} مهام قادمة · ${farmDashboard.problems.length} مشكلات تحتاج متابعة` : `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} upcoming tasks · ${farmDashboard.problems.length} problems to follow up`) : (language === 'ar' ? 'ابدأ بإضافة مزرعتك وتابع يومك الزراعي' : 'Add your farm and manage each growing day')}</Text>
-          </View><Arrow size={20} color={colors.primary} />
+            <Text style={[styles.myFarmBody, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? (language === 'ar' ? `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} مهام قادمة · ${farmDashboard.problems.length} مشكلات تحتاج متابعة` : `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} upcoming tasks · ${farmDashboard.problems.length} problems to follow up`) : (language === 'ar' ? 'ابدأ بإضافة مزرعتك وتابع يومك الزراعي' : 'Add your farm and manage each growing day')}</Text>
+          </View><Arrow size={20} color={colors.surface} />
         </MotionPressable>
         <View style={styles.section}>
           <SectionTitle title={t('categories')} action={t('viewAll')} onPress={openStore} />
@@ -107,21 +107,22 @@ const styles = StyleSheet.create({
   page: { width: '100%', maxWidth: sizes.page, alignSelf: 'center' },
   search: { minHeight: sizes.input, marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.lg, paddingHorizontal: spacing.lg, backgroundColor: colors.surfaceMuted, borderRadius: 8, alignItems: 'center', gap: spacing.md },
   searchText: { ...typography.secondary, color: colors.muted, flex: 1 },
-  hero: { height: 260, overflow: 'hidden', backgroundColor: colors.primaryDark },
+  hero: { height: 232, marginHorizontal: spacing.lg, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.primaryDark },
   heroContent: { flex: 1, padding: spacing.xl, backgroundColor: 'rgba(18, 30, 19, 0.32)', justifyContent: 'center' },
   heroBrand: { ...typography.display, color: colors.surface, writingDirection: 'ltr' },
   heroTitle: { ...typography.section, color: colors.surface, marginTop: spacing.sm, marginBottom: spacing.lg },
   heroButton: { backgroundColor: colors.surface, minWidth: 136 },
-  delivery: { paddingVertical: spacing.lg, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  delivery: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   deliveryText: { ...typography.caption, color: colors.muted, flexShrink: 1, textAlign: 'center' },
   deliveryDivider: { width: 1, height: 16, backgroundColor: colors.borderStrong },
-  myFarm: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.lg, borderRadius: 8, backgroundColor: colors.surface, alignItems: 'center', gap: spacing.md },
-  myFarmIcon: { width: 48, height: 48, borderRadius: 8, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  myFarmTitle: { ...typography.section, fontSize: 18, color: colors.text },
-  section: { paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.sm },
+  myFarm: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.primaryDark, alignItems: 'center', gap: spacing.md },
+  myFarmIcon: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  myFarmTitle: { ...typography.section, fontSize: 18, color: colors.surface },
+  myFarmBody: { ...typography.secondary, color: '#DCE9E0' },
+  section: { paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.xs },
   categoryRail: { flexGrow: 0 },
   categories: { gap: spacing.md },
-  assistant: { marginHorizontal: spacing.lg, marginTop: spacing.xl, paddingVertical: spacing.xl, borderTopWidth: 1, borderTopColor: colors.border, alignItems: 'center', gap: spacing.md },
+  assistant: { marginHorizontal: spacing.lg, marginTop: spacing.xl, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.surface, alignItems: 'center', gap: spacing.md },
   assistantCopy: { flex: 1, gap: spacing.xs },
   assistantTitle: { ...typography.section, fontSize: 17, color: colors.text },
   assistantBody: { ...typography.secondary, color: colors.muted },

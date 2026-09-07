@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { Onboarding } from '@/components/Onboarding';
 import {
   LocalizedLaunchScreen,
   preloadLaunchImages,
@@ -18,10 +17,9 @@ if (Platform.OS !== 'web') {
 let completedThisSession = false;
 export function AppEntry({ children }: { children: React.ReactNode }) {
   const { ready: languageReady, language } = useLanguage();
-  const [stage, setStage] = useState<'launch' | 'onboarding' | 'app'>('launch');
+  const [stage, setStage] = useState<'launch' | 'app'>('launch');
   const [completed, setCompleted] = useState<boolean | null>(null);
   const [assetsReady, setAssetsReady] = useState(false);
-  const [saving, setSaving] = useState(false);
   useEffect(() => {
     let active = true;
     void preloadLaunchImages().finally(() => {
@@ -34,15 +32,14 @@ export function AppEntry({ children }: { children: React.ReactNode }) {
       active = false;
     };
   }, []);
-  const finish = async () => {
-    if (saving) return;
-    setSaving(true);
+  const enterApp = () => {
+    if (stage !== 'launch') return;
     completedThisSession = true;
-    await completeOnboarding(AsyncStorage);
+    setCompleted(true);
     setStage('app');
+    void completeOnboarding(AsyncStorage).catch(() => undefined);
   };
   if (!languageReady || !assetsReady) return <View style={styles.neutral} />;
-  const showApp = stage === 'app' || completed === true;
   return (
     <View {...(Platform.OS === 'web' ? { dir: 'ltr' } : {})} style={styles.app}>
       <View
@@ -52,20 +49,14 @@ export function AppEntry({ children }: { children: React.ReactNode }) {
           stage === 'launch' ? 'no-hide-descendants' : 'auto'
         }
       >
-        {completed !== null ? (
-          showApp ? (
-            children
-          ) : (
-            <Onboarding saving={saving} onComplete={finish} />
-          )
-        ) : null}
+        {completed !== null ? children : null}
       </View>
       {stage === 'launch' ? (
         <View style={StyleSheet.absoluteFill}>
           <LocalizedLaunchScreen
             language={language}
             ready={completed !== null}
-            onComplete={() => setStage(completed ? 'app' : 'onboarding')}
+            onComplete={enterApp}
           />
         </View>
       ) : null}

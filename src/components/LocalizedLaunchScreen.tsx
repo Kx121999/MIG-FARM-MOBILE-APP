@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Platform, StyleSheet, View } from 'react-native';
+import { Animated, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { Asset } from 'expo-asset';
 import * as SplashScreen from 'expo-splash-screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useReducedMotion } from '@/components/Motion';
+import { MotionPressable, useReducedMotion } from '@/components/Motion';
+import { colors, radius, shadow, spacing, typography } from '@/constants/theme';
 import type { Language } from '@/types';
 
 export const launchImages = {
@@ -31,7 +32,7 @@ export function LocalizedLaunchScreen({
   const opacity = useRef(new Animated.Value(1)).current;
   const [loaded, setLoaded] = useState(false);
   const [laidOut, setLaidOut] = useState(false);
-  const [minimumElapsed, setMinimumElapsed] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const finish = useRef(onComplete);
   finish.current = onComplete;
   // The image language is fixed for this launch; UI language changes apply next launch.
@@ -40,11 +41,11 @@ export function LocalizedLaunchScreen({
     if (!loaded || !laidOut) return;
     if (Platform.OS !== 'web')
       void SplashScreen.hideAsync().catch(() => undefined);
-    const timer = setTimeout(() => setMinimumElapsed(true), 900);
-    return () => clearTimeout(timer);
   }, [loaded, laidOut]);
-  useEffect(() => {
-    if (!minimumElapsed || !ready) return;
+
+  const start = () => {
+    if (!ready || leaving) return;
+    setLeaving(true);
     const animation = Animated.timing(opacity, {
       toValue: 0,
       duration: reduced ? 0 : 200,
@@ -53,8 +54,7 @@ export function LocalizedLaunchScreen({
     animation.start(({ finished }) => {
       if (finished) finish.current();
     });
-    return () => animation.stop();
-  }, [minimumElapsed, ready, reduced, opacity]);
+  };
   return (
     <Animated.View
       style={[styles.root, { opacity }]}
@@ -79,6 +79,29 @@ export function LocalizedLaunchScreen({
           onLoad={() => setLoaded(true)}
           onError={() => setLoaded(true)}
         />
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.actionArea,
+            {
+              paddingBottom: Math.max(insets.bottom, spacing.lg),
+              paddingLeft: Math.max(insets.left, spacing.lg),
+              paddingRight: Math.max(insets.right, spacing.lg),
+            },
+          ]}
+        >
+          <MotionPressable
+            accessibilityRole="button"
+            accessibilityLabel={launchLanguage === 'ar' ? 'ابدأ الآن' : 'Start Now'}
+            disabled={!ready || leaving}
+            onPress={start}
+            style={[styles.startButton, (!ready || leaving) && styles.disabled]}
+          >
+            <Text style={styles.startText}>
+              {launchLanguage === 'ar' ? 'ابدأ الآن' : 'Start Now'}
+            </Text>
+          </MotionPressable>
+        </View>
       </View>
     </Animated.View>
   );
@@ -91,4 +114,24 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: {}, default: { direction: 'ltr' as const } }),
   },
   image: { width: '100%', height: '100%', flex: 1 },
+  actionArea: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+  },
+  startButton: {
+    width: '100%',
+    maxWidth: 360,
+    minHeight: 52,
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    ...shadow,
+  },
+  startText: { ...typography.button, color: colors.surface, fontWeight: '700' },
+  disabled: { opacity: 0.65 },
 });

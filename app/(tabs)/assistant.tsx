@@ -55,6 +55,73 @@ function cleanReply(value = '') {
   return value.replace(/\*\*/g, '').replace(/^#+\s*/gm, '').trim();
 }
 
+type ReplySectionKind = 'answer' | 'recommendation' | 'reason' | 'next';
+type ReplySection = { kind: ReplySectionKind; body: string };
+
+const replyHeadings: Array<{ kind: ReplySectionKind; pattern: RegExp }> = [
+  { kind: 'answer', pattern: /^(?:short answer|answer|summary|الإجابة المختصرة|الإجابة|الخلاصة)\s*[:：-]?\s*(.*)$/i },
+  { kind: 'recommendation', pattern: /^(?:recommendation|recommended|التوصية|أنصحك)\s*[:：-]?\s*(.*)$/i },
+  { kind: 'reason', pattern: /^(?:reason|why|السبب|لماذا)\s*[:：-]?\s*(.*)$/i },
+  { kind: 'next', pattern: /^(?:next action|next step|what to do next|الخطوة التالية|الإجراء التالي)\s*[:：-]?\s*(.*)$/i },
+];
+
+function chunkReply(value: string, maxLength = 240) {
+  const sentences = value.match(/[^.!?؟]+[.!?؟]?/g)?.map((item) => item.trim()).filter(Boolean) || [value];
+  const chunks: string[] = [];
+  for (const sentence of sentences) {
+    const current = chunks[chunks.length - 1];
+    if (current && `${current} ${sentence}`.length <= maxLength) chunks[chunks.length - 1] = `${current} ${sentence}`;
+    else chunks.push(sentence);
+  }
+  return chunks;
+}
+
+function parseReplySections(value: string): ReplySection[] {
+  const clean = cleanReply(value);
+  const sections: ReplySection[] = [];
+  const prefix: string[] = [];
+  let current: ReplySection | null = null;
+  for (const rawLine of clean.split('\n')) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const heading = replyHeadings.find((item) => item.pattern.test(line));
+    if (heading) {
+      if (!sections.length && prefix.length) sections.push({ kind: 'answer', body: prefix.join('\n') });
+      const body = line.match(heading.pattern)?.[1]?.trim() || '';
+      current = { kind: heading.kind, body };
+      sections.push(current);
+    } else if (current) {
+      current.body = `${current.body}${current.body ? '\n' : ''}${line}`;
+    } else {
+      prefix.push(line);
+    }
+  }
+  if (sections.some((section) => section.body)) return sections.filter((section) => section.body);
+
+  const paragraphs = clean.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean);
+  const chunks = (paragraphs.length > 1 ? paragraphs : chunkReply(clean)).filter(Boolean);
+  const kinds: ReplySectionKind[] = ['answer', 'recommendation', 'reason', 'next'];
+  if (chunks.length <= kinds.length) return chunks.map((body, index) => ({ kind: kinds[index], body }));
+  return [
+    ...chunks.slice(0, 3).map((body, index) => ({ kind: kinds[index], body })),
+    { kind: 'next', body: chunks.slice(3).join('\n') },
+  ];
+}
+
+function StructuredReply({ content, language }: { content: string; language: 'ar' | 'en' }) {
+  const labels: Record<ReplySectionKind, string> = language === 'ar'
+    ? { answer: 'إجابة مختصرة', recommendation: 'التوصية', reason: 'السبب', next: 'الخطوة التالية' }
+    : { answer: 'Short answer', recommendation: 'Recommendation', reason: 'Reason', next: 'Next action' };
+  const sections = useMemo(() => parseReplySections(content), [content]);
+  return <View style={styles.structuredReply}>{sections.map((section, index) => {
+    const rtl = /[\u0600-\u06FF]/.test(section.body);
+    return <View key={`${section.kind}-${index}`} style={styles.replySection}>
+      <Text style={[styles.replyLabel, { textAlign: language === 'ar' ? 'right' : 'left' }]}>{labels[section.kind]}</Text>
+      <Text selectable style={[styles.messageText, styles.assistantText, { textAlign: rtl ? 'right' : 'left', writingDirection: rtl ? 'rtl' : 'ltr' }]}>{section.body}</Text>
+    </View>;
+  })}</View>;
+}
+
 function absoluteUrl(value?: string) {
   if (!value) return '';
   if (/^https?:\/\//i.test(value)) return value;
@@ -247,9 +314,9 @@ export default function AssistantScreen() {
         {!!item.images?.length && <View style={styles.messageImages}>{item.images.map((uri, index) => <Image key={`${item.id}-${index}`} source={{ uri }} style={styles.messageImage} />)}</View>}
         <View style={[styles.bubble, mine ? styles.mine : styles.assistantBubble, !mine && shadow]}>
           {!mine && <View style={styles.aiLabelRow}><Sparkles size={12} color={colors.primary} /><Text style={styles.aiLabel}>MIG FARM AI</Text></View>}
-          <Text selectable style={[styles.messageText, mine ? styles.mineText : styles.assistantText, { textAlign: isRTL ? 'right' : 'left' }]}>{item.content}</Text>
+          {mine ? <Text selectable style={[styles.messageText, styles.mineText, { textAlign: isRTL ? 'right' : 'left' }]}>{item.content}</Text> : <StructuredReply content={item.content} language={language} />}
         </View>
-        {!!item.results?.length && <View style={styles.results}>{item.results.slice(0, 4).map(renderProduct)}</View>}
+        {!!item.results?.length && <View style={styles.results}><Text style={[styles.resultsTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'منتجات مناسبة' : 'Matching products'}</Text>{item.results.slice(0, 4).map(renderProduct)}</View>}
       </View>
     );
   };
@@ -303,7 +370,7 @@ export default function AssistantScreen() {
           ListFooterComponent={busy ? <View style={[styles.typing, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><View style={styles.typingDots}><Text style={styles.typingDotsText}>•••</Text></View><Text style={styles.typingText}>{t('analyzing')}</Text></View> : null}
         />
 
-        {!!quickReplies.length && <FlatList horizontal data={quickReplies} keyExtractor={(item, index) => `${item}-${index}`} style={styles.quickScroller} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickList} renderItem={({ item }) => <Pressable style={({ pressed }) => [styles.quick, pressed && styles.pressed]} onPress={() => send(item)}><Text style={styles.quickText}>{item}</Text></Pressable>} />}
+        {!!quickReplies.length && <View style={styles.nextActions}><Text style={[styles.nextActionsTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'الخطوة التالية' : 'Next action'}</Text><FlatList horizontal data={quickReplies} keyExtractor={(item, index) => `${item}-${index}`} style={styles.quickScroller} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickList} renderItem={({ item }) => <Pressable style={({ pressed }) => [styles.quick, pressed && styles.pressed]} onPress={() => send(item)}><Text style={styles.quickText}>{item}</Text></Pressable>} /></View>}
 
         {!!pendingImages.length && <View style={styles.previewRow}>{pendingImages.map((item, index) => <View key={item.client_image_id} style={styles.previewWrap}><Image source={{ uri: item.image_url }} style={styles.preview} /><Pressable accessibilityRole="button" accessibilityLabel="Remove image" style={styles.previewRemove} onPress={() => setPendingImages((current) => current.filter((_, itemIndex) => itemIndex !== index))}><X size={12} color="#FFFFFF" strokeWidth={2.5} /></Pressable></View>)}</View>}
 
@@ -359,9 +426,13 @@ const styles = StyleSheet.create({
   messageText: { fontSize: 13, lineHeight: 21 },
   mineText: { color: '#fff' },
   assistantText: { color: colors.text },
+  structuredReply: { gap: 10 },
+  replySection: { gap: 3 },
+  replyLabel: { color: colors.primary, fontSize: 10, lineHeight: 15, fontWeight: '900' },
   messageImages: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 5, marginBottom: 5 },
   messageImage: { width: 78, height: 78, borderRadius: 12, backgroundColor: colors.primarySoft },
   results: { width: 300, maxWidth: '100%', gap: 6, marginTop: 7 },
+  resultsTitle: { color: colors.primaryDark, fontSize: 11, fontWeight: '900', marginBottom: 2 },
   resultCard: { minHeight: 76, padding: 8, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 8 },
   resultImage: { width: 58, height: 58, borderRadius: radius.md, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   resultCopy: { flex: 1 },
@@ -378,8 +449,10 @@ const styles = StyleSheet.create({
   typingDots: { paddingHorizontal: 12, height: 34, borderRadius: 16, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   typingDotsText: { color: colors.primary, fontWeight: '900', letterSpacing: 2 },
   typingText: { color: colors.muted, fontSize: 10 },
-  quickScroller: { flexGrow: 0, height: 49 },
-  quickList: { paddingHorizontal: 10, paddingVertical: 7, gap: 7 },
+  nextActions: { backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 6 },
+  nextActionsTitle: { color: colors.primaryDark, fontSize: 10, fontWeight: '900', paddingHorizontal: 12 },
+  quickScroller: { flexGrow: 0, height: 45 },
+  quickList: { paddingHorizontal: 10, paddingVertical: 5, gap: 7 },
   quick: { height: 35, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: '#CDE1D0', backgroundColor: colors.primarySoft, justifyContent: 'center' },
   quickText: { color: colors.primaryDark, fontSize: 10, fontWeight: '800' },
   previewRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 7, gap: 7, backgroundColor: colors.surface },
