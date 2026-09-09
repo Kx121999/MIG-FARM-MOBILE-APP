@@ -304,18 +304,50 @@ export function createApp({
       if (path.startsWith('/api/admin/')) {
         const user = await auth.authenticate(request);
         const action = path.slice('/api/admin/'.length);
+        if (method === 'GET' && action === 'me')
+          return send(response, 200, { user: profile(user) });
+        if (method === 'GET' && action === 'system')
+          return send(response, 200, await platform.systemStatus(user));
         if (method === 'GET' && action === 'summary')
           return send(response, 200, await platform.adminSummary(user));
         if (method === 'GET' && action === 'customers')
-          return send(response, 200, await platform.adminCustomers(user, page(url)));
+          return send(response, 200, await platform.adminCustomers(user, page(url), url));
+        const customer = /^customers\/([^/]+)$/.exec(action);
+        if (customer) {
+          if (method === 'GET')
+            return send(response, 200, await platform.adminCustomerDetail(user, decodeURIComponent(customer[1])));
+          if (method === 'PATCH')
+            return send(response, 200, await platform.setCustomerStatus(user, decodeURIComponent(customer[1]), await jsonBody(request)));
+        }
         if (method === 'GET' && action === 'orders')
-          return send(response, 200, await platform.adminOrders(user, page(url)));
+          return send(response, 200, await platform.adminOrders(user, page(url), url));
+        const order = /^orders\/([^/]+)$/.exec(action);
+        if (order) {
+          if (method === 'GET')
+            return send(response, 200, await platform.adminOrderDetail(user, decodeURIComponent(order[1])));
+          if (method === 'PATCH')
+            return send(response, 200, await platform.setOrderDeliveryStatus(user, decodeURIComponent(order[1]), await jsonBody(request)));
+        }
         if (method === 'GET' && action === 'offers')
-          return send(response, 200, await platform.adminList(user, 'offers', page(url)));
+          return send(response, 200, await platform.adminList(user, 'offers', page(url), url));
+        const offer = /^offers\/([^/]+)$/.exec(action);
+        if (offer) {
+          if (method === 'PATCH')
+            return send(response, 200, await platform.saveOffer(user, await jsonBody(request), decodeURIComponent(offer[1])));
+          if (method === 'DELETE')
+            return send(response, 200, await platform.deleteOffer(user, decodeURIComponent(offer[1])));
+        }
         if (method === 'GET' && action === 'home-content')
-          return send(response, 200, await platform.adminList(user, 'home', page(url)));
+          return send(response, 200, await platform.adminList(user, 'home', page(url), url));
+        const homeContent = /^home-content\/([^/]+)$/.exec(action);
+        if (homeContent) {
+          if (method === 'PATCH')
+            return send(response, 200, await platform.saveHomeContent(user, await jsonBody(request), decodeURIComponent(homeContent[1])));
+          if (method === 'DELETE')
+            return send(response, 200, await platform.deleteHomeContent(user, decodeURIComponent(homeContent[1])));
+        }
         if (method === 'GET' && action === 'push-campaigns')
-          return send(response, 200, await platform.adminList(user, 'push', page(url)));
+          return send(response, 200, await platform.adminList(user, 'push', page(url), url));
         if (method === 'POST' && action === 'offers')
           return send(response, 201, await platform.saveOffer(user, await jsonBody(request)));
         if (method === 'POST' && action === 'home-content')

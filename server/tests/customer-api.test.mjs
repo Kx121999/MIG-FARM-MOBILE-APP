@@ -788,6 +788,137 @@ test('customer API foundation on PostgreSQL', async (t) => {
         1,
       );
       assert.equal((await fetch(origin + '/admin')).status, 200);
+      assert.equal(
+        (
+          await request(
+            '/api/admin/orders/' + order.orderId,
+            'PATCH',
+            { deliveryStatus: 'teleported' },
+            b.accessToken,
+          )
+        ).status,
+        400,
+      );
+      assert.equal(
+        (
+          await request(
+            '/api/admin/orders/' + order.orderId,
+            'PATCH',
+            { deliveryStatus: 'processing' },
+            b.accessToken,
+          )
+        ).body.order.deliveryStatus,
+        'processing',
+      );
+      assert.equal(
+        (
+          await request(
+            '/api/admin/orders/' + order.orderId,
+            'GET',
+            undefined,
+            b.accessToken,
+          )
+        ).body.order.items.length,
+        1,
+      );
+      const customerDetail = await request(
+        '/api/admin/customers/' + a.user.id,
+        'GET',
+        undefined,
+        b.accessToken,
+      );
+      assert.equal(customerDetail.body.customer.email, 'a@example.test');
+      assert.equal(customerDetail.body.customer.password_hash, undefined);
+      assert.equal(
+        (
+          await request(
+            '/api/admin/customers/' + a.user.id,
+            'PATCH',
+            { status: 'suspended' },
+            b.accessToken,
+          )
+        ).body.customer.status,
+        'suspended',
+      );
+      const offer = (
+        await request(
+          '/api/admin/offers',
+          'POST',
+          {
+            titleEn: 'Edit offer',
+            titleAr: 'تعديل العرض',
+            status: 'draft',
+            discountType: 'percentage',
+            discountValue: 15,
+            startsAt: '2026-01-01T00:00:00Z',
+            endsAt: '2026-12-31T00:00:00Z',
+          },
+          b.accessToken,
+        )
+      ).body.offer;
+      assert.equal(
+        (
+          await request(
+            '/api/admin/offers/' + offer.id,
+            'PATCH',
+            { ...offer, titleEn: 'Edited offer', titleAr: 'عرض معدل' },
+            b.accessToken,
+          )
+        ).body.offer.title_en,
+        'Edited offer',
+      );
+      assert.equal(
+        (
+          await request(
+            '/api/admin/offers/' + offer.id,
+            'DELETE',
+            undefined,
+            b.accessToken,
+          )
+        ).status,
+        200,
+      );
+      const section = (
+        await request(
+          '/api/admin/home-content',
+          'POST',
+          {
+            kind: 'promo',
+            titleEn: 'Promo',
+            titleAr: 'عرض',
+            visible: false,
+            sortOrder: 7,
+          },
+          b.accessToken,
+        )
+      ).body.section;
+      assert.equal(
+        (
+          await request(
+            '/api/admin/home-content/' + section.id,
+            'PATCH',
+            { ...section, titleEn: 'Promo updated', titleAr: 'عرض محدث' },
+            b.accessToken,
+          )
+        ).body.section.title_en,
+        'Promo updated',
+      );
+      assert.equal(
+        (
+          await request(
+            '/api/admin/home-content/' + section.id,
+            'DELETE',
+            undefined,
+            b.accessToken,
+          )
+        ).status,
+        200,
+      );
+      const system = (
+        await request('/api/admin/system', 'GET', undefined, b.accessToken)
+      ).body;
+      assert.equal(system.database, 'configured');
+      assert.equal(system.emailProvider, 'not_configured');
     },
   );
   await t.test(
