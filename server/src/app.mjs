@@ -325,12 +325,14 @@ export function createApp({
         throw fail(404, 'not_found');
       }
       if (
-        !/^\/api\/(me(?:\/|$)|addresses(?:\/|$)|favorites(?:\/|$)|recently-viewed$|push-tokens$|notifications(?:\/|$)|notification-preferences$)/.test(
+        !/^\/api\/(me(?:\/|$)|addresses(?:\/|$)|favorites(?:\/|$)|guest\/merge$|recently-viewed$|push-tokens$|notifications(?:\/|$)|notification-preferences$)/.test(
           path,
         )
       )
         throw fail(404, 'not_found');
       const user = await auth.authenticate(request);
+      if (method === 'POST' && path === '/api/guest/merge')
+        return send(response, 200, await platform.mergeGuest(user, await jsonBody(request)));
       if (path === '/api/me') {
         if (method === 'GET')
           return send(response, 200, { user: profile(user) });
@@ -460,13 +462,12 @@ export function createApp({
   });
 }
 async function serveAdmin(response, mediaRoot) {
-  const body = await readFile(resolve(mediaRoot, '../../admin-control-center/index.html'), 'utf8');
   response.writeHead(200, {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
   });
-  response.end(body);
+  response.end('<!doctype html><meta charset="utf-8"><title>MIG FARM Admin</title><body style="font-family:system-ui;padding:32px;background:#f6f4ef;color:#1f2a24"><h1>MIG FARM Admin Control Center</h1><p>The production Next.js admin dashboard lives in <code>admin-control-center</code> and is ready for Vercel deployment.</p></body>');
 }
 function clientIP(request, env) {
   const hops = Number(env.TRUST_PROXY_HOPS || 0),

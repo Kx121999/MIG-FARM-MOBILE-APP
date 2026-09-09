@@ -115,6 +115,48 @@ export function createPlatform(db, products) {
     return { ok: true };
   }
 
+  async function mergeGuest(user, body) {
+    const clientUpdatedAt = body.clientUpdatedAt ? new Date(body.clientUpdatedAt) : new Date();
+    if (Number.isNaN(clientUpdatedAt.getTime())) throw fail(400, 'invalid_input');
+    const cart = Array.isArray(body.cart) ? body.cart.slice(0, 200) : [];
+    const recentProductIds = existingIds(body.recentProductIds || []);
+    const favoriteIds = existingIds(body.favorites || []);
+    const farmSnapshot =
+      body.myFarm && typeof body.myFarm === 'object' && !Array.isArray(body.myFarm)
+        ? body.myFarm
+        : null;
+    await db.transaction(async (client) => {
+      await client.query('SELECT id FROM mig_farm.users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE', [user.id]);
+      for (const productId of favoriteIds)
+        await client.query(
+          'INSERT INTO mig_farm.user_favorites(user_id,product_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
+          [user.id, productId],
+        );
+      for (const productId of recentProductIds)
+        await client.query(
+          'INSERT INTO mig_farm.recently_viewed(user_id,product_id,viewed_at) VALUES($1,$2,$3) ON CONFLICT(user_id,product_id) DO UPDATE SET viewed_at=GREATEST(mig_farm.recently_viewed.viewed_at,EXCLUDED.viewed_at)',
+          [user.id, productId, clientUpdatedAt],
+        );
+      for (const item of cart) {
+        const productId = Number(item.productId),
+          variantId = Number(item.variant?.id || item.variantId),
+          quantity = Math.max(1, Math.min(99, Number(item.quantity || 1))),
+          key = text(String(item.key || `${productId}:${variantId}`), 160, true);
+        if (!productIds.has(productId) || !Number.isSafeInteger(variantId) || variantId <= 0) continue;
+        await client.query(
+          'INSERT INTO mig_farm.user_cart_items(user_id,item_key,product_id,variant_id,quantity,payload_json,guest_updated_at,server_updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,now()) ON CONFLICT(user_id,item_key) DO UPDATE SET quantity=LEAST(99,GREATEST(mig_farm.user_cart_items.quantity,EXCLUDED.quantity)),payload_json=CASE WHEN mig_farm.user_cart_items.guest_updated_at<=EXCLUDED.guest_updated_at THEN EXCLUDED.payload_json ELSE mig_farm.user_cart_items.payload_json END,guest_updated_at=GREATEST(mig_farm.user_cart_items.guest_updated_at,EXCLUDED.guest_updated_at),server_updated_at=now()',
+          [user.id, key, productId, variantId, quantity, JSON.stringify(item), clientUpdatedAt],
+        );
+      }
+      if (farmSnapshot)
+        await client.query(
+          'INSERT INTO mig_farm.guest_farm_snapshots(user_id,snapshot_json,guest_updated_at,synced_at) VALUES($1,$2,$3,now()) ON CONFLICT(user_id) DO UPDATE SET snapshot_json=CASE WHEN mig_farm.guest_farm_snapshots.guest_updated_at<=EXCLUDED.guest_updated_at THEN EXCLUDED.snapshot_json ELSE mig_farm.guest_farm_snapshots.snapshot_json END,guest_updated_at=GREATEST(mig_farm.guest_farm_snapshots.guest_updated_at,EXCLUDED.guest_updated_at),synced_at=now()',
+          [user.id, JSON.stringify(farmSnapshot), clientUpdatedAt],
+        );
+    });
+    return { ok: true, syncedAt: new Date().toISOString() };
+  }
+
   async function adminSummary(user) {
     role(user);
     const [customers, orders, offers, notifications, recentOrders] = await Promise.all([
@@ -232,6 +274,7 @@ export function createPlatform(db, products) {
     recent,
     savePushToken,
     removePushToken,
+    mergeGuest,
     adminSummary,
     adminCustomers,
     adminOrders,

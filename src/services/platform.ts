@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { apiRequest } from '@/services/apiClient';
 import type { Language } from '@/types';
+import type { CartItem } from '@/types';
 
 export type HomeContentSection = {
   id: string;
@@ -65,5 +66,16 @@ export const platformService = {
     apiRequest<void>('/api/push-tokens', {
       method: 'DELETE',
       body: { token },
+    }),
+  mergeGuest: (snapshot: {
+    cart: CartItem[];
+    favorites: number[];
+    recentProductIds: number[];
+    myFarm?: Record<string, unknown> | null;
+    clientUpdatedAt: string;
+  }) =>
+    apiRequest<{ ok: true; syncedAt: string }>('/api/guest/merge', {
+      method: 'POST',
+      body: snapshot,
     }),
 };

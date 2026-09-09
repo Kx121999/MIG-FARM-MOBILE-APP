@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlatList, ImageBackground, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowLeft, ArrowRight, MessageCircle, Search, Sprout, Truck } from 'lucide-react-native';
@@ -25,6 +26,7 @@ import { useFarm } from '@/contexts/FarmContext';
 
 const heroSource = require('../../assets/home-farm.webp');
 const homeCategories = categories.filter((item) => item.id !== 'all');
+const HOME_CONTENT_CACHE = 'mig_farm_home_content_v1';
 
 export default function HomeScreen() {
   const { language, isRTL, t } = useLanguage();
@@ -37,8 +39,15 @@ export default function HomeScreen() {
   const [remoteSections, setRemoteSections] = useState<HomeContentSection[]>([]);
   useEffect(() => {
     let active = true;
+    AsyncStorage.getItem(HOME_CONTENT_CACHE).then((stored) => {
+      if (!active || !stored) return;
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) setRemoteSections(parsed);
+    }).catch(() => undefined);
     platformService.home().then((data) => {
-      if (active) setRemoteSections(data.sections || []);
+      const sections = data.sections || [];
+      if (active) setRemoteSections(sections);
+      AsyncStorage.setItem(HOME_CONTENT_CACHE, JSON.stringify(sections)).catch(() => undefined);
     }).catch(() => undefined);
     return () => {
       active = false;

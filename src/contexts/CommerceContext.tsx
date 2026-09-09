@@ -4,6 +4,8 @@ import { CartItem, CustomerProfile, Product, ProductVariant, SavedAddress } from
 import { productImage } from '@/services/catalog';
 import { upsertAddress, withoutAddress } from '@/utils/customer';
 import { useAccountFavorites } from '@/hooks/useAccountFavorites';
+import { useAuth } from '@/contexts/AuthContext';
+import { platformService } from '@/services/platform';
 
 const CART_KEY = 'mig_farm_cart_v1';
 const FAVORITES_KEY = 'mig_farm_favorites_v1';
@@ -48,6 +50,7 @@ type CommerceValue = {
 const CommerceContext = createContext<CommerceValue | null>(null);
 
 export function CommerceProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [guestFavorites, setFavorites] = useState<number[]>([]);
   const [compareIds, setCompareIds] = useState<number[]>([]);
@@ -58,6 +61,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const toggleGuestFavorite = useCallback((id: number) => setFavorites(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]), []);
   const { favorites, toggleFavorite, favoritesError, favoritesLoading, retryFavorites } = useAccountFavorites(guestFavorites, hydrated, toggleGuestFavorite);
+  const [pendingGuestSync, setPendingGuestSync] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -95,6 +99,27 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { if (hydrated) AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile)).catch(() => undefined); }, [profile, hydrated]);
   useEffect(() => { if (hydrated) AsyncStorage.setItem(ADDRESSES_KEY, JSON.stringify(addresses)).catch(() => undefined); }, [addresses, hydrated]);
   useEffect(() => { if (hydrated) AsyncStorage.setItem(LOCATION_KEY, deliveryEmirate).catch(() => undefined); }, [deliveryEmirate, hydrated]);
+  useEffect(() => {
+    if (!hydrated || !user || pendingGuestSync) return;
+    if (!cart.length && !guestFavorites.length && !recentProductIds.length) return;
+    let active = true;
+    setPendingGuestSync(true);
+    platformService.mergeGuest({
+      cart,
+      favorites: guestFavorites,
+      recentProductIds,
+      myFarm: null,
+      clientUpdatedAt: new Date().toISOString(),
+    }).then((result) => {
+      if (!active || !result.ok) return;
+      setFavorites([]);
+    }).catch(() => undefined).finally(() => {
+      if (active) setPendingGuestSync(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [hydrated, user?.id, cart, guestFavorites, recentProductIds, pendingGuestSync]);
 
   const value = useMemo<CommerceValue>(() => ({
     hydrated,

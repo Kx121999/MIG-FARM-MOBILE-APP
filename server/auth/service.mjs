@@ -361,6 +361,8 @@ export function createAuth(db, options = {}) {
         'notification_preferences',
         'push_tokens',
         'recently_viewed',
+        'user_cart_items',
+        'guest_farm_snapshots',
       ])
         await client.query(
           'DELETE FROM mig_farm.' + table + ' WHERE user_id=$1',

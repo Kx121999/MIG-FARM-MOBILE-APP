@@ -24,6 +24,28 @@ CREATE TABLE IF NOT EXISTS mig_farm.recently_viewed (
 CREATE INDEX IF NOT EXISTS recently_viewed_user
   ON mig_farm.recently_viewed(user_id,viewed_at DESC);
 
+CREATE TABLE IF NOT EXISTS mig_farm.user_cart_items (
+  user_id uuid NOT NULL REFERENCES mig_farm.users(id) ON DELETE CASCADE,
+  item_key text NOT NULL,
+  product_id bigint NOT NULL CHECK(product_id>0),
+  variant_id bigint NOT NULL CHECK(variant_id>0),
+  quantity integer NOT NULL CHECK(quantity BETWEEN 1 AND 99),
+  payload_json jsonb NOT NULL DEFAULT '{}',
+  guest_updated_at timestamptz NOT NULL DEFAULT now(),
+  server_updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY(user_id,item_key)
+);
+
+CREATE INDEX IF NOT EXISTS user_cart_items_user
+  ON mig_farm.user_cart_items(user_id,server_updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS mig_farm.guest_farm_snapshots (
+  user_id uuid PRIMARY KEY REFERENCES mig_farm.users(id) ON DELETE CASCADE,
+  snapshot_json jsonb NOT NULL DEFAULT '{}',
+  guest_updated_at timestamptz NOT NULL DEFAULT now(),
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS mig_farm.push_tokens (
   id uuid PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES mig_farm.users(id) ON DELETE CASCADE,
