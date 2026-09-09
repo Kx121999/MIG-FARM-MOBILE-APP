@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { Bell, Boxes, ChartNoAxesCombined, Home, LayoutDashboard, LogOut, Menu, Search, Settings, ShoppingBag, Users, X } from 'lucide-react';
+import { Bell, Boxes, ChartNoAxesCombined, Copy, Home, LayoutDashboard, LogOut, Menu, Plus, Search, Settings, ShoppingBag, Trash2, Users, X } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_MIG_FARM_API_URL || 'https://mig-farm-api.onrender.com';
 const pages = ['Dashboard', 'Customers', 'Orders', 'Offers', 'Home Content', 'Push Notifications', 'Notification History', 'Settings'] as const;
@@ -9,6 +9,25 @@ type PageName = typeof pages[number];
 type Session = { accessToken: string; user: { name: string; email: string; role?: string } };
 type Toast = { tone: 'ok' | 'error'; text: string };
 type Filters = { q: string; status: string; language: string; payment: string; target: string };
+
+const toneByStatus: Record<string, string> = {
+  active: 'ok',
+  configured: 'ok',
+  online: 'ok',
+  paid: 'ok',
+  delivered: 'ok',
+  ready: 'amber',
+  scheduled: 'amber',
+  processing: 'amber',
+  pending: 'amber',
+  new: 'blue',
+  draft: 'muted',
+  inactive: 'muted',
+  not_configured: 'amber',
+  failed: 'danger',
+  cancelled: 'danger',
+  suspended: 'danger',
+};
 
 const icons: Record<PageName, React.ComponentType<{ size?: number }>> = {
   Dashboard: LayoutDashboard,
@@ -43,6 +62,23 @@ function formBody(form: HTMLFormElement) {
 function Table({ columns, rows, empty, onRow }: { columns: string[]; rows: Array<{ id: string; cells: React.ReactNode[] }>; empty: string; onRow?: (id: string) => void }) {
   if (!rows.length) return <div className="empty">{empty}</div>;
   return <div className="tableWrap"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id} onClick={() => onRow?.(row.id)} className={onRow ? 'clickable' : ''}>{row.cells.map((cell, index) => <td key={index}>{cell}</td>)}</tr>)}</tbody></table></div>;
+}
+
+function Badge({ value }: { value?: string | number | null }) {
+  const text = String(value || 'unknown');
+  return <span className={`pill ${toneByStatus[text] || 'muted'}`}>{text.replace(/_/g, ' ')}</span>;
+}
+
+function money(value: unknown, currency = 'AED') {
+  return `${currency} ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+function prettyDate(value?: string | null) {
+  return value ? new Date(value).toLocaleDateString() : 'Not set';
+}
+
+function CellTitle({ title, meta }: { title?: string; meta?: string }) {
+  return <div className="cellTitle"><b>{title || 'Untitled'}</b><span>{meta || ''}</span></div>;
 }
 
 export default function AdminControlCenter() {
@@ -169,20 +205,34 @@ function Filters({ active, filters, setFilters }: { active: PageName; filters: F
 }
 
 function Dashboard({ data }: { data: any }) {
-  const cards = [['Total Customers', data.customers], ['Total Orders', data.orders], ['Revenue', data.revenue == null ? '' : `AED ${Number(data.revenue).toFixed(2)}`], ['Average Order Value', data.averageOrderValue == null ? '' : `AED ${Number(data.averageOrderValue).toFixed(2)}`], ['Pending Orders', data.pendingOrders], ['Active Offers', data.activeOffers], ['Push Campaigns', data.pushCampaigns], ['New Customers', data.newCustomers]];
-  return <><section className="metricGrid">{cards.map(([label, value]) => <article className="card metric" key={label}><b>{value ?? '0'}</b><span>{label}</span></article>)}</section><section className="workspace"><article className="card"><h2>Recent Orders</h2><Table columns={['Order', 'Delivery', 'Payment', 'Total']} empty="No orders yet" rows={(data.recentOrders || []).map((o: any) => ({ id: o.id, cells: [o.id, <span className="pill" key="s">{o.delivery_status}</span>, o.payment_status, `${o.currency} ${o.total}`] }))} /></article><article className="card"><h2>Order Status</h2>{(data.orderStatusBreakdown || []).map((row: any) => <div className="bar" key={row.status}><span>{row.status}</span><b>{row.total}</b></div>)}<h2>System</h2><p>DB: {data.system?.database || 'unknown'} · Products: {data.system?.productCount ?? 0}</p></article></section></>;
+  const cards = [['Customers', data.customers], ['Orders', data.orders], ['Revenue', money(data.revenue)], ['Avg. Order', money(data.averageOrderValue)], ['Pending', data.pendingOrders], ['Active Offers', data.activeOffers], ['Push Campaigns', data.pushCampaigns], ['New Customers', data.newCustomers]];
+  return <><section className="metricGrid">{cards.map(([label, value]) => <article className="card metric" key={label}><b>{value ?? '0'}</b><span>{label}</span></article>)}</section><section className="chartGrid"><ChartCard title="Order Status Breakdown" rows={data.orderStatusBreakdown || []} /><MiniList title="Recent Customers" empty="No recent customers" rows={(data.recentCustomers || []).map((c: any) => ({ id: c.id, title: c.name || c.email, meta: `${c.language || 'n/a'} · ${prettyDate(c.createdAt)}`, badge: c.status }))} /><MiniList title="Recent Orders" empty="No orders yet" rows={(data.recentOrders || []).map((o: any) => ({ id: o.id, title: o.id, meta: money(o.total, o.currency), badge: o.delivery_status || o.deliveryStatus }))} /><MiniList title="Recent Push Campaigns" empty="No push campaigns yet" rows={(data.recentPushCampaigns || []).map((p: any) => ({ id: p.id, title: p.title_en || p.title_ar || p.id, meta: p.scheduled_at ? `Scheduled ${prettyDate(p.scheduled_at)}` : 'Send now', badge: p.status }))} /><SystemHealth data={data.system || {}} /></section></>;
+}
+
+function ChartCard({ title, rows }: { title: string; rows: Array<{ status: string; total: number }> }) {
+  const max = Math.max(1, ...rows.map((row) => Number(row.total || 0)));
+  return <article className="card chartCard"><h2>{title}</h2>{rows.length ? rows.map((row) => <div className="chartRow" key={row.status}><span>{row.status}</span><div><i style={{ width: `${(Number(row.total || 0) / max) * 100}%` }} /></div><b>{row.total}</b></div>) : <div className="empty compact">No chart data yet</div>}</article>;
+}
+
+function MiniList({ title, rows, empty }: { title: string; rows: Array<{ id: string; title: string; meta: string; badge?: string }>; empty: string }) {
+  return <article className="card"><h2>{title}</h2>{rows.length ? rows.map((row) => <div className="miniRow" key={row.id}><div><b>{row.title}</b><span>{row.meta}</span></div><Badge value={row.badge} /></div>) : <div className="empty compact">{empty}</div>}</article>;
+}
+
+function SystemHealth({ data }: { data: any }) {
+  const rows = Object.entries(data);
+  return <article className="card"><h2>System Health</h2>{rows.length ? rows.map(([key, value]) => <div className="bar health" key={key}><span>{key.replace(/([A-Z])/g, ' $1')}</span><Badge value={String(value)} /></div>) : <div className="empty compact">System status unavailable</div>}</article>;
 }
 
 function Customers({ data, open }: { data: any; open: (id: string) => void }) {
-  return <section className="card"><Table columns={['Name', 'Email', 'Phone', 'Language', 'Emirate', 'Orders', 'Spent', 'Status']} empty="No customers found" onRow={open} rows={(data.items || []).map((c: any) => ({ id: c.id, cells: [c.name, c.email, c.phone, c.language, c.emirate, c.orderCount, `AED ${c.totalSpent}`, <span className="pill" key="s">{c.status}</span>] }))} /></section>;
+  return <section className="card"><Table columns={['Customer', 'Contact', 'Language', 'Emirate', 'Orders', 'Spent', 'Status']} empty="No customers found" onRow={open} rows={(data.items || []).map((c: any) => ({ id: c.id, cells: [<CellTitle key="c" title={c.name} meta={prettyDate(c.createdAt)} />, <CellTitle key="e" title={c.email} meta={c.phone || 'No phone'} />, c.language, c.emirate || 'Not set', c.orderCount, money(c.totalSpent), <Badge key="s" value={c.status} />] }))} /></section>;
 }
 
 function Orders({ data, open, update }: { data: any; open: (id: string) => void; update: (id: string, status: string) => void }) {
-  return <section className="card"><Table columns={['Order', 'Customer', 'Date', 'Delivery', 'Payment', 'Total', 'Update']} empty="No orders yet" onRow={open} rows={(data.items || []).map((o: any) => ({ id: o.id, cells: [o.id, o.customerName || o.customerEmail || 'Guest', new Date(o.createdAt).toLocaleDateString(), <span className="pill" key="s">{o.deliveryStatus}</span>, o.paymentStatus, `${o.currency} ${o.total}`, <select key="u" value={o.deliveryStatus} onClick={(event) => event.stopPropagation()} onChange={(event) => update(o.id, event.target.value)}><option>new</option><option>processing</option><option>ready</option><option>shipped</option><option>delivered</option><option>cancelled</option></select>] }))} /></section>;
+  return <section className="card"><Table columns={['Order', 'Customer', 'Date', 'Delivery', 'Payment', 'Total', 'Lifecycle']} empty="No orders yet" onRow={open} rows={(data.items || []).map((o: any) => ({ id: o.id, cells: [o.id, o.customerName || o.customerEmail || 'Guest', prettyDate(o.createdAt), <Badge key="s" value={o.deliveryStatus} />, <Badge key="p" value={o.paymentStatus} />, money(o.total, o.currency), <select key="u" value={o.deliveryStatus} onClick={(event) => event.stopPropagation()} onChange={(event) => update(o.id, event.target.value)}><option>new</option><option>processing</option><option>ready</option><option>shipped</option><option>delivered</option><option>cancelled</option></select>] }))} /></section>;
 }
 
 function Offers({ data, save, confirmDelete }: { data: any; save: (path: string, form: HTMLFormElement, method?: string) => void; confirmDelete: (id: string) => void }) {
-  return <section className="workspace"><article className="card"><Table columns={['Title', 'Arabic', 'Status', 'Discount', 'Dates', '']} empty="No active offers" rows={(data.items || []).map((o: any) => ({ id: o.id, cells: [o.title_en, o.title_ar, <span className="pill" key="s">{o.status}</span>, o.discount || `${o.discount_type || ''} ${o.discount_value || ''}`, `${o.starts_at || ''} ${o.ends_at || ''}`, <button className="linkBtn" key="d" onClick={() => confirmDelete(o.id)}>Delete</button>] }))} /></article><FormCard title="Offer Manager" action={(form) => save('/api/admin/offers', form)} fields="offer" /></section>;
+  return <section className="workspace"><article className="card"><div className="cardHead"><h2>Offers Manager</h2><button className="btn mini"><Plus size={15} />Create Offer</button></div><Table columns={['Offer', 'Target', 'Status', 'Discount', 'Dates', 'Actions']} empty="No active offers" rows={(data.items || []).map((o: any) => ({ id: o.id, cells: [<CellTitle key="t" title={o.title_en} meta={o.title_ar} />, o.target || 'all_products', <Badge key="s" value={o.status} />, o.discount || `${o.discount_type || ''} ${o.discount_value || ''}`, `${prettyDate(o.starts_at)} - ${prettyDate(o.ends_at)}`, <span className="rowActions" key="a"><button title="Duplicate"><Copy size={15} /></button><button className="linkBtn" onClick={() => confirmDelete(o.id)}><Trash2 size={15} /></button></span>] }))} /></article><FormCard title="Offer Editor" action={(form) => save('/api/admin/offers', form)} fields="offer" /></section>;
 }
 
 function HomeContent({ data, save, confirmDelete, preview }: { data: any; save: (path: string, form: HTMLFormElement, method?: string) => void; confirmDelete: (id: string) => void; preview: { title: string; body: string } }) {
@@ -190,11 +240,11 @@ function HomeContent({ data, save, confirmDelete, preview }: { data: any; save: 
 }
 
 function Push({ data, save }: { data: any; save: (path: string, form: HTMLFormElement, method?: string) => void }) {
-  return <section className="workspace"><article className="card"><Table columns={['Title', 'Audience', 'Status', 'Scheduled']} empty="No notification campaigns yet" rows={(data.items || []).map((p: any) => ({ id: p.id, cells: [p.title_en, p.target, <span className="pill" key="s">{p.status}</span>, p.scheduled_at || 'Send now'] }))} /></article><FormCard title="Push Composer" action={(form) => save('/api/admin/push-campaigns', form)} fields="push" /></section>;
+  return <section className="workspace"><article className="card"><div className="notice amber">Push delivery provider not configured unless production credentials are present.</div><Table columns={['Campaign', 'Audience', 'Status', 'Scheduled']} empty="No notification campaigns yet" rows={(data.items || []).map((p: any) => ({ id: p.id, cells: [<CellTitle key="t" title={p.title_en} meta={p.title_ar || p.body_en} />, p.target, <Badge key="s" value={p.status} />, p.scheduled_at || 'Send now'] }))} /></article><FormCard title="Push Campaign Builder" action={(form) => save('/api/admin/push-campaigns', form)} fields="push" /></section>;
 }
 
 function NotificationHistory({ data }: { data: any }) {
-  return <section className="card"><Table columns={['Campaign', 'Audience', 'Created', 'Scheduled', 'Sent', 'Status']} empty="No notification history yet" rows={(data.items || []).map((p: any) => ({ id: p.id, cells: [p.title_en, p.target, new Date(p.created_at).toLocaleString(), p.scheduled_at || '', p.sent_at || '', <span className="pill" key="s">{p.status}</span>] }))} /></section>;
+  return <section className="card"><Table columns={['Campaign', 'Audience', 'Created', 'Scheduled', 'Sent', 'Status']} empty="No notification history yet" rows={(data.items || []).map((p: any) => ({ id: p.id, cells: [<CellTitle key="t" title={p.title_en} meta={p.title_ar} />, p.target, prettyDate(p.created_at), p.scheduled_at || 'Not scheduled', p.sent_at || 'Not sent', <Badge key="s" value={p.status} />] }))} /></section>;
 }
 
 function SettingsPage({ data, session, onPassword }: { data: any; session: Session; onPassword: (form: HTMLFormElement) => void }) {
@@ -202,7 +252,7 @@ function SettingsPage({ data, session, onPassword }: { data: any; session: Sessi
 }
 
 function FormCard({ title, action, fields }: { title: string; action: (form: HTMLFormElement) => void; fields: 'offer' | 'home' | 'push' }) {
-  return <form className="card form" onSubmit={(event) => { event.preventDefault(); action(event.currentTarget); }}><h2>{title}</h2>{fields === 'home' ? <select className="input" name="kind"><option>hero</option><option>announcement</option><option>promo</option><option>featured</option><option>new_arrivals</option><option>popular</option><option>recommended</option></select> : null}<input className="input" name="titleEn" placeholder="English title" required={fields !== 'home'} /><input className="input" name="titleAr" placeholder="Arabic title" required={fields !== 'home'} />{fields === 'push' ? <><textarea className="input" name="bodyEn" placeholder="English message" required /><textarea className="input" name="bodyAr" placeholder="Arabic message" required /><select className="input" name="target"><option value="all">All</option><option value="ar">Arabic users</option><option value="en">English users</option><option value="customers">Customers</option></select><input className="input" name="scheduledAt" placeholder="Schedule ISO date, optional" /></> : <><textarea className="input" name={fields === 'home' ? 'bodyEn' : 'descriptionEn'} placeholder="English body" /><textarea className="input" name={fields === 'home' ? 'bodyAr' : 'descriptionAr'} placeholder="Arabic body" /><input className="input" name={fields === 'home' ? 'imageUrl' : 'bannerUrl'} placeholder="Banner/media URL" /><input className="input" name="deepLink" placeholder="/catalog" />{fields === 'home' ? <><input className="input" name="sortOrder" placeholder="Priority/order" /><select className="input" name="visible"><option value="true">Visible</option><option value="false">Hidden</option></select></> : <><select className="input" name="discountType"><option value="percentage">Percentage</option><option value="fixed">Fixed</option></select><input className="input" name="discountValue" placeholder="Discount value" /><select className="input" name="status"><option>draft</option><option>active</option><option>inactive</option><option>scheduled</option></select><select className="input" name="target"><option value="all_products">All products</option><option value="category">Category</option><option value="product">Product</option></select></>}</>}<button className="btn">Save</button></form>;
+  return <form className="card form editorCard" onSubmit={(event) => { event.preventDefault(); action(event.currentTarget); }}><h2>{title}</h2>{fields === 'home' ? <label>Section type<select className="input" name="kind"><option>hero</option><option>announcement</option><option>promo</option><option>featured</option><option>new_arrivals</option><option>popular</option><option>recommended</option></select></label> : null}<div className="fieldGrid"><label>English title<input className="input" name="titleEn" dir="ltr" required={fields !== 'home'} /></label><label>Arabic title<input className="input rtl" name="titleAr" dir="rtl" required={fields !== 'home'} /></label></div>{fields === 'push' ? <><label>English message<textarea className="input" name="bodyEn" dir="ltr" required /></label><label>Arabic message<textarea className="input rtl" name="bodyAr" dir="rtl" required /></label><div className="fieldGrid"><label>Audience<select className="input" name="target"><option value="all">All Users</option><option value="ar">Arabic Users</option><option value="en">English Users</option><option value="customers">Customers</option></select></label><label>Schedule<input className="input" name="scheduledAt" type="datetime-local" /></label></div><label>Deep link<input className="input" name="deepLink" placeholder="/offers" /></label></> : <><label>English body<textarea className="input" name={fields === 'home' ? 'bodyEn' : 'descriptionEn'} dir="ltr" /></label><label>Arabic body<textarea className="input rtl" name={fields === 'home' ? 'bodyAr' : 'descriptionAr'} dir="rtl" /></label><div className="notice">Media upload not configured. Use a secure media URL until storage credentials are added.</div><label>Media URL<input className="input" name={fields === 'home' ? 'imageUrl' : 'bannerUrl'} placeholder="https://..." /></label><label>Deep link<input className="input" name="deepLink" placeholder="/catalog" /></label>{fields === 'home' ? <div className="fieldGrid"><label>Priority<input className="input" name="sortOrder" type="number" min="0" /></label><label>Visibility<select className="input" name="visible"><option value="true">Visible</option><option value="false">Hidden</option></select></label></div> : <><div className="fieldGrid"><label>Discount type<select className="input" name="discountType"><option value="percentage">Percentage</option><option value="fixed">Fixed</option></select></label><label>Discount value<input className="input" name="discountValue" type="number" min="0" step="0.01" /></label></div><div className="fieldGrid"><label>Status<select className="input" name="status"><option>draft</option><option>active</option><option>inactive</option><option>scheduled</option></select></label><label>Target<select className="input" name="target"><option value="all_products">All Products</option><option value="category">Category</option><option value="product">Product</option></select></label></div><label>Target reference<input className="input" name="targetRef" placeholder="Product or category reference" /></label><div className="fieldGrid"><label>Start date<input className="input" name="startsAt" type="datetime-local" /></label><label>End date<input className="input" name="endsAt" type="datetime-local" /></label></div></>}</>}<div className="stickyActions"><button className="btn">Save</button></div></form>;
 }
 
 function Preview({ preview }: { preview: { title: string; body: string } }) {
