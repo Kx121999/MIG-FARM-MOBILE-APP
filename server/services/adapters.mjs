@@ -1,4 +1,5 @@
 import { fail } from '../lib/validation.mjs';
+import { createMediaStorage } from './media-storage.mjs';
 
 const jsonPost = async (url, headers, body) => {
   const response = await fetch(url, {
@@ -30,40 +31,54 @@ export const emailDelivery = {
   },
 };
 
-const uploadViaSignedEndpoint = async (kind, payload = {}) => {
-  const endpoint = process.env.OBJECT_STORAGE_UPLOAD_URL;
-  const publicUrl = kind === 'avatar' ? process.env.AVATAR_STORAGE_PUBLIC_URL : process.env.BANNER_STORAGE_PUBLIC_URL;
-  if (!endpoint || !publicUrl) throw fail(503, `${kind}_storage_not_configured`);
-  const { userId, fileName, contentType, base64 } = payload;
-  const key = `${kind}/${userId || 'admin'}/${Date.now()}-${String(fileName || 'image.jpg').replace(/[^A-Za-z0-9._-]/g, '-')}`;
-  await jsonPost(
-    endpoint,
-    { Authorization: process.env.OBJECT_STORAGE_UPLOAD_TOKEN ? `Bearer ${process.env.OBJECT_STORAGE_UPLOAD_TOKEN}` : '' },
-    { key, contentType, base64 },
-  );
-  return { url: `${publicUrl.replace(/\/+$/, '')}/${key}` };
+export const mediaStorage = {
+  get available() {
+    return createMediaStorage().available;
+  },
+  status() {
+    return createMediaStorage().status();
+  },
+  ownsKey(key) {
+    return createMediaStorage().ownsKey(key);
+  },
+  upload(input) {
+    return createMediaStorage().upload(input);
+  },
+  remove(input) {
+    return createMediaStorage().remove(input);
+  },
 };
 
 export const avatarStorage = {
   get available() {
-    return Boolean(process.env.OBJECT_STORAGE_UPLOAD_URL && process.env.AVATAR_STORAGE_PUBLIC_URL);
+    return mediaStorage.available;
+  },
+  status() {
+    return mediaStorage.status();
   },
   async upload(input) {
     if (!this.available) throw fail(503, 'avatar_storage_not_configured');
-    return uploadViaSignedEndpoint('avatar', input);
+    return mediaStorage.upload({ file: input.file, purpose: 'avatar' });
   },
-  async remove() {
-    return { ok: true };
+  async remove(input = {}) {
+    if (!input.key) return { ok: true };
+    return mediaStorage.remove(input);
   },
 };
 
 export const bannerStorage = {
   get available() {
-    return Boolean(process.env.OBJECT_STORAGE_UPLOAD_URL && process.env.BANNER_STORAGE_PUBLIC_URL);
+    return mediaStorage.available;
+  },
+  status() {
+    return mediaStorage.status();
   },
   async upload(input) {
     if (!this.available) throw fail(503, 'banner_storage_not_configured');
-    return uploadViaSignedEndpoint('banner', input);
+    return mediaStorage.upload(input);
+  },
+  async remove(input = {}) {
+    return mediaStorage.remove(input);
   },
 };
 

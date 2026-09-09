@@ -156,6 +156,12 @@ label { display: grid; gap: 6px; color: var(--green-2); font-size: 12px; font-we
 .cardHead { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 8px; }
 .rowActions { display: inline-flex; gap: 6px; align-items: center; }
 .rowActions button { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); background: #fff; color: var(--green); border-radius: 8px; }
+.mediaUploader { display: grid; gap: 10px; }
+.mediaUploader input[type="file"] { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 9px; background: #fff; color: var(--muted); }
+.dropZone { min-height: 132px; border: 1px dashed var(--line); border-radius: 8px; background: #fbfaf7; display: grid; gap: 6px; place-items: center; align-content: center; text-align: center; color: var(--muted); overflow: hidden; }
+.dropZone b { color: var(--green); }
+.dropZone span { font-size: 12px; }
+.dropZone img { width: 100%; height: 160px; object-fit: cover; display: block; }
 @media (max-width: 1100px) {
   .workspace, .chartGrid { grid-template-columns: 1fr; }
   .editorCard { max-height: none; }

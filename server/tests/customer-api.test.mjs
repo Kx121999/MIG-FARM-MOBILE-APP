@@ -670,6 +670,31 @@ test('customer API foundation on PostgreSQL', async (t) => {
           .status,
         403,
       );
+      const multipart = (purpose, file = {}) => {
+        const boundary = '----mig-farm-test-' + randomUUID();
+        const body = Buffer.concat([
+          Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="purpose"\r\n\r\n${purpose}\r\n`),
+          Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${file.name || 'image.webp'}"\r\nContent-Type: ${file.type || 'image/webp'}\r\n\r\n`),
+          file.bytes || Buffer.from([1, 2, 3, 4]),
+          Buffer.from(`\r\n--${boundary}--\r\n`),
+        ]);
+        return { body, type: `multipart/form-data; boundary=${boundary}` };
+      };
+      const uploadRequest = async (payload, accessToken) => {
+        const response = await fetch(origin + '/api/admin/media/upload', {
+          method: 'POST',
+          headers: {
+            'Content-Type': payload.type,
+            ...(accessToken ? { Authorization: 'Bearer ' + accessToken } : {}),
+          },
+          body: payload.body,
+        });
+        return { status: response.status, body: await response.json() };
+      };
+      assert.equal(
+        (await uploadRequest(multipart('offer-banner'), a.accessToken)).status,
+        403,
+      );
       await db.query(
         "UPDATE mig_farm.users SET role='admin' WHERE id=$1",
         [b.user.id],
@@ -680,6 +705,58 @@ test('customer API foundation on PostgreSQL', async (t) => {
           password: secret,
         })
       ).body;
+      assert.equal(
+        (await uploadRequest(multipart('offer-banner'), b.accessToken)).body.error,
+        'media_storage_not_configured',
+      );
+      process.env.MEDIA_STORAGE_PROVIDER = 'mock';
+      process.env.MEDIA_PUBLIC_BASE_URL = 'https://media.example.test';
+      assert.equal(
+        (
+          await uploadRequest(
+            multipart('offer-banner', { name: 'bad.svg', type: 'image/svg+xml' }),
+            b.accessToken,
+          )
+        ).body.error,
+        'unsupported_media_type',
+      );
+      assert.equal(
+        (
+          await uploadRequest(
+            multipart('home-banner', { bytes: Buffer.alloc(5 * 1024 * 1024 + 1) }),
+            b.accessToken,
+          )
+        ).body.error,
+        'file_too_large',
+      );
+      const uploaded = await uploadRequest(multipart('home-banner'), b.accessToken);
+      assert.equal(uploaded.status, 201);
+      assert.equal(uploaded.body.ok, true);
+      assert.match(uploaded.body.url, /^https:\/\/media\.example\.test\/mig-farm\/home\//);
+      assert.equal(
+        (
+          await request(
+            '/api/admin/media',
+            'DELETE',
+            { key: '../private' },
+            b.accessToken,
+          )
+        ).body.error,
+        'invalid_media_key',
+      );
+      assert.equal(
+        (
+          await request(
+            '/api/admin/media',
+            'DELETE',
+            { key: uploaded.body.key },
+            b.accessToken,
+          )
+        ).status,
+        200,
+      );
+      delete process.env.MEDIA_STORAGE_PROVIDER;
+      delete process.env.MEDIA_PUBLIC_BASE_URL;
       assert.equal(
         (
           await request(

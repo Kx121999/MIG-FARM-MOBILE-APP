@@ -1,6 +1,6 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { fail, pageResult, text } from '../lib/validation.mjs';
-import { emailDelivery, avatarStorage, bannerStorage, pushDelivery } from './adapters.mjs';
+import { emailDelivery, avatarStorage, bannerStorage, pushDelivery, mediaStorage } from './adapters.mjs';
 
 const role = (user) => {
   if (user.role !== 'admin') throw fail(403, 'forbidden');
@@ -204,7 +204,7 @@ export function createPlatform(db, products) {
         database: db ? 'configured' : 'not_configured',
         productCount: products.length,
         pushProvider: pushDelivery.available ? 'configured' : 'not_configured',
-        storageProvider: avatarStorage.available || bannerStorage.available ? 'configured' : 'not_configured',
+        storageProvider: mediaStorage.status(),
         emailProvider: emailDelivery.available ? 'configured' : 'not_configured',
       },
     };
@@ -478,10 +478,20 @@ export function createPlatform(db, products) {
       database: db ? 'configured' : 'not_configured',
       products: products.length,
       emailProvider: emailDelivery.available ? 'configured' : 'not_configured',
-      avatarStorage: avatarStorage.available ? 'configured' : 'not_configured',
-      bannerStorage: bannerStorage.available ? 'configured' : 'not_configured',
+      avatarStorage: avatarStorage.status ? avatarStorage.status() : avatarStorage.available ? 'configured' : 'not_configured',
+      bannerStorage: bannerStorage.status ? bannerStorage.status() : bannerStorage.available ? 'configured' : 'not_configured',
       pushProvider: pushDelivery.available ? 'configured' : 'not_configured',
     };
+  }
+
+  async function uploadAdminMedia(user, payload) {
+    role(user);
+    return mediaStorage.upload(payload);
+  }
+
+  async function deleteAdminMedia(user, body) {
+    role(user);
+    return mediaStorage.remove({ key: body?.key });
   }
 
   return {
@@ -506,5 +516,7 @@ export function createPlatform(db, products) {
     savePushCampaign,
     adminList,
     systemStatus,
+    uploadAdminMedia,
+    deleteAdminMedia,
   };
 }

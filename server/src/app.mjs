@@ -348,6 +348,18 @@ export function createApp({
         }
         if (method === 'GET' && action === 'push-campaigns')
           return send(response, 200, await platform.adminList(user, 'push', page(url), url));
+        if (method === 'POST' && action === 'media/upload')
+          return send(
+            response,
+            201,
+            await platform.uploadAdminMedia(user, await multipartBody(request)),
+          );
+        if (method === 'DELETE' && action === 'media')
+          return send(
+            response,
+            200,
+            await platform.deleteAdminMedia(user, await jsonBody(request)),
+          );
         if (method === 'POST' && action === 'offers')
           return send(response, 201, await platform.saveOffer(user, await jsonBody(request)));
         if (method === 'POST' && action === 'home-content')
@@ -541,6 +553,30 @@ function parseJson(raw) {
   }
 }
 const jsonBody = async (request) => parseJson(await readBody(request));
+async function multipartBody(request) {
+  const type = String(request.headers['content-type'] || ''),
+    match = /multipart\/form-data;\s*boundary=([^;]+)/i.exec(type);
+  if (!match) throw fail(400, 'invalid_multipart');
+  const boundary = '--' + match[1].replace(/^"|"$/g, ''),
+    raw = await readBody(request, 5 * 1024 * 1024 + 65536),
+    parts = raw.toString('binary').split(boundary).slice(1, -1);
+  const result = {};
+  for (const part of parts) {
+    const trimmed = part.replace(/^\r\n/, '').replace(/\r\n$/, ''),
+      splitAt = trimmed.indexOf('\r\n\r\n');
+    if (splitAt < 0) continue;
+    const headerText = trimmed.slice(0, splitAt),
+      bodyText = trimmed.slice(splitAt + 4),
+      name = /name="([^"]+)"/.exec(headerText)?.[1];
+    if (!name) continue;
+    const filename = /filename="([^"]*)"/.exec(headerText)?.[1],
+      contentType = /content-type:\s*([^\r\n]+)/i.exec(headerText)?.[1]?.trim();
+    if (filename !== undefined)
+      result.file = { filename, contentType, buffer: Buffer.from(bodyText, 'binary') };
+    else result[name] = Buffer.from(bodyText, 'binary').toString('utf8');
+  }
+  return result;
+}
 async function rememberedFarmMutation(db, user, rawKey, method, path, operation) {
   if (!rawKey) return operation();
   if (Array.isArray(rawKey) || !/^[A-Za-z0-9._:-]{1,120}$/.test(rawKey))
