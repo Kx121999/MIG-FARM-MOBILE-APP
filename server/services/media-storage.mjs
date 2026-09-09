@@ -1,4 +1,5 @@
-import { createHash, createHmac, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { fail } from '../lib/validation.mjs';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -13,7 +14,7 @@ const purposePrefix = new Map([
   ['avatar', 'avatars'],
 ]);
 
-export function createMediaStorage(env = process.env) {
+export function createMediaStorage(env = process.env, options = {}) {
   const provider = String(env.MEDIA_STORAGE_PROVIDER || '').toLowerCase();
   const configured =
     provider === 'mock' ||
@@ -56,61 +57,47 @@ export function createMediaStorage(env = process.env) {
       const key = objectKey(purpose, ext);
       if (provider === 'mock')
         return { ok: true, key, url: `${String(env.MEDIA_PUBLIC_BASE_URL || 'https://media.example.test').replace(/\/+$/, '')}/${key}`, purpose };
-      await s3Request(env, 'PUT', key, file.buffer, file.contentType);
+      await s3Put(env, options, key, file.buffer, file.contentType);
       return { ok: true, key, url: `${String(env.MEDIA_PUBLIC_BASE_URL).replace(/\/+$/, '')}/${key}`, purpose };
     },
     async remove({ key }) {
       if (!this.ownsKey(key)) throw fail(400, 'invalid_media_key');
       if (!configured) throw fail(503, 'media_storage_not_configured');
       if (provider === 'mock') return { ok: true };
-      await s3Request(env, 'DELETE', key);
+      await s3Delete(env, options, key);
       return { ok: true };
     },
   };
 }
 
-async function s3Request(env, method, key, body, contentType = '') {
-  const endpoint = String(env.MEDIA_S3_ENDPOINT).replace(/\/+$/, '');
-  const region = String(env.MEDIA_S3_REGION);
-  const bucket = String(env.MEDIA_S3_BUCKET);
-  const access = String(env.MEDIA_S3_ACCESS_KEY_ID);
-  const secret = String(env.MEDIA_S3_SECRET_ACCESS_KEY);
-  const url = new URL(`${endpoint}/${bucket}/${encodeURI(key).replace(/%2F/g, '/')}`);
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
-  const date = amzDate.slice(0, 8);
-  const payloadHash = sha256(body || '');
-  const headers = {
-    host: url.host,
-    'x-amz-content-sha256': payloadHash,
-    'x-amz-date': amzDate,
-    ...(contentType ? { 'content-type': contentType } : {}),
-  };
-  const signedHeaders = Object.keys(headers).sort().join(';');
-  const canonicalHeaders = Object.keys(headers).sort().map((name) => `${name}:${headers[name]}\n`).join('');
-  const canonicalRequest = [method, url.pathname, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
-  const scope = `${date}/${region}/s3/aws4_request`;
-  const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, sha256(canonicalRequest)].join('\n');
-  const kDate = hmac(`AWS4${secret}`, date);
-  const kRegion = hmac(kDate, region);
-  const kService = hmac(kRegion, 's3');
-  const kSigning = hmac(kService, 'aws4_request');
-  const signature = hmac(kSigning, stringToSign, 'hex');
-  const init = {
-    method,
-    headers: { ...headers, Authorization: `AWS4-HMAC-SHA256 Credential=${access}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}` },
-  };
-  if (body !== undefined) init.body = body;
-  const response = await fetch(url, {
-    ...init,
-  });
-  if (!response.ok) throw fail(503, 'media_storage_request_failed');
+async function s3Put(env, options, key, body, contentType) {
+  await sendS3(env, options, new PutObjectCommand({
+    Bucket: env.MEDIA_S3_BUCKET,
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+  }));
 }
 
-function sha256(value) {
-  return createHash('sha256').update(value).digest('hex');
+async function s3Delete(env, options, key) {
+  await sendS3(env, options, new DeleteObjectCommand({
+    Bucket: env.MEDIA_S3_BUCKET,
+    Key: key,
+  }));
 }
 
-function hmac(key, value, encoding) {
-  return createHmac('sha256', key).update(value).digest(encoding);
+async function sendS3(env, options, command) {
+  try {
+    const client = options.s3Client || new S3Client({
+      endpoint: env.MEDIA_S3_ENDPOINT,
+      region: env.MEDIA_S3_REGION || 'auto',
+      credentials: {
+        accessKeyId: env.MEDIA_S3_ACCESS_KEY_ID,
+        secretAccessKey: env.MEDIA_S3_SECRET_ACCESS_KEY,
+      },
+    });
+    await client.send(command);
+  } catch {
+    throw fail(503, 'media_storage_request_failed');
+  }
 }
