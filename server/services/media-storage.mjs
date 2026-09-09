@@ -91,11 +91,18 @@ async function s3Request(env, method, key, body, contentType = '') {
   const canonicalRequest = [method, url.pathname, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
   const scope = `${date}/${region}/s3/aws4_request`;
   const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, sha256(canonicalRequest)].join('\n');
-  const signature = hmac(hmac(hmac(hmac(`AWS4${secret}`, date), region), 's3'), 'aws4_request', stringToSign, 'hex');
-  const response = await fetch(url, {
+  const kDate = hmac(`AWS4${secret}`, date);
+  const kRegion = hmac(kDate, region);
+  const kService = hmac(kRegion, 's3');
+  const kSigning = hmac(kService, 'aws4_request');
+  const signature = hmac(kSigning, stringToSign, 'hex');
+  const init = {
     method,
     headers: { ...headers, Authorization: `AWS4-HMAC-SHA256 Credential=${access}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}` },
-    body,
+  };
+  if (body !== undefined) init.body = body;
+  const response = await fetch(url, {
+    ...init,
   });
   if (!response.ok) throw fail(503, 'media_storage_request_failed');
 }
