@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, ImageBackground, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowLeft, ArrowRight, MessageCircle, Search, Sprout, Truck } from 'lucide-react-native';
@@ -16,6 +16,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useProducts } from '@/hooks/useProducts';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { sortProducts } from '@/services/catalog';
+import { HomeContentSection, platformService } from '@/services/platform';
 import { Product } from '@/types';
 import { useRetention } from '@/contexts/RetentionContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,6 +34,18 @@ export default function HomeScreen() {
   const { personalization } = useRetention();
   const { user } = useAuth();
   const { dashboard: farmDashboard } = useFarm();
+  const [remoteSections, setRemoteSections] = useState<HomeContentSection[]>([]);
+  useEffect(() => {
+    let active = true;
+    platformService.home().then((data) => {
+      if (active) setRemoteSections(data.sections || []);
+    }).catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+  const announcement = remoteSections.find((section) => section.kind === 'announcement');
+  const promos = remoteSections.filter((section) => section.kind === 'promo').slice(0, 2);
   const arrivals = useMemo(() => sortProducts(products, 'newest').slice(0, 6), [products]);
   const selected = useMemo(() => products.filter((product) => !arrivals.some((item) => item.id === product.id)).slice(0, 6), [products, arrivals]);
   const recent = useMemo(() => recentProductIds.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item)).slice(0, 4), [products, recentProductIds]);
@@ -64,6 +77,18 @@ export default function HomeScreen() {
           <Truck size={17} color={colors.primary} /><Text style={styles.deliveryText}>{language === 'ar' ? 'توصيل داخل الإمارات' : 'Delivery across the UAE'}</Text>
           <View style={styles.deliveryDivider} /><Text style={styles.deliveryText}>{language === 'ar' ? 'منتجات زراعية مختارة' : 'Selected growing essentials'}</Text>
         </View>
+        {announcement ? (
+          <MotionPressable
+            accessibilityRole="button"
+            onPress={() => announcement.deepLink ? router.push(announcement.deepLink as never) : undefined}
+            style={[styles.announcement, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+          >
+            <Text numberOfLines={1} style={[styles.announcementText, { textAlign: isRTL ? 'right' : 'left' }]}>
+              {language === 'ar' ? announcement.titleAr || announcement.bodyAr : announcement.titleEn || announcement.bodyEn}
+            </Text>
+            <Arrow size={16} color={colors.primary} />
+          </MotionPressable>
+        ) : null}
         <MotionPressable accessibilityRole="button" accessibilityLabel={language === 'ar' ? 'فتح مزرعتي' : 'Open My Farm'} onPress={() => router.push('/(tabs)/my-farm' as never)}
           style={[styles.myFarm, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View style={styles.myFarmIcon}><Sprout size={25} color={colors.surface} /></View>
@@ -83,6 +108,25 @@ export default function HomeScreen() {
           <ScreenState loading={loading && !arrivals.length} error={error} empty={!loading && !error && !arrivals.length} onRetry={reload} />
           {arrivals.length ? <ProductRail products={arrivals} /> : null}
         </View>
+        {promos.length ? (
+          <View style={styles.promoGrid}>
+            {promos.map((promo) => (
+              <MotionPressable
+                key={promo.id}
+                accessibilityRole="button"
+                onPress={() => promo.deepLink ? router.push(promo.deepLink as never) : undefined}
+                style={styles.promoCard}
+              >
+                <Text numberOfLines={1} style={[styles.promoTitle, { textAlign: isRTL ? 'right' : 'left' }]}>
+                  {language === 'ar' ? promo.titleAr : promo.titleEn}
+                </Text>
+                <Text numberOfLines={2} style={[styles.promoBody, { textAlign: isRTL ? 'right' : 'left' }]}>
+                  {language === 'ar' ? promo.bodyAr : promo.bodyEn}
+                </Text>
+              </MotionPressable>
+            ))}
+          </View>
+        ) : null}
         {selected.length ? <View style={styles.section}>
           <SectionTitle title={personalized.length?(language==='ar'?'قد يعجبك':'You may like'):(language === 'ar' ? 'مختارات ميغ فارم' : 'MIG FARM selection')} action={t('viewAll')} onPress={openStore} />
           <ProductRail products={personalized.length?personalized:selected} />
@@ -115,11 +159,17 @@ const styles = StyleSheet.create({
   delivery: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   deliveryText: { ...typography.caption, color: colors.muted, flexShrink: 1, textAlign: 'center' },
   deliveryDivider: { width: 1, height: 16, backgroundColor: colors.borderStrong },
+  announcement: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, paddingHorizontal: spacing.md, minHeight: 40, borderRadius: radius.md, backgroundColor: colors.primarySoft, alignItems: 'center', gap: spacing.sm },
+  announcementText: { ...typography.caption, flex: 1, color: colors.primaryDark, fontWeight: '900' },
   myFarm: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.primaryDark, alignItems: 'center', gap: spacing.md },
   myFarmIcon: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   myFarmTitle: { ...typography.section, fontSize: 18, color: colors.surface },
   myFarmBody: { ...typography.secondary, color: '#DCE9E0' },
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.xs },
+  promoGrid: { paddingHorizontal: spacing.lg, marginTop: spacing.md, gap: spacing.sm },
+  promoCard: { minHeight: 78, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface },
+  promoTitle: { ...typography.secondary, color: colors.text, fontWeight: '900' },
+  promoBody: { ...typography.caption, color: colors.muted, marginTop: spacing.xs },
   categoryRail: { flexGrow: 0 },
   categories: { gap: spacing.md },
   assistant: { marginHorizontal: spacing.lg, marginTop: spacing.xl, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.surface, alignItems: 'center', gap: spacing.md },

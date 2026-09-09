@@ -246,6 +246,7 @@ export function createCustomers(db, products) {
           offer: 'offers',
           stock: 'availability',
           product: 'newProducts',
+          my_farm: 'myFarm',
           system: 'important',
         }[row.type],
         title:

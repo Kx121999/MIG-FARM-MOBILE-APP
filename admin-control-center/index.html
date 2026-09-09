@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIG FARM Admin Control Center</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --green: #0f4f2f;
+        --green-soft: #e6f0e9;
+        --gold: #b8892f;
+        --paper: #f6f4ef;
+        --card: #ffffff;
+        --ink: #1f2a24;
+        --muted: #6d746f;
+        --line: #e5e1d8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        min-height: 100vh;
+      }
+      aside {
+        background: #fbfaf7;
+        border-right: 1px solid var(--line);
+        padding: 24px 18px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 28px;
+        font-weight: 800;
+        color: var(--green);
+      }
+      .mark {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: var(--green);
+        color: white;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+      }
+      nav { display: grid; gap: 6px; }
+      nav button {
+        border: 0;
+        background: transparent;
+        text-align: left;
+        padding: 11px 12px;
+        border-radius: 8px;
+        color: var(--muted);
+        cursor: pointer;
+        font: inherit;
+      }
+      nav button.active {
+        background: var(--green-soft);
+        color: var(--green);
+        font-weight: 700;
+      }
+      main { padding: 24px; }
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      h1 { margin: 0; font-size: 28px; letter-spacing: 0; }
+      p { color: var(--muted); line-height: 1.5; }
+      .token {
+        width: min(480px, 100%);
+        display: flex;
+        gap: 8px;
+      }
+      input, textarea, select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        padding: 11px 12px;
+        font: inherit;
+      }
+      textarea { min-height: 82px; resize: vertical; }
+      .btn {
+        border: 0;
+        border-radius: 8px;
+        background: var(--green);
+        color: white;
+        padding: 11px 14px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .btn.secondary {
+        background: white;
+        color: var(--green);
+        border: 1px solid var(--line);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid rgba(31,42,36,.07);
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 10px 26px rgba(31,42,36,.04);
+      }
+      .metric b { display: block; font-size: 26px; color: var(--green); }
+      .metric span { color: var(--muted); font-size: 13px; }
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 16px;
+        margin-top: 16px;
+      }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td {
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+      .pill {
+        display: inline-flex;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: var(--green-soft);
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .form { display: grid; gap: 10px; }
+      .phone {
+        width: 260px;
+        min-height: 520px;
+        margin: 0 auto;
+        border-radius: 34px;
+        border: 10px solid #1e2420;
+        background: #fbfaf7;
+        overflow: hidden;
+        box-shadow: 0 22px 44px rgba(0,0,0,.18);
+      }
+      .phone-hero {
+        min-height: 210px;
+        padding: 22px 18px;
+        background: linear-gradient(180deg, #eff6e8, #ffffff);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+      .phone h2 { margin: 0; color: var(--green); font-size: 26px; line-height: 1.05; }
+      .phone p { margin: 8px 0 0; font-size: 13px; }
+      .status { min-height: 22px; color: var(--muted); font-size: 13px; }
+      [data-panel] { display: none; }
+      [data-panel].active { display: block; }
+      @media (max-width: 980px) {
+        .shell { grid-template-columns: 1fr; }
+        aside { position: static; height: auto; }
+        .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .workspace { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside>
+        <div class="brand"><div class="mark">M</div><div>MIG FARM<br /><small>Admin Control Center</small></div></div>
+        <nav id="nav"></nav>
+      </aside>
+      <main>
+        <header>
+          <div>
+            <h1 id="title">Dashboard</h1>
+            <p id="subtitle">Real production data only. Admin actions are sent through the MIG FARM Backend API.</p>
+          </div>
+          <div class="token">
+            <input id="api" placeholder="https://mig-farm-api.onrender.com" />
+            <input id="token" type="password" placeholder="Admin access token" />
+            <button class="btn" id="save">Connect</button>
+          </div>
+        </header>
+        <p class="status" id="status"></p>
+        <section data-panel="Dashboard" class="active">
+          <div class="grid" id="metrics"></div>
+          <div class="workspace">
+            <div class="card">
+              <h2>Recent Orders</h2>
+              <table id="recentOrders"></table>
+            </div>
+            <div class="card">
+              <h2>Live Mobile Preview</h2>
+              <div class="phone">
+                <div class="phone-hero">
+                  <span class="pill">MIG FARM</span>
+                  <h2 id="previewTitle">Premium farm commerce</h2>
+                  <p id="previewBody">Banners, offers and push copy appear here before publishing.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section data-panel="Customers"><div class="card"><table id="customers"></table></div></section>
+        <section data-panel="Orders"><div class="card"><table id="orders"></table></div></section>
+        <section data-panel="Offers">
+          <div class="workspace">
+            <div class="card"><table id="offers"></table></div>
+            <form class="card form" id="offerForm">
+              <h2>Offer Manager</h2>
+              <input name="titleEn" placeholder="English title" required />
+              <input name="titleAr" placeholder="Arabic title" required />
+              <textarea name="descriptionEn" placeholder="English description"></textarea>
+              <textarea name="descriptionAr" placeholder="Arabic description"></textarea>
+              <input name="discount" placeholder="Discount label" />
+              <input name="deepLink" placeholder="/catalog" />
+              <select name="status"><option>draft</option><option>active</option><option>inactive</option><option>scheduled</option></select>
+              <button class="btn">Save offer</button>
+            </form>
+          </div>
+        </section>
+        <section data-panel="Home Content">
+          <div class="workspace">
+            <div class="card"><table id="home"></table></div>
+            <form class="card form" id="homeForm">
+              <h2>Home Content Manager</h2>
+              <select name="kind"><option>hero</option><option>announcement</option><option>promo</option><option>featured</option><option>new_arrivals</option><option>popular</option><option>recommended</option></select>
+              <input name="titleEn" placeholder="English title" />
+              <input name="titleAr" placeholder="Arabic title" />
+              <textarea name="bodyEn" placeholder="English body"></textarea>
+              <textarea name="bodyAr" placeholder="Arabic body"></textarea>
+              <input name="deepLink" placeholder="/catalog" />
+              <button class="btn">Save content</button>
+            </form>
+          </div>
+        </section>
+        <section data-panel="Push Notifications">
+          <div class="workspace">
+            <div class="card"><table id="push"></table></div>
+            <form class="card form" id="pushForm">
+              <h2>Push Composer</h2>
+              <input name="titleEn" placeholder="English title" required />
+              <input name="titleAr" placeholder="Arabic title" required />
+              <textarea name="bodyEn" placeholder="English message" required></textarea>
+              <textarea name="bodyAr" placeholder="Arabic message" required></textarea>
+              <select name="target"><option>all</option><option>ar</option><option>en</option><option>customers</option></select>
+              <input name="deepLink" placeholder="/notifications" />
+              <input name="scheduledAt" placeholder="2026-09-09T16:00:00Z" />
+              <button class="btn">Queue notification</button>
+            </form>
+          </div>
+        </section>
+        <section data-panel="Settings">
+          <div class="card">
+            <h2>Production Safety</h2>
+            <p>No database URL, Stripe secret, refresh token or admin secret is stored in this dashboard. Paste a short-lived admin access token for each session.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script>
+      const panels = ['Dashboard','Customers','Orders','Offers','Push Notifications','Home Content','Banners','Featured Products','App Content','Notification History','Settings'];
+      const implemented = new Set(['Dashboard','Customers','Orders','Offers','Push Notifications','Home Content','Settings']);
+      const nav = document.getElementById('nav');
+      const state = {
+        api: localStorage.getItem('migAdminApi') || 'https://mig-farm-api.onrender.com',
+        token: sessionStorage.getItem('migAdminToken') || '',
+      };
+      document.getElementById('api').value = state.api;
+      document.getElementById('token').value = state.token;
+      panels.forEach((name) => {
+        const button = document.createElement('button');
+        button.textContent = name;
+        button.onclick = () => select(name);
+        nav.append(button);
+      });
+      document.getElementById('save').onclick = () => {
+        state.api = document.getElementById('api').value.replace(/\/+$/, '');
+        state.token = document.getElementById('token').value;
+        localStorage.setItem('migAdminApi', state.api);
+        sessionStorage.setItem('migAdminToken', state.token);
+        load();
+      };
+      async function api(path, options = {}) {
+        const res = await fetch(state.api + path, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + state.token,
+            ...(options.headers || {}),
+          },
+        });
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        return res.json();
+      }
+      function select(name) {
+        document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b.textContent === name));
+        document.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('active', p.dataset.panel === name));
+        document.getElementById('title').textContent = name;
+        document.getElementById('status').textContent = implemented.has(name) ? '' : 'This section is reserved for the next backend capability and does not show fake data.';
+        if (implemented.has(name)) load(name);
+      }
+      function table(id, columns, rows) {
+        document.getElementById(id).innerHTML = '<tr>' + columns.map((c) => `<th>${c}</th>`).join('') + '</tr>' + rows.map((row) => '<tr>' + row.map((cell) => `<td>${cell ?? ''}</td>`).join('') + '</tr>').join('');
+      }
+      function formData(form) {
+        return Object.fromEntries(new FormData(form).entries());
+      }
+      async function load(panel = document.querySelector('[data-panel].active')?.dataset.panel || 'Dashboard') {
+        if (!state.token) return;
+        try {
+          document.getElementById('status').textContent = 'Loading...';
+          if (panel === 'Dashboard') {
+            const data = await api('/api/admin/summary');
+            document.getElementById('metrics').innerHTML = [
+              ['Customers', data.customers], ['Orders', data.orders], ['Revenue', 'AED ' + data.revenue], ['Active offers', data.activeOffers], ['Notifications', data.notifications],
+            ].map(([label, value]) => `<div class="card metric"><b>${value}</b><span>${label}</span></div>`).join('');
+            table('recentOrders', ['Order', 'Status', 'Total', 'Created'], (data.recentOrders || []).map((o) => [o.id, `<span class="pill">${o.status}</span>`, `${o.currency} ${o.total}`, new Date(o.created_at).toLocaleString()]));
+          }
+          if (panel === 'Customers') {
+            const data = await api('/api/admin/customers');
+            table('customers', ['Name', 'Email', 'Phone', 'Language', 'Status'], data.items.map((c) => [c.name, c.email, c.phone, c.language, `<span class="pill">${c.status}</span>`]));
+          }
+          if (panel === 'Orders') {
+            const data = await api('/api/admin/orders');
+            table('orders', ['Order', 'Customer', 'Status', 'Payment', 'Total'], data.items.map((o) => [o.id, o.customerId || 'Guest', o.status, o.paymentStatus, `${o.currency} ${o.total}`]));
+          }
+          if (panel === 'Offers') {
+            const data = await api('/api/admin/offers');
+            table('offers', ['Title', 'Status', 'Discount', 'Deep link'], data.items.map((o) => [o.title_en, `<span class="pill">${o.status}</span>`, o.discount, o.deep_link]));
+          }
+          if (panel === 'Home Content') {
+            const data = await api('/api/admin/home-content');
+            table('home', ['Kind', 'Title', 'Visible', 'Deep link'], data.items.map((s) => [s.kind, s.title_en, s.visible, s.deep_link]));
+          }
+          if (panel === 'Push Notifications') {
+            const data = await api('/api/admin/push-campaigns');
+            table('push', ['Title', 'Target', 'Status', 'Scheduled'], data.items.map((p) => [p.title_en, p.target, `<span class="pill">${p.status}</span>`, p.scheduled_at || 'Send now']));
+          }
+          document.getElementById('status').textContent = '';
+        } catch (error) {
+          document.getElementById('status').textContent = error.message;
+        }
+      }
+      for (const [id, path] of [['offerForm','/api/admin/offers'], ['homeForm','/api/admin/home-content'], ['pushForm','/api/admin/push-campaigns']]) {
+        document.getElementById(id)?.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const data = formData(event.currentTarget);
+          document.getElementById('previewTitle').textContent = data.titleEn || 'MIG FARM';
+          document.getElementById('previewBody').textContent = data.bodyEn || data.descriptionEn || data.deepLink || '';
+          await api(path, { method: 'POST', body: JSON.stringify(data) });
+          event.currentTarget.reset();
+          load();
+        });
+      }
+      select('Dashboard');
+    </script>
+  </body>
+</html>

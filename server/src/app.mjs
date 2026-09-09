@@ -5,6 +5,7 @@ import { createAuth, profile } from '../auth/service.mjs';
 import { createCustomers } from '../services/customers.mjs';
 import { createOrders } from '../services/orders.mjs';
 import { createFarmOS } from '../services/farms.mjs';
+import { createPlatform } from '../services/platform.mjs';
 import { stripeGateway } from '../services/stripe.mjs';
 import { fail, page } from '../lib/validation.mjs';
 export function createApp({
@@ -20,7 +21,8 @@ export function createApp({
     auth = createAuth(db, authOptions),
     customers = createCustomers(db, products),
     orders = createOrders(db, products, stripe, orderOptions),
-    farmOS = createFarmOS(db);
+    farmOS = createFarmOS(db),
+    platform = createPlatform(db, products);
   const allowed = (env.CORS_ORIGIN || '*')
     .split(',')
     .map((value) => value.trim());
@@ -70,6 +72,12 @@ export function createApp({
           version: catalog.version,
           updatedAt: catalog.migratedAt,
         });
+      if (method === 'GET' && path === '/api/app/home')
+        return send(response, 200, await platform.publicHome());
+      if (method === 'GET' && path === '/api/offers')
+        return send(response, 200, await platform.publicOffers());
+      if (method === 'GET' && path === '/admin')
+        return serveAdmin(response, mediaRoot);
       if (method === 'GET' && path.startsWith('/api/products/')) {
         const product = products.find(
           (p) => p.handle === decodeURIComponent(path.slice(14)),
@@ -293,8 +301,31 @@ export function createApp({
         if (method === 'POST' && path === '/api/diagnosis-sessions') return await mutate(201, async (payload) => ({ session: await farmOS.createDiagnosis(user, payload) }));
         throw fail(404, 'not_found');
       }
+      if (path.startsWith('/api/admin/')) {
+        const user = await auth.authenticate(request);
+        const action = path.slice('/api/admin/'.length);
+        if (method === 'GET' && action === 'summary')
+          return send(response, 200, await platform.adminSummary(user));
+        if (method === 'GET' && action === 'customers')
+          return send(response, 200, await platform.adminCustomers(user, page(url)));
+        if (method === 'GET' && action === 'orders')
+          return send(response, 200, await platform.adminOrders(user, page(url)));
+        if (method === 'GET' && action === 'offers')
+          return send(response, 200, await platform.adminList(user, 'offers', page(url)));
+        if (method === 'GET' && action === 'home-content')
+          return send(response, 200, await platform.adminList(user, 'home', page(url)));
+        if (method === 'GET' && action === 'push-campaigns')
+          return send(response, 200, await platform.adminList(user, 'push', page(url)));
+        if (method === 'POST' && action === 'offers')
+          return send(response, 201, await platform.saveOffer(user, await jsonBody(request)));
+        if (method === 'POST' && action === 'home-content')
+          return send(response, 201, await platform.saveHomeContent(user, await jsonBody(request)));
+        if (method === 'POST' && action === 'push-campaigns')
+          return send(response, 202, await platform.savePushCampaign(user, await jsonBody(request)));
+        throw fail(404, 'not_found');
+      }
       if (
-        !/^\/api\/(me(?:\/|$)|addresses(?:\/|$)|favorites(?:\/|$)|notifications(?:\/|$)|notification-preferences$)/.test(
+        !/^\/api\/(me(?:\/|$)|addresses(?:\/|$)|favorites(?:\/|$)|recently-viewed$|push-tokens$|notifications(?:\/|$)|notification-preferences$)/.test(
           path,
         )
       )
@@ -363,6 +394,18 @@ export function createApp({
         return send(response, 200, {
           favorites: await customers.favorites(user),
         });
+      if (path === '/api/recently-viewed') {
+        if (method === 'GET')
+          return send(response, 200, await platform.recent(user));
+        if (method === 'POST')
+          return send(response, 200, await platform.saveRecent(user, await jsonBody(request)));
+      }
+      if (path === '/api/push-tokens') {
+        if (method === 'POST')
+          return send(response, 200, await platform.savePushToken(user, await jsonBody(request)));
+        if (method === 'DELETE')
+          return send(response, 200, await platform.removePushToken(user, await jsonBody(request)));
+      }
       if (method === 'POST' && path === '/api/favorites/merge')
         return send(response, 200, {
           favorites: await customers.mergeFavorites(
@@ -415,6 +458,15 @@ export function createApp({
       });
     }
   });
+}
+async function serveAdmin(response, mediaRoot) {
+  const body = await readFile(resolve(mediaRoot, '../../admin-control-center/index.html'), 'utf8');
+  response.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  response.end(body);
 }
 function clientIP(request, env) {
   const hops = Number(env.TRUST_PROXY_HOPS || 0),

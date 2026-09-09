@@ -663,6 +663,134 @@ test('customer API foundation on PostgreSQL', async (t) => {
     },
   );
   await t.test(
+    'platform APIs support dynamic home, offers, push tokens and admin role protection',
+    async () => {
+      assert.equal(
+        (await request('/api/admin/summary', 'GET', undefined, a.accessToken))
+          .status,
+        403,
+      );
+      await db.query(
+        "UPDATE mig_farm.users SET role='admin' WHERE id=$1",
+        [b.user.id],
+      );
+      b = (
+        await request('/api/auth/login', 'POST', {
+          email: 'b@example.test',
+          password: secret,
+        })
+      ).body;
+      assert.equal(
+        (
+          await request(
+            '/api/admin/home-content',
+            'POST',
+            {
+              kind: 'announcement',
+              titleEn: 'Irrigation week',
+              titleAr: 'أسبوع الري',
+              bodyEn: 'Featured supplies',
+              bodyAr: 'مستلزمات مختارة',
+              deepLink: '/catalog',
+              productIds: [11, 99],
+              visible: true,
+            },
+            b.accessToken,
+          )
+        ).status,
+        201,
+      );
+      assert.equal((await request('/api/app/home')).body.sections.length, 1);
+      assert.deepEqual(
+        (await request('/api/app/home')).body.sections[0].productIds,
+        [11],
+      );
+      assert.equal(
+        (
+          await request(
+            '/api/admin/offers',
+            'POST',
+            {
+              titleEn: 'Seed offer',
+              titleAr: 'عرض البذور',
+              descriptionEn: 'Active offer',
+              descriptionAr: 'عرض نشط',
+              status: 'active',
+              discount: '10%',
+              deepLink: '/catalog',
+              productIds: [11],
+            },
+            b.accessToken,
+          )
+        ).status,
+        201,
+      );
+      assert.equal((await request('/api/offers')).body.offers.length, 1);
+      assert.equal(
+        (
+          await request(
+            '/api/recently-viewed',
+            'POST',
+            { productId: 11 },
+            a.accessToken,
+          )
+        ).status,
+        200,
+      );
+      assert.deepEqual(
+        (await request('/api/recently-viewed', 'GET', undefined, a.accessToken))
+          .body.productIds,
+        [11],
+      );
+      assert.equal(
+        (
+          await request(
+            '/api/push-tokens',
+            'POST',
+            {
+              token: 'ExponentPushToken[test-token]',
+              platform: 'ios',
+              locale: 'ar',
+            },
+            a.accessToken,
+          )
+        ).status,
+        200,
+      );
+      const pushRows = (
+        await db.query('SELECT * FROM mig_farm.push_tokens WHERE user_id=$1', [
+          a.user.id,
+        ])
+      ).rows;
+      assert.equal(pushRows.length, 1);
+      assert.equal(pushRows[0].token_value, 'ExponentPushToken[test-token]');
+      assert.equal(
+        (
+          await request(
+            '/api/admin/push-campaigns',
+            'POST',
+            {
+              titleEn: 'Order update',
+              titleAr: 'تحديث الطلب',
+              bodyEn: 'Your order is moving',
+              bodyAr: 'طلبك قيد المتابعة',
+              target: 'customers',
+              deepLink: '/orders',
+            },
+            b.accessToken,
+          )
+        ).status,
+        202,
+      );
+      assert.equal(
+        (await request('/api/admin/summary', 'GET', undefined, b.accessToken))
+          .body.notifications,
+        1,
+      );
+      assert.equal((await fetch(origin + '/admin')).status, 200);
+    },
+  );
+  await t.test(
     'reset adapter creates expiring single-use hashed token and revokes sessions',
     async () => {
       let delivery;

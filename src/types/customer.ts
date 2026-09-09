@@ -36,6 +36,7 @@ export type NotificationCategory =
   | 'offers'
   | 'availability'
   | 'newProducts'
+  | 'myFarm'
   | 'important';
 export type NotificationRecord = {
   id: string;
