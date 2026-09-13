@@ -113,11 +113,11 @@ export type CropPlan = {
 export type FarmCommandStatus = 'good' | 'attention' | 'critical' | 'no_data';
 export type FarmActionPriority = 'critical' | 'high' | 'normal' | 'low';
 export type FarmPriorityAction = {
-  id:string; kind:'task_overdue'|'task_due'|'problem_followup'|'problem_open'|'irrigation_record_gap'|'stage_confirmation'|'harvest_window'|'missing_information';
+  id:string; kind:'task_overdue'|'task_due'|'problem_followup'|'problem_open'|'irrigation_record_gap'|'stage_confirmation'|'harvest_window'|'missing_information'|'intelligence_check';
   priority:FarmActionPriority; farmId:string; cropCycleId:string|null; entityId:string|null;
   dueAt:string|null; titleAr:string; titleEn:string; reasonAr:string; reasonEn:string;
-  action:'complete_task'|'follow_up_problem'|'record_irrigation'|'confirm_stage'|'record_harvest'|'complete_crop_data';
-  source:'farm_record'|'verified_knowledge_and_farm_record';
+  action:'complete_task'|'follow_up_problem'|'record_irrigation'|'confirm_stage'|'record_harvest'|'complete_crop_data'|'open_farm_intelligence';
+  source:'farm_record'|'verified_knowledge_and_farm_record'|'personal_history_anomaly_not_agronomic_diagnosis';
 };
 export type CropMissionStage = {
   ageDays:number|null;
@@ -155,3 +155,64 @@ export type WeeklyFarmReport = { period:{from:string;to:string};tasksCompleted:n
 export type SeasonFarmReport = { cropCycleId:string;plantingDate:string|null;confirmedStages:Array<{stageKey:GrowthStage;confirmedAt:string}>;firstHarvestDate:string|null;lastHarvestDate:string|null;seasonDurationDays:number|null;harvests:Array<{unit:string;quantity:number;events:number}>;yieldPerM2Kg:number|null;irrigationRecords:number;problems:number;expensesMinor:number;revenueMinor:number;grossMarginMinor:number;costPerKgMinor:number|null;currency:string;source:'farm_record_calculation' };
 export type FarmExpense = { id:string;farmId:string;cropCycleId:string|null;cropPlanId:string|null;category:string;amountMinor:number;currency:string;occurredAt:string;notes:string;createdAt:string };
 export type FarmSale = { id:string;farmId:string;cropCycleId:string;soldAt:string;quantity:number;unit:string;unitPriceMinor:number;totalMinor:number;currency:string;buyerNotes:string;createdAt:string };
+
+export type IntelligenceConfidence = { level:'HIGH'|'MEDIUM'|'LOW'|'INSUFFICIENT_DATA';reasons:string[] };
+export type DataFreshness = { status:'fresh'|'stale'|'unavailable'|'invalid';ageMinutes:number|null;timestamp:string|null };
+export type IntelligenceProviderStatus = {
+  provider:string|null;status:'configured'|'not_configured'|'unavailable';configured:boolean;
+  dataTimestamp:string|null;freshness:'fresh'|'stale'|'unavailable';messageAr:string;messageEn:string;
+};
+export type VerifiedKnowledgeSource = {
+  id:string;organization:string;title:string;url:string;sourceType:string|null;country:string|null;
+  authorityLevel:string|null;language:string|null;retrievedAt:string|null;lastVerifiedAt:string|null;
+  license:string|null;productionAllowed:boolean;status:'verified'|'review_required';notes:string;
+};
+export type VerifiedKnowledgeRecord = {
+  id:string;type:string;domain:string;crop:string|null;productionSystem:string|null;growthStage:string|null;
+  country:string|null;jurisdiction:string|null;reviewStatus:'verified';productionAllowed:true;
+  lastVerifiedAt:string|null;payload:Record<string,unknown>;sources:VerifiedKnowledgeSource[];dataStatus:'verified';
+};
+export type FarmIntelligenceRisk = {
+  id:string;riskType:'WEATHER'|'IRRIGATION'|'CROP_STAGE'|'PROBLEM_FOLLOW_UP'|'DATA_QUALITY'|'HARVEST'|'SENSOR'|'DISEASE_CONDITIONS';
+  severity:'critical'|'high'|'medium'|'low';titleAr:string;titleEn:string;reasonAr:string;reasonEn:string;
+  evidence:Array<Record<string,unknown>>;requiredAction:string;sourceIds:string[];confidence:IntelligenceConfidence;
+  createdAt:string;recheckAt:string|null;diagnosis:null;classification:'risk_not_diagnosis';
+};
+export type FarmIntelligenceAnomaly = {
+  id:string;type:string;severity:'high'|'medium'|'low';titleAr:string;titleEn:string;reasonAr:string;reasonEn:string;
+  evidence:Record<string,unknown>;requiredAction:string;agronomicConclusion:null;confidence:IntelligenceConfidence;
+};
+export type CropDigitalState = {
+  cropId:string;farmId:string;zoneId:string|null;crop:string;variety:string|null;plantingDate:string|null;ageDays:number|null;
+  expectedGrowthStage:Record<string,unknown>|null;confirmedGrowthStage:Record<string,unknown>|null;stageConfirmationRequired:boolean;
+  activeTasks:FarmTask[];lastIrrigation:string|null;recentOperations:FarmOperation[];openProblems:FarmProblem[];
+  photoHistory:Array<Record<string,unknown>>;harvestStatus:Record<string,unknown>|null;harvestTotals:Array<Record<string,unknown>>;
+  expenses:number;sales:number;verifiedKnowledgeAvailability:{status:'verified_available'|'verified_data_unavailable';sourceIds:string[];lastVerifiedAt:string|null};
+  weatherStatus:'configured'|'not_configured'|'unavailable';sensorStatus:'configured'|'not_configured'|'unavailable';riskFlags:string[];
+  dataCompleteness:{status:'good'|'attention';missing:string[];why:Array<{field:string;reason:string}>};
+  confidence:IntelligenceConfidence;freshness:Record<string,DataFreshness>;lastUpdatedAt:string;dataModel:'deterministic_crop_state';
+};
+export type FarmDecisionCard = {
+  id:string;riskId:string;what:string;why:string;do:string;recheck:string;
+  severity:FarmIntelligenceRisk['severity'];confidence:IntelligenceConfidence;sourceIds:string[];
+};
+export type FarmIntelligence = {
+  generatedAt:string;farmId:string|null;
+  brief:{titleAr:string;titleEn:string;summaryAr?:string;summaryEn?:string;taskCount?:number;riskCount:number;anomalyCount:number;cropCount:number;dataQualityOnly?:boolean};
+  cropStates:CropDigitalState[];risks:FarmIntelligenceRisk[];anomalies:FarmIntelligenceAnomaly[];
+  forecasts:Array<{cropId:string;crop:string;harvest:{status:'forecast_available'|'insufficient_data';expectedWindow:{from:string;to:string}|null;exactDate:null;basedOn:string[];confidence:IntelligenceConfidence;sourceIds?:string[]};yield:{status:'forecast_available'|'insufficient_data';range:{min:number;max:number}|null;basedOn:string[];confidence:IntelligenceConfidence;unit?:string;guaranteed?:false}}>;
+  decisionCards:FarmDecisionCard[];upcoming:FarmDecisionCard[];
+  providerStatus:{weather:IntelligenceProviderStatus;vision:IntelligenceProviderStatus;sensor:IntelligenceProviderStatus};
+  notifications:Array<{id:string;riskId:string;deliveryStatus:'not_sent';requiresUserNotificationConsent:true}>;
+  healthScore:null;healthScoreStatus:'not_calculated';diagnosis:null;model:'deterministic_verified_farm_intelligence_v5';
+};
+export type WaterQualityReference = {
+  status:'reference_available'|'verified_data_unavailable';userMeasurement:{value:number;unit:'dS/m';source:'user_measurement';measuredAt:string|null};
+  referenceClasses:VerifiedKnowledgeRecord[];cropReferences:VerifiedKnowledgeRecord[];interpretation:Record<string,unknown>|null;
+  prescription:null;warningAr:string;warningEn:string;
+};
+export type VerifiedDiagnosisResult = {
+  status:'possible_causes_found'|'no_verified_match';diagnosis:null;visionStatus:'not_configured';verifiedOnly:true;
+  possibleCauses:Array<{causeType:string;possibleCauseAr:string;possibleCauseEn:string;inspectionChecksAr:string[];inspectionChecksEn:string[];source:VerifiedKnowledgeSource|null;confidence:'LOW';classification:'possible_cause_not_diagnosis'}>;
+  disclaimerAr:string;disclaimerEn:string;
+};

@@ -7,6 +7,8 @@ import {
   buildWeeklyFarmReport,
 } from './engine.mjs';
 import { createWeatherProvider } from './weather.mjs';
+import { detectAnomalies } from '../farm-intelligence/anomaly-engine.mjs';
+import { buildCommandIntelligenceActions } from '../farm-intelligence/engine.mjs';
 
 const STAGES = ['seedling', 'vegetative', 'flowering', 'fruit_set', 'production', 'harvest', 'finished'];
 const CHECKIN_VALUES = {
@@ -190,6 +192,35 @@ export function createFarmCommand(db, { env = process.env, weatherProvider = cre
     return { ...data, missions, farmId };
   };
 
+  const loadIntelligenceActions = async (user, farmId) => {
+    const values = [user.id, farmId];
+    const [tasks, problems, irrigations, expenses, sensors] = await Promise.all([
+      db.query(`SELECT * FROM mig_farm.farm_tasks WHERE user_id=$1 AND deleted_at IS NULL
+        AND due_at>now()-interval '90 days' AND ($2::uuid IS NULL OR farm_id=$2)
+        ORDER BY due_at DESC,id LIMIT 600`, values),
+      db.query(`SELECT * FROM mig_farm.farm_problems WHERE user_id=$1 AND deleted_at IS NULL
+        AND first_observed_at>now()-interval '365 days' AND ($2::uuid IS NULL OR farm_id=$2)
+        ORDER BY first_observed_at DESC,id LIMIT 500`, values),
+      db.query(`SELECT * FROM mig_farm.irrigation_records WHERE user_id=$1
+        AND started_at>now()-interval '365 days' AND ($2::uuid IS NULL OR farm_id=$2)
+        ORDER BY started_at DESC,id LIMIT 1000`, values),
+      db.query(`SELECT * FROM mig_farm.farm_cost_records WHERE user_id=$1
+        AND occurred_at>current_date-interval '365 days' AND ($2::uuid IS NULL OR farm_id=$2)
+        ORDER BY occurred_at DESC,created_at DESC,id LIMIT 1000`, values),
+      db.query(`SELECT * FROM mig_farm.farm_sensor_readings WHERE user_id=$1
+        AND observed_at>now()-interval '90 days' AND ($2::uuid IS NULL OR farm_id=$2)
+        ORDER BY observed_at DESC,id LIMIT 2000`, values),
+    ]);
+    const anomalies = detectAnomalies({
+      tasks: tasks.rows,
+      problems: problems.rows,
+      irrigations: irrigations.rows,
+      expenses: expenses.rows,
+      sensors: sensors.rows,
+    });
+    return buildCommandIntelligenceActions({ anomalies, farmId });
+  };
+
   const reportData = async (user, farmId, from, to) => {
     const values = [user.id, farmId, from, to];
     const [tasks, irrigations, operations, problems, updates, confirmations, photos, harvests, expenses, sales] = await Promise.all([
@@ -210,8 +241,12 @@ export function createFarmCommand(db, { env = process.env, weatherProvider = cre
   return {
     async today(user, url) {
       const data = await loadCommandData(user, url.searchParams.get('farmId'));
-      const weather = await weatherProvider.current({ farms: data.farms });
-      return buildFarmToday({ ...data, selectedFarmId: data.farmId || data.farms[0]?.id || null, weather });
+      const selectedFarmId = data.farmId || data.farms[0]?.id || null;
+      const [weather, intelligenceActions] = await Promise.all([
+        weatherProvider.current({ farms: data.farms }),
+        loadIntelligenceActions(user, selectedFarmId),
+      ]);
+      return buildFarmToday({ ...data, selectedFarmId, weather, intelligenceActions });
     },
 
     async commandCenter(user, url) {

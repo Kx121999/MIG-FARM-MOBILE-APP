@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "slug",
+    "name_en",
+    "name_ar",
+    "sources",
+    "review_status",
+    "production_allowed"
+  ],
+  "properties": {
+    "slug": {
+      "type": "string"
+    },
+    "name_en": {
+      "type": "string"
+    },
+    "name_ar": {
+      "type": "string"
+    },
+    "spacing": {
+      "type": "object"
+    },
+    "seasonality": {
+      "type": "object"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "review_status": {
+      "type": "string"
+    },
+    "production_allowed": {
+      "type": "boolean"
+    }
+  }
+}

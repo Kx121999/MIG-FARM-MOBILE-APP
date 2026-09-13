@@ -1,0 +1,109 @@
+[
+  {
+    "slug": "agricultural-extension",
+    "name_ar": "طلب إرشاد زراعي",
+    "name_en": "Agricultural Extension Request",
+    "authority": "MOCCAE",
+    "summary_ar": "خدمة إرشاد للمزارع المسجلة تشمل وقاية النبات والري والتسميد وأنظمة الزراعة ومكافحة بعض الآفات.",
+    "eligibility": [
+      "agricultural holding registered with MOCCAE"
+    ],
+    "fee_aed": 0,
+    "service_time": "3 working days",
+    "source_id": "UAE_MOCCAE_AGRI_EXTENSION",
+    "last_verified_at": "2026-09-12",
+    "review_status": "verified",
+    "production_allowed": true,
+    "legal_disclaimer": "Requirements can change; always link user to official authority for current conditions."
+  },
+  {
+    "slug": "agricultural-holding-registration",
+    "name_ar": "تسجيل حيازة زراعية",
+    "name_en": "Agricultural Holding Registration",
+    "authority": "MOCCAE",
+    "summary_ar": "تسجيل بيانات المزرعة للحائز المواطن للاستفادة من خدمات الوزارة.",
+    "documents": [
+      "Emirates ID copy",
+      "farm ownership copy",
+      "land plan showing area"
+    ],
+    "service_time": "2 working days",
+    "source_id": "UAE_MOCCAE_HOLDING_REG",
+    "last_verified_at": "2026-09-12",
+    "review_status": "verified",
+    "production_allowed": true,
+    "legal_disclaimer": "Requirements can change; always link user to official authority for current conditions."
+  },
+  {
+    "slug": "agricultural-activity-license",
+    "name_ar": "ترخيص مزاولة نشاط زراعي",
+    "name_en": "Permit for Agricultural Activity Practice",
+    "authority": "MOCCAE",
+    "validity": "1 year",
+    "activities": [
+      "agricultural nursery",
+      "agricultural consultancy",
+      "agricultural pest control",
+      "agricultural extension",
+      "seed import/export",
+      "plant/seedling import/export"
+    ],
+    "source_id": "UAE_MOCCAE_AGRI_ACTIVITY_LICENSE",
+    "last_verified_at": "2026-09-12",
+    "review_status": "verified",
+    "production_allowed": true,
+    "legal_disclaimer": "Requirements can change; always link user to official authority for current conditions."
+  },
+  {
+    "slug": "import-agricultural-consignment",
+    "name_ar": "استيراد إرسالية زراعية",
+    "name_en": "Import Agricultural Consignment",
+    "authority": "MOCCAE",
+    "permit_validity": "6 months",
+    "covers": [
+      "seeds",
+      "seed material",
+      "plants",
+      "seedlings",
+      "offshoots",
+      "honey bees"
+    ],
+    "important_controls": [
+      "inspection at point of entry",
+      "natural soil accompanying plants/seedlings is prohibited",
+      "phytosanitary requirements may be crop/origin-specific"
+    ],
+    "source_id": "UAE_MOCCAE_IMPORT_AGRI_CONSIGNMENT",
+    "last_verified_at": "2026-09-12",
+    "review_status": "verified",
+    "production_allowed": true,
+    "legal_disclaimer": "Requirements can change; always link user to official authority for current conditions."
+  },
+  {
+    "slug": "farmer-support-materials",
+    "name_ar": "طلب مواد دعم للمزارعين",
+    "name_en": "Farmer Support Materials",
+    "authority": "MOCCAE",
+    "summary_ar": "مواد ومستلزمات إنتاج للمزارعين المواطنين ذوي الحيازات المسجلة، وفق معايير الأهلية المنشورة.",
+    "published_cost_share": "farmer pays 50% of actual purchase value of allocated materials",
+    "source_id": "UAE_MOCCAE_FARMER_SUPPORT",
+    "last_verified_at": "2026-09-12",
+    "review_status": "verified",
+    "production_allowed": true,
+    "legal_disclaimer": "Requirements can change; always link user to official authority for current conditions."
+  },
+  {
+    "slug": "pesticide-registration",
+    "name_ar": "تسجيل مبيد",
+    "name_en": "Pesticide Registration",
+    "authority": "MOCCAE",
+    "validity": "5 years or until origin-country registration certificate expiry, whichever applies per service text",
+    "service_time": "22 working days",
+    "published_fee": "AED 600 per year for issuance/renewal certificate (source wording)",
+    "source_id": "UAE_MOCCAE_PESTICIDE_REGISTRATION",
+    "last_verified_at": "2026-09-12",
+    "review_status": "verified",
+    "production_allowed": true,
+    "legal_disclaimer": "Requirements can change; always link user to official authority for current conditions."
+  }
+]

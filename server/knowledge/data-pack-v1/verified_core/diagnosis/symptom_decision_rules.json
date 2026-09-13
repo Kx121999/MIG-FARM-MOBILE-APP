@@ -1,0 +1,97 @@
+[
+  {
+    "crop": "cucumber",
+    "part": "leaf",
+    "symptom": "yellow_angular_spots",
+    "confirm": [
+      "spots bounded by veins",
+      "grey/purple fuzz underside in high humidity"
+    ],
+    "possible": [
+      "downy_mildew_cucurbits"
+    ],
+    "source_id": "UMN_DOWNY_CUCURBITS",
+    "review_status": "verified",
+    "production_allowed": true,
+    "diagnosis_language": "possible_cause_not_confirmation"
+  },
+  {
+    "crop": "cucumber",
+    "part": "leaf",
+    "symptom": "white_powdery_growth",
+    "confirm": [
+      "older leaves first",
+      "white/gray powdery coating"
+    ],
+    "possible": [
+      "powdery_mildew_cucurbits"
+    ],
+    "source_id": "UMN_POWDERY_CUCURBITS",
+    "review_status": "verified",
+    "production_allowed": true,
+    "diagnosis_language": "possible_cause_not_confirmation"
+  },
+  {
+    "crop": "cucumber",
+    "part": "leaf",
+    "symptom": "stippled_pale_leaves",
+    "confirm": [
+      "mites/webbing underside",
+      "hot dry conditions"
+    ],
+    "possible": [
+      "two_spotted_spider_mite"
+    ],
+    "source_id": "UMN_DIAG_CUCUMBER",
+    "review_status": "verified",
+    "production_allowed": true,
+    "diagnosis_language": "possible_cause_not_confirmation"
+  },
+  {
+    "crop": "pepper",
+    "part": "fruit",
+    "symptom": "black_sunken_bottom_or_side",
+    "confirm": [
+      "fruit only",
+      "tan soft tissue preceding black sunken area"
+    ],
+    "possible": [
+      "blossom_end_rot_pepper"
+    ],
+    "source_id": "UMN_DIAG_PEPPER",
+    "review_status": "verified",
+    "production_allowed": true,
+    "diagnosis_language": "possible_cause_not_confirmation"
+  },
+  {
+    "crop": "pepper",
+    "part": "fruit",
+    "symptom": "tan_white_exposed_side",
+    "confirm": [
+      "sun-exposed tissue only"
+    ],
+    "possible": [
+      "sunscald_pepper"
+    ],
+    "source_id": "UMN_DIAG_PEPPER",
+    "review_status": "verified",
+    "production_allowed": true,
+    "diagnosis_language": "possible_cause_not_confirmation"
+  },
+  {
+    "crop": "tomato",
+    "part": "leaf",
+    "symptom": "small_brown_spots",
+    "confirm": [
+      "yellow halo",
+      "no concentric rings"
+    ],
+    "possible": [
+      "bacterial_spot_tomato_pepper"
+    ],
+    "source_id": "UMN_BACTERIAL_SPOT",
+    "review_status": "verified",
+    "production_allowed": true,
+    "diagnosis_language": "possible_cause_not_confirmation"
+  }
+]

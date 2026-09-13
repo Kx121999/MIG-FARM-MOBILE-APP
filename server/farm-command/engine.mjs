@@ -263,13 +263,14 @@ export function buildDailyPriorities(input, now = new Date()) {
     action: 'complete_crop_data',
     source: 'farm_record',
   }));
-  return [...taskActions, ...problemActions, ...irrigationActions, ...stageActions, ...harvestActions, ...dataActions]
+  const intelligenceActions = Array.isArray(input.intelligenceActions) ? input.intelligenceActions : [];
+  return [...taskActions, ...problemActions, ...irrigationActions, ...stageActions, ...harvestActions, ...dataActions, ...intelligenceActions]
     .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] || time(a.dueAt) - time(b.dueAt) || a.id.localeCompare(b.id));
 }
 
 export function buildFarmToday(input, now = new Date()) {
   const missions = input.missions || [];
-  const priorities = buildDailyPriorities({ ...input, missions }, now);
+  const priorities = buildDailyPriorities({ ...input, missions, intelligenceActions: input.intelligenceActions }, now);
   const topActions = priorities.slice(0, 5);
   const activeProblems = (input.problems || []).filter(activeProblem);
   const dueTasks = (input.tasks || []).filter((task) => incompleteTask(task) && time(task.dueAt || task.due_at) <= time(now) + DAY_MS);

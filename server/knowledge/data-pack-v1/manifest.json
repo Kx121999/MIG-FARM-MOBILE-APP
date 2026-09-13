@@ -1,0 +1,198 @@
+{
+  "pack": "MIG_FARM_AGRI_INTELLIGENCE_DATA_PACK_V1",
+  "generated_at": "2026-09-12T23:59:00+04:00",
+  "verified_sources_count": 30,
+  "uae_crop_calendar_records": 33,
+  "uae_crop_guide_records": 10,
+  "diagnosis_records": 9,
+  "fact_records": 58,
+  "farm_command_rules": 25,
+  "synthetic_policy": "synthetic_dev_only is non-production and every record is flagged synthetic=true, production_allowed=false",
+  "files": [
+    {
+      "path": "CODEX_IMPORT_INSTRUCTIONS.md",
+      "size_bytes": 1257,
+      "sha256": "de680a40330e9c526b23bed2b7b4692f72656c9773778c832ce5fb39414be191"
+    },
+    {
+      "path": "manifest.json",
+      "size_bytes": 6909,
+      "sha256": "0dff98cfb0515f8d5b80bf7b2670aeddfd56284ed4902301311d6380a6113f74"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 2351,
+      "sha256": "6e664811ff0591ae01584b246fe5f2cf68f191c61de0b535fd646d764e9651ee"
+    },
+    {
+      "path": "calculators/calculator_specs.json",
+      "size_bytes": 1445,
+      "sha256": "510c4c0f52672b587cf98120a8483a6fcd470edf44ea3e0f9ecf3e02b228717e"
+    },
+    {
+      "path": "calculators/test_vectors.json",
+      "size_bytes": 11029,
+      "sha256": "05851297783a5212bfd54dbcd7b4a28a98fbc3ef8e46ac814588a0e95130f54a"
+    },
+    {
+      "path": "synthetic_dev_only/dev_load.sqlite",
+      "size_bytes": 24965120,
+      "sha256": "feb77f37da9e71b26f00e27901fadfd6e12d268438d72d1b9f0c71b128ff7e42"
+    },
+    {
+      "path": "synthetic_dev_only/farm_events.jsonl",
+      "size_bytes": 47379712,
+      "sha256": "1a111cab2a2cc83b8f341b892d574d8f8e2f2a41904ddcafb7734c7aee0ecb2c"
+    },
+    {
+      "path": "synthetic_dev_only/weather_snapshots.jsonl",
+      "size_bytes": 14016468,
+      "sha256": "e3afc8f6095e288043ee390ed9cc25bbcc9e3f5368ef02f6799a8aa8afc3e8b9"
+    },
+    {
+      "path": "synthetic_dev_only/DO_NOT_USE_FOR_AGRONOMIC_ADVICE.txt",
+      "size_bytes": 217,
+      "sha256": "d95790af9aba6a9440ddcc2b8aa0ef2633efe9e959c3bcb62ed6c1a7293dfb50"
+    },
+    {
+      "path": "synthetic_dev_only/diagnostic_cases.jsonl",
+      "size_bytes": 9771263,
+      "sha256": "ff8fe3c4c71e632808f4e6fe96ad24717f75e354216b22af3fc62491d3beb094"
+    },
+    {
+      "path": "synthetic_dev_only/sensor_readings.jsonl",
+      "size_bytes": 24195076,
+      "sha256": "f402576cf889a6a14d97b1e39b7a90d07e862298560b6c4080d9b6e3ca5f8384"
+    },
+    {
+      "path": "rules/predictive_intelligence_guardrails.json",
+      "size_bytes": 2197,
+      "sha256": "9837148f6587d569cf3bae080d8ccb0a8142271c021e2cd76e84e62db3aa32bd"
+    },
+    {
+      "path": "rules/farm_command_rules.json",
+      "size_bytes": 11189,
+      "sha256": "ac0ac1306cd09892d5fb2e3f801da5af3142e262df315a2fa1417dcfe9231f51"
+    },
+    {
+      "path": "data_acquisition/remote_authoritative_datasets.json",
+      "size_bytes": 1776,
+      "sha256": "efb2e0afe62ce783a4cc1aebce532a48bceb9c2d37f0033005420af936364a71"
+    },
+    {
+      "path": "source_registry/sources.json",
+      "size_bytes": 14705,
+      "sha256": "7c71ca73d491818789eb9f870ab0bbbf7ccdd4e94de18e56f64b2e3c696abb90"
+    },
+    {
+      "path": "source_registry/sources.csv",
+      "size_bytes": 8542,
+      "sha256": "fc410cb77015c1a72215ebf6395a9ecb97dd781fde1fe87efa531822165a07f4"
+    },
+    {
+      "path": "schemas/fact_record.schema.json",
+      "size_bytes": 983,
+      "sha256": "8e14a178613599ba79ba475531b30ce82a4923f7d7709d8d88be9ed3c78dbbd7"
+    },
+    {
+      "path": "schemas/knowledge_source.schema.json",
+      "size_bytes": 400,
+      "sha256": "a376ce7a3284f1afe68bda014f8f9a1951f4f2a17c3d06452d8a45042ab17543"
+    },
+    {
+      "path": "schemas/crop_profile.schema.json",
+      "size_bytes": 674,
+      "sha256": "0d3966fc61cbd937a692a7acfba19c840302f03e13c5247997de238b88fad7c2"
+    },
+    {
+      "path": "schemas/diagnosis_record.schema.json",
+      "size_bytes": 584,
+      "sha256": "bc69469c0ea8bc5f8dbd3a3eda5b9da36da674ec3fb66a74a72ebe1be2da1b88"
+    },
+    {
+      "path": "verified_core/irrigation/fao_water_salinity_classes.json",
+      "size_bytes": 2614,
+      "sha256": "3672db75a200adfe167dd77d1583eed9d4c1cab759a8dec07c10ce04edaa7c32"
+    },
+    {
+      "path": "verified_core/irrigation/fao_cropwat_engine_spec.json",
+      "size_bytes": 1061,
+      "sha256": "c275209a6a33c5506b3803709c08d51e15e08e534e21f14c496821c2024a9a8a"
+    },
+    {
+      "path": "verified_core/irrigation/fao_crop_salinity_tolerance.csv",
+      "size_bytes": 2364,
+      "sha256": "c69f7c415960b11eb17070101d88c233e34c3292625c5e34b51cc62f5e328887"
+    },
+    {
+      "path": "verified_core/irrigation/fao_crop_salinity_tolerance.json",
+      "size_bytes": 4849,
+      "sha256": "2269520a6a9dd3d4766ff3abe429f170953cd4f17ba14b26238fdf15249057b4"
+    },
+    {
+      "path": "verified_core/crops/crop_profiles_uae.json",
+      "size_bytes": 30386,
+      "sha256": "244994bcc3c06076e5fedb6af384cdd88ad984d996c0f6bab2b2e85a756fa58e"
+    },
+    {
+      "path": "verified_core/crops/uae_crop_guide_facts.jsonl",
+      "size_bytes": 4306,
+      "sha256": "82c7bd527ad8e1cfe8ea24fbbea370f8f651a2f5133c00e5095657951d1a8452"
+    },
+    {
+      "path": "verified_core/crops/uae_crop_guide_facts.json",
+      "size_bytes": 5625,
+      "sha256": "8ce52bd2872d4ee323e1f2fe5939645d4a66b753125c8e08f1e99c74ec51d008"
+    },
+    {
+      "path": "verified_core/crops/crop_profiles_uae.jsonl",
+      "size_bytes": 21988,
+      "sha256": "945a688ac34b2db55abba344d45dd6f409ef55c3c60f9d96554ca62d766b11ae"
+    },
+    {
+      "path": "verified_core/facts/facts.json",
+      "size_bytes": 23938,
+      "sha256": "6a9d4d52339da547eeae5730a1c8a04741fd64a3d1a500e4021e4b272db4760d"
+    },
+    {
+      "path": "verified_core/facts/facts.jsonl",
+      "size_bytes": 19013,
+      "sha256": "9cd7af84eb97179ad298edd2c20b8d3181d185ff74d6cbc41e75fd97af6b05aa"
+    },
+    {
+      "path": "verified_core/uae/planting_calendar_moccae.csv",
+      "size_bytes": 8064,
+      "sha256": "552dfc47cf8cdd1fde598bf937eb5e09e59208f117279227cfa24584434680c0"
+    },
+    {
+      "path": "verified_core/uae/regulations.json",
+      "size_bytes": 3994,
+      "sha256": "f55b7a518f7abc379f682f910b733d313e02a7795aef9ef62ff516ff1131c157"
+    },
+    {
+      "path": "verified_core/uae/services.json",
+      "size_bytes": 4467,
+      "sha256": "d8fc0e1ac007520e302b713cb2fd4c83f07b8e0b2417b8aee859aea31bc774a5"
+    },
+    {
+      "path": "verified_core/uae/planting_calendar_moccae.json",
+      "size_bytes": 18249,
+      "sha256": "25e399c5e807dce0d8272adb80fd8059cb5a2faf23d799d9664fdf02a7fbd0ec"
+    },
+    {
+      "path": "verified_core/diagnosis/symptom_decision_rules.json",
+      "size_bytes": 2379,
+      "sha256": "57a1dad5906a079ca48b05eecf4a445e47385bbe3e4b4c6dd8baaecbb2e60adb"
+    },
+    {
+      "path": "verified_core/diagnosis/diagnosis_records.jsonl",
+      "size_bytes": 6786,
+      "sha256": "1248bd5a6678e64a4e07e470da29e55bfc0763e0f7fd26297ac4ad9cc5bcdfe4"
+    },
+    {
+      "path": "verified_core/diagnosis/diagnosis_records.json",
+      "size_bytes": 8516,
+      "sha256": "7a6e69a7ce66e49dc61ed84df012e5ad14087ad135d5957e06adc57ef2a14504"
+    }
+  ]
+}

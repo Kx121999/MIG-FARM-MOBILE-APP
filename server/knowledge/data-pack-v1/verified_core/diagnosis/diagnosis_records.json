@@ -1,0 +1,287 @@
+[
+  {
+    "id": "powdery_mildew_cucurbits",
+    "type": "disease",
+    "name_en": "Powdery mildew of cucurbits",
+    "name_ar": "البياض الدقيقي على القرعيات",
+    "agent": "Podosphaera xanthii (main cause cited by source)",
+    "affected_crops": [
+      "cucumber",
+      "muskmelon",
+      "watermelon",
+      "pumpkin",
+      "zucchini",
+      "squash"
+    ],
+    "symptoms": [
+      "pale yellow spots on older leaves",
+      "white-to-gray powdery growth on upper/lower leaf surfaces",
+      "severe infection may weaken vines and expose fruit to sunscald"
+    ],
+    "conditions": [
+      "humid conditions; source cites around 68-81 F as favorable",
+      "spores can spread readily in warm dry conditions"
+    ],
+    "checks": [
+      "inspect older leaves first",
+      "check underside/shaded leaves",
+      "distinguish from natural leaf variegation"
+    ],
+    "nonchemical": [
+      "improve air movement",
+      "proper spacing",
+      "weed control",
+      "avoid excess nitrogen",
+      "use resistant varieties where available"
+    ],
+    "chemical_policy": "Do not map to a commercial fungicide without UAE registration + crop/pest label verification.",
+    "source_id": "UMN_POWDERY_CUCURBITS",
+    "review_status": "verified",
+    "production_allowed": true
+  },
+  {
+    "id": "downy_mildew_cucurbits",
+    "type": "disease",
+    "name_en": "Downy mildew of cucurbits",
+    "name_ar": "البياض الزغبي على القرعيات",
+    "agent": "Pseudoperonospora cubensis",
+    "affected_crops": [
+      "cucumber",
+      "muskmelon",
+      "watermelon",
+      "pumpkin",
+      "squash"
+    ],
+    "symptoms": [
+      "pale green to yellow angular spots on upper leaf surface",
+      "dark purplish-grey fuzz on underside under high humidity",
+      "rapid browning in wet/high humidity"
+    ],
+    "conditions": [
+      "wet or very humid conditions"
+    ],
+    "checks": [
+      "angular spots bounded by veins",
+      "inspect underside for dark fuzz",
+      "watermelon may show strong upward leaf curling"
+    ],
+    "nonchemical": [
+      "drip irrigation",
+      "wide row spacing",
+      "trellising",
+      "remove symptomatic plants",
+      "resistant varieties where available"
+    ],
+    "chemical_policy": "Do not map to a commercial fungicide without UAE registration + crop/pest label verification.",
+    "source_id": "UMN_DOWNY_CUCURBITS",
+    "review_status": "verified",
+    "production_allowed": true
+  },
+  {
+    "id": "bacterial_spot_tomato_pepper",
+    "type": "disease",
+    "name_en": "Bacterial spot of tomato and pepper",
+    "name_ar": "التبقع البكتيري في الطماطم والفلفل",
+    "agent": "Xanthomonas spp. including X. vesicatoria, X. euvesicatoria, X. gardneri, X. perforans",
+    "affected_crops": [
+      "tomato",
+      "pepper"
+    ],
+    "symptoms": [
+      "small brown circular leaf spots",
+      "tomato spots may have yellow halo",
+      "pepper spots may lack yellow halo",
+      "fruit spots can make fruit unmarketable"
+    ],
+    "conditions": [
+      "warm and humid weather",
+      "leaf wetness favors early symptom expression"
+    ],
+    "checks": [
+      "compare with early blight; bacterial spot lacks concentric rings",
+      "inspect lower/older leaves and fruit"
+    ],
+    "nonchemical": [
+      "certified clean seed where possible",
+      "avoid overwatering transplants",
+      "disinfect tools",
+      "avoid overhead irrigation",
+      "avoid working plants when wet",
+      "crop rotation"
+    ],
+    "chemical_policy": "Any pesticide/bactericide use must be UAE label-verified.",
+    "source_id": "UMN_BACTERIAL_SPOT",
+    "review_status": "verified",
+    "production_allowed": true
+  },
+  {
+    "id": "two_spotted_spider_mite",
+    "type": "pest",
+    "name_en": "Two-spotted spider mite",
+    "name_ar": "الأكاروس ذو البقعتين / العنكبوت الأحمر",
+    "scientific_name": "Tetranychus urticae",
+    "affected_crops": [
+      "cucumber",
+      "tomato",
+      "eggplant",
+      "lettuce",
+      "beans",
+      "peas",
+      "many others"
+    ],
+    "symptoms": [
+      "tiny white/yellow stippling",
+      "bronzing/bleaching under heavier feeding",
+      "leaf drop",
+      "webbing in heavy infestations"
+    ],
+    "conditions": [
+      "hot, dry weather favors outbreaks"
+    ],
+    "checks": [
+      "inspect leaf undersides with hand lens",
+      "tap/shake leaves over white paper",
+      "webbing supports diagnosis"
+    ],
+    "nonchemical": [
+      "regular scouting",
+      "reduce plant stress",
+      "support natural enemies",
+      "physical water spray may dislodge mites where appropriate"
+    ],
+    "chemical_policy": "Do not recommend a commercial miticide unless locally registered and label-verified.",
+    "source_id": "UMN_SPIDER_MITE",
+    "review_status": "verified",
+    "production_allowed": true
+  },
+  {
+    "id": "aphids_general",
+    "type": "pest",
+    "name_en": "Aphids",
+    "name_ar": "المن",
+    "affected_crops": [
+      "pepper",
+      "cabbage",
+      "spinach",
+      "tomato",
+      "eggplant",
+      "watermelon",
+      "cucumber",
+      "many others"
+    ],
+    "symptoms": [
+      "colonies on stems/leaf undersides",
+      "leaf curling or yellowing",
+      "sticky honeydew",
+      "some species transmit viruses"
+    ],
+    "conditions": [
+      "species and crop dependent"
+    ],
+    "checks": [
+      "inspect growing tips and undersides",
+      "look for honeydew and natural enemies"
+    ],
+    "nonchemical": [
+      "regular scouting",
+      "conserve natural enemies",
+      "avoid unnecessary broad-spectrum insecticide use"
+    ],
+    "chemical_policy": "No product recommendation without UAE registration and label match.",
+    "source_id": "UMN_APHIDS",
+    "review_status": "verified",
+    "production_allowed": true
+  },
+  {
+    "id": "whitefly_general",
+    "type": "pest",
+    "name_en": "Whiteflies",
+    "name_ar": "الذبابة البيضاء",
+    "scientific_group": "Aleyrodidae",
+    "affected_crops": [
+      "tomato",
+      "many transplanted vegetables"
+    ],
+    "symptoms": [
+      "small white moth-like adults",
+      "infested leaves may yellow and drop",
+      "reduced plant vigor at higher populations"
+    ],
+    "checks": [
+      "inspect leaf undersides",
+      "gently disturb foliage and observe small white adults"
+    ],
+    "chemical_policy": "No product recommendation without UAE registration and label match.",
+    "source_id": "UMN_WHITEFLY",
+    "review_status": "verified",
+    "production_allowed": true
+  },
+  {
+    "id": "blossom_end_rot_tomato",
+    "type": "physiological_disorder",
+    "name_en": "Blossom-end rot - tomato",
+    "name_ar": "عفن الطرف الزهري - الطماطم",
+    "affected_crops": [
+      "tomato"
+    ],
+    "symptoms": [
+      "tan/soft area at blossom end",
+      "area becomes black, sunken and rotten",
+      "fruit may remain short/stumpy"
+    ],
+    "conditions": [
+      "source notes common association with fluctuating water availability"
+    ],
+    "checks": [
+      "affects fruit; lesion starts at blossom end"
+    ],
+    "source_id": "UMN_DIAG_PEPPER",
+    "secondary_source": "UMN tomato diagnostic source represented in source_notes",
+    "review_status": "verified",
+    "production_allowed": true
+  },
+  {
+    "id": "blossom_end_rot_pepper",
+    "type": "physiological_disorder",
+    "name_en": "Blossom-end rot - pepper",
+    "name_ar": "عفن الطرف الزهري - الفلفل",
+    "affected_crops": [
+      "pepper"
+    ],
+    "symptoms": [
+      "tan soft area on side/bottom becomes black and sunken",
+      "secondary microbial rot may follow"
+    ],
+    "conditions": [
+      "source notes common association with fluctuating water availability"
+    ],
+    "checks": [
+      "fruit-only symptom pattern"
+    ],
+    "source_id": "UMN_DIAG_PEPPER",
+    "review_status": "verified",
+    "production_allowed": true
+  },
+  {
+    "id": "sunscald_pepper",
+    "type": "physiological_disorder",
+    "name_en": "Sunscald - pepper",
+    "name_ar": "لفحة الشمس - الفلفل",
+    "affected_crops": [
+      "pepper"
+    ],
+    "symptoms": [
+      "tan or white lesion on exposed side",
+      "tissue may dry and wrinkle"
+    ],
+    "conditions": [
+      "direct intense sun exposure to fruit/tissue"
+    ],
+    "checks": [
+      "lesion occurs on exposed tissue"
+    ],
+    "source_id": "UMN_DIAG_PEPPER",
+    "review_status": "verified",
+    "production_allowed": true
+  }
+]

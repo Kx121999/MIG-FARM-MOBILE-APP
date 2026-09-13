@@ -1,0 +1,698 @@
+[
+  {
+    "slug": "arugula",
+    "name_en": "Arugula",
+    "name_ar": "جرجير",
+    "family": "Cruciferae",
+    "nursery_months": null,
+    "field_months": [
+      "Feb",
+      "Mar",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "harvest_reference": "45 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "radish",
+    "name_en": "Radish",
+    "name_ar": "فجل",
+    "family": "Cruciferae",
+    "nursery_months": [
+      "Oct",
+      "Nov"
+    ],
+    "field_months": [
+      "Nov",
+      "Dec"
+    ],
+    "harvest_reference": "40-50 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "turnip",
+    "name_en": "Turnip",
+    "name_ar": "لفت",
+    "family": "Cruciferae",
+    "nursery_months": [
+      "Oct",
+      "Nov"
+    ],
+    "field_months": [
+      "Nov",
+      "Dec"
+    ],
+    "harvest_reference": "45-50 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "cauliflower",
+    "name_en": "Cauliflower",
+    "name_ar": "قرنبيط",
+    "family": "Cruciferae",
+    "nursery_months": [
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "field_months": [
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "harvest_reference": "70-90 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "cabbage",
+    "name_en": "Cabbage",
+    "name_ar": "ملفوف",
+    "family": "Cruciferae",
+    "nursery_months": [
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "field_months": [
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "harvest_reference": "70-80 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "peas",
+    "name_en": "Peas",
+    "name_ar": "بازلاء",
+    "family": "Legumes",
+    "nursery_months": [
+      "Oct",
+      "Nov"
+    ],
+    "field_months": [
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "harvest_reference": "80 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "cowpea",
+    "name_en": "Cowpea",
+    "name_ar": "لوبيا",
+    "family": "Legumes",
+    "nursery_months": [
+      "Aug",
+      "Sep",
+      "Oct"
+    ],
+    "field_months": [
+      "Sep",
+      "Oct",
+      "Nov"
+    ],
+    "harvest_reference": "50-60 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "broad-beans",
+    "name_en": "Broad Beans",
+    "name_ar": "فول",
+    "family": "Legumes",
+    "nursery_months": [
+      "Sep",
+      "Oct"
+    ],
+    "field_months": null,
+    "harvest_reference": "80-90 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "pumpkin",
+    "name_en": "Pumpkin",
+    "name_ar": "قرع",
+    "family": "Cucurbits",
+    "nursery_months": [
+      "Feb",
+      "Mar",
+      "Sep",
+      "Oct"
+    ],
+    "field_months": [
+      "Mar",
+      "Apr",
+      "Sep",
+      "Oct",
+      "Nov"
+    ],
+    "harvest_reference": "180 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "armenian-cucumber",
+    "name_en": "Armenian Cucumber",
+    "name_ar": "قثاء",
+    "family": "Cucurbits",
+    "nursery_months": [
+      "Feb",
+      "Sep"
+    ],
+    "field_months": [
+      "Mar",
+      "Sep",
+      "Oct"
+    ],
+    "harvest_reference": "40 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "zucchini",
+    "name_en": "Zucchini",
+    "name_ar": "كوسة",
+    "family": "Cucurbits",
+    "nursery_months": [
+      "Feb",
+      "Mar",
+      "Aug",
+      "Sep",
+      "Oct"
+    ],
+    "field_months": [
+      "Mar",
+      "Apr",
+      "Sep",
+      "Oct",
+      "Nov"
+    ],
+    "harvest_reference": "35 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "cucumber",
+    "name_en": "Cucumber",
+    "name_ar": "خيار",
+    "family": "Cucurbits",
+    "nursery_months": [
+      "Feb",
+      "Mar",
+      "Aug",
+      "Sep"
+    ],
+    "field_months": [
+      "Mar",
+      "Apr",
+      "Sep",
+      "Oct"
+    ],
+    "harvest_reference": "40 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "muskmelon",
+    "name_en": "Muskmelon",
+    "name_ar": "شمام",
+    "family": "Cucurbits",
+    "nursery_months": [
+      "Feb",
+      "Mar"
+    ],
+    "field_months": [
+      "Mar",
+      "Apr"
+    ],
+    "harvest_reference": "75-80 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "watermelon",
+    "name_en": "Watermelon",
+    "name_ar": "بطيخ",
+    "family": "Cucurbits",
+    "nursery_months": [
+      "Feb",
+      "Mar"
+    ],
+    "field_months": [
+      "Mar",
+      "Apr"
+    ],
+    "harvest_reference": "80-90 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "potato",
+    "name_en": "Potato",
+    "name_ar": "بطاطس",
+    "family": "Solanaceae",
+    "nursery_months": [
+      "Oct",
+      "Nov"
+    ],
+    "field_months": null,
+    "harvest_reference": "100-120 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "pepper",
+    "name_en": "Pepper",
+    "name_ar": "فلفل",
+    "family": "Solanaceae",
+    "nursery_months": [
+      "Aug",
+      "Sep",
+      "Oct"
+    ],
+    "field_months": [
+      "Sep",
+      "Oct",
+      "Nov"
+    ],
+    "harvest_reference": "60-70 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "eggplant",
+    "name_en": "Eggplant",
+    "name_ar": "باذنجان",
+    "family": "Solanaceae",
+    "nursery_months": [
+      "Aug",
+      "Sep",
+      "Oct"
+    ],
+    "field_months": [
+      "Sep",
+      "Oct",
+      "Nov"
+    ],
+    "harvest_reference": "70-80 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "tomato",
+    "name_en": "Tomato",
+    "name_ar": "طماطم",
+    "family": "Solanaceae",
+    "nursery_months": [
+      "Aug",
+      "Sep",
+      "Oct"
+    ],
+    "field_months": [
+      "Sep",
+      "Oct",
+      "Nov"
+    ],
+    "harvest_reference": "85-90 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "lettuce",
+    "name_en": "Lettuce",
+    "name_ar": "خس",
+    "family": "Compositae",
+    "nursery_months": [
+      "Sep",
+      "Oct",
+      "Nov"
+    ],
+    "field_months": [
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "harvest_reference": "50-60 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "jews-mallow",
+    "name_en": "Jew's Mallow",
+    "name_ar": "ملوخية",
+    "family": "Tiliaceae",
+    "nursery_months": null,
+    "field_months": [
+      "Feb",
+      "Mar"
+    ],
+    "harvest_reference": "50-60 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "okra",
+    "name_en": "Okra",
+    "name_ar": "بامية",
+    "family": "Malvaceae",
+    "nursery_months": [
+      "Feb",
+      "Mar"
+    ],
+    "field_months": [
+      "Mar",
+      "Apr"
+    ],
+    "harvest_reference": "50-60 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "sweet-potato",
+    "name_en": "Sweet Potato",
+    "name_ar": "بطاطا حلوة",
+    "family": "Convolvulaceae",
+    "nursery_months": [
+      "Feb",
+      "Mar",
+      "Dec"
+    ],
+    "field_months": null,
+    "harvest_reference": "90-120 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "strawberry",
+    "name_en": "Strawberry",
+    "name_ar": "فراولة",
+    "family": "Rosaceae",
+    "nursery_months": [
+      "Sep",
+      "Oct",
+      "Nov"
+    ],
+    "field_months": [
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "harvest_reference": "120-180 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "sweet-corn",
+    "name_en": "Sweet Corn",
+    "name_ar": "ذرة سكرية",
+    "family": "Poaceae",
+    "nursery_months": null,
+    "field_months": [
+      "Feb",
+      "Mar",
+      "Oct",
+      "Nov"
+    ],
+    "harvest_reference": "source lists 70-190 and 120-130 days; requires crop/season disambiguation",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "coriander",
+    "name_en": "Coriander",
+    "name_ar": "كزبرة",
+    "family": "Apiaceae",
+    "nursery_months": null,
+    "field_months": [
+      "Oct",
+      "Nov"
+    ],
+    "harvest_reference": "50-60 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "parsley",
+    "name_en": "Parsley",
+    "name_ar": "بقدونس",
+    "family": "Apiaceae",
+    "nursery_months": null,
+    "field_months": [
+      "Oct",
+      "Nov"
+    ],
+    "harvest_reference": "60 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "carrot",
+    "name_en": "Carrot",
+    "name_ar": "جزر",
+    "family": "Apiaceae",
+    "nursery_months": [
+      "Oct",
+      "Nov"
+    ],
+    "field_months": null,
+    "harvest_reference": "100-120 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "chard",
+    "name_en": "Swiss Chard",
+    "name_ar": "سلق",
+    "family": "Chenopodiaceae",
+    "nursery_months": [
+      "Sep",
+      "Oct",
+      "Nov"
+    ],
+    "field_months": null,
+    "harvest_reference": "100-120 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "spinach",
+    "name_en": "Spinach",
+    "name_ar": "سبانخ",
+    "family": "Chenopodiaceae",
+    "nursery_months": [
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "field_months": null,
+    "harvest_reference": "50-60 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "beetroot",
+    "name_en": "Beetroot",
+    "name_ar": "شمندر",
+    "family": "Chenopodiaceae",
+    "nursery_months": [
+      "Oct",
+      "Nov"
+    ],
+    "field_months": null,
+    "harvest_reference": "75-80 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "leek",
+    "name_en": "Leek",
+    "name_ar": "كراث",
+    "family": "Amaryllidaceae",
+    "nursery_months": [
+      "Sep",
+      "Oct"
+    ],
+    "field_months": null,
+    "harvest_reference": "45-60 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "garlic",
+    "name_en": "Garlic",
+    "name_ar": "ثوم",
+    "family": "Amaryllidaceae",
+    "nursery_months": [
+      "Nov"
+    ],
+    "field_months": null,
+    "harvest_reference": "180 days",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  },
+  {
+    "slug": "onion",
+    "name_en": "Onion",
+    "name_ar": "بصل",
+    "family": "Amaryllidaceae",
+    "nursery_months": [
+      "Sep",
+      "Oct",
+      "Nov"
+    ],
+    "field_months": [
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "harvest_reference": "source lists 150 days / 60 days; context requires disambiguation",
+    "country": "AE",
+    "source_id": "UAE_MOCCAE_PLANTING_CALENDAR",
+    "review_status": "verified",
+    "production_allowed": true,
+    "last_verified_at": "2026-09-12",
+    "note": "Use as UAE seasonal guidance; exact cultivar and protected-production schedules may differ."
+  }
+]

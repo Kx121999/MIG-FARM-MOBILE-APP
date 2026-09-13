@@ -1,0 +1,58 @@
+[
+  {
+    "id": "AGROVOC_CORE",
+    "provider": "FAO",
+    "url": "https://www.fao.org/agrovoc/access",
+    "purpose": [
+      "Arabic-English agricultural vocabulary",
+      "synonyms",
+      "concept hierarchy",
+      "search normalization"
+    ],
+    "license": "CC BY IGO 3.0 for FAO languages including Arabic and English",
+    "import_policy": "download latest official release at build/curation time; persist release date/hash"
+  },
+  {
+    "id": "ECOCROP",
+    "provider": "FAO",
+    "url": "https://www.fao.org/land-water/resources/tools/databases/ecocrop/en",
+    "purpose": [
+      "crop environmental constraints",
+      "pH/temperature/rainfall reference candidates"
+    ],
+    "freshness": "historical/discontinued around 2015",
+    "import_policy": "reference-only until reviewed against newer/local sources"
+  },
+  {
+    "id": "FAO_CROP_CALENDAR",
+    "provider": "FAO",
+    "url": "https://cropcalendar.apps.fao.org/",
+    "purpose": [
+      "country/agroecological crop calendars",
+      "sowing/harvest practices"
+    ],
+    "import_policy": "use country-specific records only and preserve national validation metadata"
+  },
+  {
+    "id": "FAOSTAT",
+    "provider": "FAO",
+    "url": "https://www.fao.org/faostat/en/",
+    "purpose": [
+      "country agricultural production statistics",
+      "crop production history",
+      "inputs statistics"
+    ],
+    "import_policy": "use API/bulk downloads; never convert national statistics into field-level agronomic recommendations"
+  },
+  {
+    "id": "USDA_PLANTS",
+    "provider": "USDA NRCS",
+    "url": "https://plants.sc.egov.usda.gov/downloads",
+    "purpose": [
+      "taxonomic names",
+      "synonyms",
+      "families"
+    ],
+    "import_policy": "taxonomy/search only; not a UAE agronomy source"
+  }
+]

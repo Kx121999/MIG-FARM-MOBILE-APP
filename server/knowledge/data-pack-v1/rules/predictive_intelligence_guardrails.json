@@ -1,0 +1,93 @@
+[
+  {
+    "id": "PR-001",
+    "name": "No live weather without provider",
+    "domain": "weather",
+    "minimum_data": [
+      "configured_weather_provider",
+      "farm_location"
+    ],
+    "output": "risk_check_only",
+    "block_if_missing": true,
+    "prohibited_claims": [
+      "current weather",
+      "forecast temperature",
+      "rain forecast"
+    ],
+    "production_allowed": true
+  },
+  {
+    "id": "PR-002",
+    "name": "Irrigation recommendation gate",
+    "domain": "irrigation",
+    "minimum_data": [
+      "verified_crop_irrigation_profile",
+      "growth_stage",
+      "irrigated_area",
+      "ETo_or_verified_weather_inputs"
+    ],
+    "additional_data_for_runtime": [
+      "emitter_flow_lph",
+      "emitter_count_or_spacing",
+      "system_efficiency"
+    ],
+    "block_if_missing": true,
+    "prohibited_claims": [
+      "exact liters",
+      "exact runtime"
+    ],
+    "production_allowed": true
+  },
+  {
+    "id": "PR-003",
+    "name": "Image analysis is probabilistic",
+    "domain": "vision",
+    "minimum_data": [
+      "real_vision_provider",
+      "image",
+      "crop_context"
+    ],
+    "output": "possible_causes_with_confidence",
+    "block_if_missing": true,
+    "prohibited_claims": [
+      "confirmed diagnosis from image alone"
+    ],
+    "production_allowed": true
+  },
+  {
+    "id": "PR-004",
+    "name": "Yield forecast minimum data",
+    "domain": "yield",
+    "minimum_data": [
+      "farm_area",
+      "plant_population_or_density",
+      "verified_reference_or_prior_farm_history"
+    ],
+    "output": "range_with_provenance",
+    "block_if_missing": true,
+    "prohibited_claims": [
+      "guaranteed yield"
+    ],
+    "production_allowed": true
+  },
+  {
+    "id": "PR-005",
+    "name": "Chemical recommendation gate",
+    "domain": "crop_protection",
+    "minimum_data": [
+      "UAE_registration_reference",
+      "target_crop_on_label",
+      "target_pest_or_disease_on_label",
+      "verified_label_rate"
+    ],
+    "output": "label_based_information",
+    "block_if_missing": true,
+    "prohibited_claims": [
+      "invented dose",
+      "invented PHI",
+      "invented REI",
+      "off-label crop use"
+    ],
+    "production_allowed": true
+  }
+]

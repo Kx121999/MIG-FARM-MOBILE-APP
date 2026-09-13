@@ -1,0 +1,99 @@
+[
+  {
+    "class": "non_saline",
+    "ec_ds_m": {
+      "lt": 0.7
+    },
+    "tds_mg_l": {
+      "lt": 500
+    },
+    "source_id": "FAO_GREENHOUSE_HORT",
+    "review_status": "verified",
+    "production_allowed": true,
+    "note": "FAO table classifications overlap in places; preserve source categories and do not force into mutually-exclusive bins."
+  },
+  {
+    "class": "saline",
+    "ec_ds_m": {
+      "min": 0.7,
+      "max": 2.4
+    },
+    "tds_mg_l": {
+      "min": 500,
+      "max": 3000
+    },
+    "source_id": "FAO_GREENHOUSE_HORT",
+    "review_status": "verified",
+    "production_allowed": true,
+    "note": "FAO table classifications overlap in places; preserve source categories and do not force into mutually-exclusive bins."
+  },
+  {
+    "class": "slightly_saline",
+    "ec_ds_m": {
+      "min": 0.7,
+      "max": 3.0
+    },
+    "tds_mg_l": {
+      "min": 500,
+      "max": 2000
+    },
+    "source_id": "FAO_GREENHOUSE_HORT",
+    "review_status": "verified",
+    "production_allowed": true,
+    "note": "FAO table classifications overlap in places; preserve source categories and do not force into mutually-exclusive bins."
+  },
+  {
+    "class": "medium_saline",
+    "ec_ds_m": {
+      "min": 3.0,
+      "max": 6.0
+    },
+    "tds_mg_l": {
+      "min": 2000,
+      "max": 4000
+    },
+    "source_id": "FAO_GREENHOUSE_HORT",
+    "review_status": "verified",
+    "production_allowed": true,
+    "note": "FAO table classifications overlap in places; preserve source categories and do not force into mutually-exclusive bins."
+  },
+  {
+    "class": "highly_saline",
+    "ec_ds_m": {
+      "gt": 6.0
+    },
+    "tds_mg_l": {
+      "gt": 4000
+    },
+    "source_id": "FAO_GREENHOUSE_HORT",
+    "review_status": "verified",
+    "production_allowed": true,
+    "note": "FAO table classifications overlap in places; preserve source categories and do not force into mutually-exclusive bins."
+  },
+  {
+    "class": "very_saline",
+    "ec_ds_m": {
+      "gt": 14.0
+    },
+    "tds_mg_l": {
+      "gt": 9000
+    },
+    "source_id": "FAO_GREENHOUSE_HORT",
+    "review_status": "verified",
+    "production_allowed": true,
+    "note": "FAO table classifications overlap in places; preserve source categories and do not force into mutually-exclusive bins."
+  },
+  {
+    "class": "brine",
+    "ec_ds_m": {
+      "gt": 42.0
+    },
+    "tds_mg_l": {
+      "gt": 30000
+    },
+    "source_id": "FAO_GREENHOUSE_HORT",
+    "review_status": "verified",
+    "production_allowed": true,
+    "note": "FAO table classifications overlap in places; preserve source categories and do not force into mutually-exclusive bins."
+  }
+]

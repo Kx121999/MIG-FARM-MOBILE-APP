@@ -1,0 +1,29 @@
+{
+  "source_ids": [
+    "FAO_CROPWAT",
+    "FAO_56_ETC"
+  ],
+  "review_status": "verified",
+  "production_allowed": true,
+  "core_equation": {
+    "formula": "ETc = Kc * ETo",
+    "ETc": "crop evapotranspiration / crop water need, mm per time unit",
+    "Kc": "crop coefficient, dimensionless",
+    "ETo": "reference evapotranspiration, mm per same time unit"
+  },
+  "required_rule": "Kc must be crop- and stage-specific; do not invent Kc values.",
+  "standard_conditions_note": "FAO 56 standard ETc assumes no limiting water, salinity, density, pest, disease, weed or fertility conditions.",
+  "weather_inputs_for_ETo": [
+    "temperature",
+    "relative_humidity",
+    "wind_speed",
+    "solar_radiation_or_sunshine"
+  ],
+  "engine_requirements": [
+    "separate verified Kc data from live weather",
+    "record production system and stage",
+    "label output as calculated estimate",
+    "do not present exact irrigation runtime unless emitter flow/efficiency and irrigated area are known",
+    "weather provider absence must block live-weather claims"
+  ]
+}

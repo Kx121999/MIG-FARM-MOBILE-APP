@@ -1,0 +1,450 @@
+[
+  {
+    "area_m2": 10,
+    "crop": "tomato",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 35,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 10,
+    "crop": "cucumber",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 28,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 10,
+    "crop": "pepper",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 35,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 10,
+    "crop": "eggplant",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 25,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 10,
+    "crop": "cabbage",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 35,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 10,
+    "crop": "sweet-corn",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 41,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 10,
+    "crop": "potato",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 41,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 10,
+    "crop": "onion",
+    "plant_spacing_cm": 10,
+    "row_spacing_cm": 30,
+    "geometric_population_estimate": 333,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 25,
+    "crop": "tomato",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 89,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 25,
+    "crop": "cucumber",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 71,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 25,
+    "crop": "pepper",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 89,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 25,
+    "crop": "eggplant",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 62,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 25,
+    "crop": "cabbage",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 89,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 25,
+    "crop": "sweet-corn",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 104,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 25,
+    "crop": "potato",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 104,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 25,
+    "crop": "onion",
+    "plant_spacing_cm": 10,
+    "row_spacing_cm": 30,
+    "geometric_population_estimate": 833,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 50,
+    "crop": "tomato",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 178,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 50,
+    "crop": "cucumber",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 142,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 50,
+    "crop": "pepper",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 178,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 50,
+    "crop": "eggplant",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 125,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 50,
+    "crop": "cabbage",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 178,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 50,
+    "crop": "sweet-corn",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 208,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 50,
+    "crop": "potato",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 208,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 50,
+    "crop": "onion",
+    "plant_spacing_cm": 10,
+    "row_spacing_cm": 30,
+    "geometric_population_estimate": 1666,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 100,
+    "crop": "tomato",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 357,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 100,
+    "crop": "cucumber",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 285,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 100,
+    "crop": "pepper",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 357,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 100,
+    "crop": "eggplant",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 250,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 100,
+    "crop": "cabbage",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 357,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 100,
+    "crop": "sweet-corn",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 416,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 100,
+    "crop": "potato",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 416,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 100,
+    "crop": "onion",
+    "plant_spacing_cm": 10,
+    "row_spacing_cm": 30,
+    "geometric_population_estimate": 3333,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 250,
+    "crop": "tomato",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 892,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 250,
+    "crop": "cucumber",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 714,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 250,
+    "crop": "pepper",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 892,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 250,
+    "crop": "eggplant",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 625,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 250,
+    "crop": "cabbage",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 892,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 250,
+    "crop": "sweet-corn",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 1041,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 250,
+    "crop": "potato",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 1041,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 250,
+    "crop": "onion",
+    "plant_spacing_cm": 10,
+    "row_spacing_cm": 30,
+    "geometric_population_estimate": 8333,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 500,
+    "crop": "tomato",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 1785,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 500,
+    "crop": "cucumber",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 1428,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 500,
+    "crop": "pepper",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 1785,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 500,
+    "crop": "eggplant",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 1250,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 500,
+    "crop": "cabbage",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 1785,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 500,
+    "crop": "sweet-corn",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 2083,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 500,
+    "crop": "potato",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 2083,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 500,
+    "crop": "onion",
+    "plant_spacing_cm": 10,
+    "row_spacing_cm": 30,
+    "geometric_population_estimate": 16666,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 1000,
+    "crop": "tomato",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 3571,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 1000,
+    "crop": "cucumber",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 2857,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 1000,
+    "crop": "pepper",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 3571,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 1000,
+    "crop": "eggplant",
+    "plant_spacing_cm": 50,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 2500,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 1000,
+    "crop": "cabbage",
+    "plant_spacing_cm": 40,
+    "row_spacing_cm": 70,
+    "geometric_population_estimate": 3571,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 1000,
+    "crop": "sweet-corn",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 4166,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 1000,
+    "crop": "potato",
+    "plant_spacing_cm": 30,
+    "row_spacing_cm": 80,
+    "geometric_population_estimate": 4166,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  },
+  {
+    "area_m2": 1000,
+    "crop": "onion",
+    "plant_spacing_cm": 10,
+    "row_spacing_cm": 30,
+    "geometric_population_estimate": 33333,
+    "source_id": "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+  }
+]

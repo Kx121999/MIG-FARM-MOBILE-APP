@@ -1,0 +1,1251 @@
+[
+  {
+    "slug": "arugula",
+    "name_en": "Arugula",
+    "name_ar": "جرجير",
+    "family": "Cruciferae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": null,
+      "field_months": [
+        "Feb",
+        "Mar",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "harvest_reference": "45 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "radish",
+    "name_en": "Radish",
+    "name_ar": "فجل",
+    "family": "Cruciferae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Oct",
+        "Nov"
+      ],
+      "field_months": [
+        "Nov",
+        "Dec"
+      ],
+      "harvest_reference": "40-50 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "turnip",
+    "name_en": "Turnip",
+    "name_ar": "لفت",
+    "family": "Cruciferae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Oct",
+        "Nov"
+      ],
+      "field_months": [
+        "Nov",
+        "Dec"
+      ],
+      "harvest_reference": "45-50 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "cauliflower",
+    "name_en": "Cauliflower",
+    "name_ar": "قرنبيط",
+    "family": "Cruciferae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "field_months": [
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "harvest_reference": "70-90 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": {
+        "min": 40,
+        "max": 40
+      },
+      "row_spacing_cm": {
+        "min": 70,
+        "max": 70
+      },
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": {
+      "min": 5,
+      "max": 6
+    },
+    "transplant_true_leaves": null,
+    "irrigation_guidance": "moderate; avoid over-irrigation; keep soil moist",
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR",
+      "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "cabbage",
+    "name_en": "Cabbage",
+    "name_ar": "ملفوف",
+    "family": "Cruciferae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "field_months": [
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "harvest_reference": "70-80 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": {
+        "min": 40,
+        "max": 40
+      },
+      "row_spacing_cm": {
+        "min": 70,
+        "max": 70
+      },
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": {
+      "min": 4,
+      "max": 5
+    },
+    "transplant_true_leaves": null,
+    "irrigation_guidance": "moderate; avoid over-irrigation; keep soil moist",
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR",
+      "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "peas",
+    "name_en": "Peas",
+    "name_ar": "بازلاء",
+    "family": "Legumes",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Oct",
+        "Nov"
+      ],
+      "field_months": [
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "harvest_reference": "80 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "cowpea",
+    "name_en": "Cowpea",
+    "name_ar": "لوبيا",
+    "family": "Legumes",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Aug",
+        "Sep",
+        "Oct"
+      ],
+      "field_months": [
+        "Sep",
+        "Oct",
+        "Nov"
+      ],
+      "harvest_reference": "50-60 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "broad-beans",
+    "name_en": "Broad Beans",
+    "name_ar": "فول",
+    "family": "Legumes",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Sep",
+        "Oct"
+      ],
+      "field_months": null,
+      "harvest_reference": "80-90 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "pumpkin",
+    "name_en": "Pumpkin",
+    "name_ar": "قرع",
+    "family": "Cucurbits",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Feb",
+        "Mar",
+        "Sep",
+        "Oct"
+      ],
+      "field_months": [
+        "Mar",
+        "Apr",
+        "Sep",
+        "Oct",
+        "Nov"
+      ],
+      "harvest_reference": "180 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "armenian-cucumber",
+    "name_en": "Armenian Cucumber",
+    "name_ar": "قثاء",
+    "family": "Cucurbits",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Feb",
+        "Sep"
+      ],
+      "field_months": [
+        "Mar",
+        "Sep",
+        "Oct"
+      ],
+      "harvest_reference": "40 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "zucchini",
+    "name_en": "Zucchini",
+    "name_ar": "كوسة",
+    "family": "Cucurbits",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Feb",
+        "Mar",
+        "Aug",
+        "Sep",
+        "Oct"
+      ],
+      "field_months": [
+        "Mar",
+        "Apr",
+        "Sep",
+        "Oct",
+        "Nov"
+      ],
+      "harvest_reference": "35 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "cucumber",
+    "name_en": "Cucumber",
+    "name_ar": "خيار",
+    "family": "Cucurbits",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Feb",
+        "Mar",
+        "Aug",
+        "Sep"
+      ],
+      "field_months": [
+        "Mar",
+        "Apr",
+        "Sep",
+        "Oct"
+      ],
+      "harvest_reference": "40 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": {
+        "min": 50,
+        "max": 60
+      },
+      "row_spacing_cm": {
+        "min": 70,
+        "max": 90
+      },
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": {
+      "min": 1,
+      "max": 1
+    },
+    "transplant_true_leaves": 2,
+    "irrigation_guidance": "moderate; avoid over-irrigation; keep soil moist",
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR",
+      "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "muskmelon",
+    "name_en": "Muskmelon",
+    "name_ar": "شمام",
+    "family": "Cucurbits",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Feb",
+        "Mar"
+      ],
+      "field_months": [
+        "Mar",
+        "Apr"
+      ],
+      "harvest_reference": "75-80 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "watermelon",
+    "name_en": "Watermelon",
+    "name_ar": "بطيخ",
+    "family": "Cucurbits",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Feb",
+        "Mar"
+      ],
+      "field_months": [
+        "Mar",
+        "Apr"
+      ],
+      "harvest_reference": "80-90 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "potato",
+    "name_en": "Potato",
+    "name_ar": "بطاطس",
+    "family": "Solanaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Oct",
+        "Nov"
+      ],
+      "field_months": null,
+      "harvest_reference": "100-120 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": {
+        "min": 30,
+        "max": 30
+      },
+      "row_spacing_cm": {
+        "min": 80,
+        "max": 80
+      },
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": {
+      "min": 15,
+      "max": 25
+    },
+    "planting_depth_cm": 15,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": "moderate; avoid over-irrigation; keep soil moist",
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR",
+      "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "pepper",
+    "name_en": "Pepper",
+    "name_ar": "فلفل",
+    "family": "Solanaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Aug",
+        "Sep",
+        "Oct"
+      ],
+      "field_months": [
+        "Sep",
+        "Oct",
+        "Nov"
+      ],
+      "harvest_reference": "60-70 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": {
+        "min": 40,
+        "max": 40
+      },
+      "row_spacing_cm": {
+        "min": 70,
+        "max": 70
+      },
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": {
+      "min": 4,
+      "max": 5
+    },
+    "transplant_true_leaves": 4,
+    "irrigation_guidance": "moderate; avoid over-irrigation; keep soil moist",
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR",
+      "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "eggplant",
+    "name_en": "Eggplant",
+    "name_ar": "باذنجان",
+    "family": "Solanaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Aug",
+        "Sep",
+        "Oct"
+      ],
+      "field_months": [
+        "Sep",
+        "Oct",
+        "Nov"
+      ],
+      "harvest_reference": "70-80 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": {
+        "min": 50,
+        "max": 60
+      },
+      "row_spacing_cm": {
+        "min": 80,
+        "max": 100
+      },
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": {
+      "min": 18,
+      "max": 25
+    },
+    "planting_depth_cm": null,
+    "transplant_age_weeks": {
+      "min": 4,
+      "max": 5
+    },
+    "transplant_true_leaves": 3,
+    "irrigation_guidance": "moderate; avoid over-irrigation; keep soil moist",
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR",
+      "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "tomato",
+    "name_en": "Tomato",
+    "name_ar": "طماطم",
+    "family": "Solanaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Aug",
+        "Sep",
+        "Oct"
+      ],
+      "field_months": [
+        "Sep",
+        "Oct",
+        "Nov"
+      ],
+      "harvest_reference": "85-90 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": {
+        "min": 40,
+        "max": 50
+      },
+      "row_spacing_cm": {
+        "min": 70,
+        "max": 90
+      },
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": {
+      "min": 4,
+      "max": 5
+    },
+    "transplant_true_leaves": 4,
+    "irrigation_guidance": "moderate; avoid over-irrigation; keep soil moist",
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR",
+      "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "lettuce",
+    "name_en": "Lettuce",
+    "name_ar": "خس",
+    "family": "Compositae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Sep",
+        "Oct",
+        "Nov"
+      ],
+      "field_months": [
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "harvest_reference": "50-60 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "jews-mallow",
+    "name_en": "Jew's Mallow",
+    "name_ar": "ملوخية",
+    "family": "Tiliaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": null,
+      "field_months": [
+        "Feb",
+        "Mar"
+      ],
+      "harvest_reference": "50-60 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "okra",
+    "name_en": "Okra",
+    "name_ar": "بامية",
+    "family": "Malvaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Feb",
+        "Mar"
+      ],
+      "field_months": [
+        "Mar",
+        "Apr"
+      ],
+      "harvest_reference": "50-60 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "sweet-potato",
+    "name_en": "Sweet Potato",
+    "name_ar": "بطاطا حلوة",
+    "family": "Convolvulaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Feb",
+        "Mar",
+        "Dec"
+      ],
+      "field_months": null,
+      "harvest_reference": "90-120 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "strawberry",
+    "name_en": "Strawberry",
+    "name_ar": "فراولة",
+    "family": "Rosaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Sep",
+        "Oct",
+        "Nov"
+      ],
+      "field_months": [
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "harvest_reference": "120-180 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "sweet-corn",
+    "name_en": "Sweet Corn",
+    "name_ar": "ذرة سكرية",
+    "family": "Poaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": null,
+      "field_months": [
+        "Feb",
+        "Mar",
+        "Oct",
+        "Nov"
+      ],
+      "harvest_reference": "source lists 70-190 and 120-130 days; requires crop/season disambiguation"
+    },
+    "spacing": {
+      "plant_spacing_cm": {
+        "min": 30,
+        "max": 30
+      },
+      "row_spacing_cm": {
+        "min": 80,
+        "max": 80
+      },
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": 5,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": "moderate; avoid over-irrigation; keep soil moist",
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR",
+      "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "coriander",
+    "name_en": "Coriander",
+    "name_ar": "كزبرة",
+    "family": "Apiaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": null,
+      "field_months": [
+        "Oct",
+        "Nov"
+      ],
+      "harvest_reference": "50-60 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "parsley",
+    "name_en": "Parsley",
+    "name_ar": "بقدونس",
+    "family": "Apiaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": null,
+      "field_months": [
+        "Oct",
+        "Nov"
+      ],
+      "harvest_reference": "60 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": 5,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": "moderate; avoid over-irrigation; keep soil moist",
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR",
+      "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "carrot",
+    "name_en": "Carrot",
+    "name_ar": "جزر",
+    "family": "Apiaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Oct",
+        "Nov"
+      ],
+      "field_months": null,
+      "harvest_reference": "100-120 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "chard",
+    "name_en": "Swiss Chard",
+    "name_ar": "سلق",
+    "family": "Chenopodiaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Sep",
+        "Oct",
+        "Nov"
+      ],
+      "field_months": null,
+      "harvest_reference": "100-120 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "spinach",
+    "name_en": "Spinach",
+    "name_ar": "سبانخ",
+    "family": "Chenopodiaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "field_months": null,
+      "harvest_reference": "50-60 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "beetroot",
+    "name_en": "Beetroot",
+    "name_ar": "شمندر",
+    "family": "Chenopodiaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Oct",
+        "Nov"
+      ],
+      "field_months": null,
+      "harvest_reference": "75-80 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "leek",
+    "name_en": "Leek",
+    "name_ar": "كراث",
+    "family": "Amaryllidaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Sep",
+        "Oct"
+      ],
+      "field_months": null,
+      "harvest_reference": "45-60 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "garlic",
+    "name_en": "Garlic",
+    "name_ar": "ثوم",
+    "family": "Amaryllidaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Nov"
+      ],
+      "field_months": null,
+      "harvest_reference": "180 days"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": null,
+      "seed_spacing_cm": null,
+      "bulb_spacing_cm": null
+    },
+    "temperature_c": null,
+    "planting_depth_cm": null,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": null,
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  },
+  {
+    "slug": "onion",
+    "name_en": "Onion",
+    "name_ar": "بصل",
+    "family": "Amaryllidaceae",
+    "country_context": "AE",
+    "seasonality": {
+      "nursery_months": [
+        "Sep",
+        "Oct",
+        "Nov"
+      ],
+      "field_months": [
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "harvest_reference": "source lists 150 days / 60 days; context requires disambiguation"
+    },
+    "spacing": {
+      "plant_spacing_cm": null,
+      "row_spacing_cm": {
+        "min": 30,
+        "max": 30
+      },
+      "seed_spacing_cm": {
+        "min": 10,
+        "max": 10
+      },
+      "bulb_spacing_cm": {
+        "min": 7,
+        "max": 10
+      }
+    },
+    "temperature_c": null,
+    "planting_depth_cm": 5,
+    "transplant_age_weeks": null,
+    "transplant_true_leaves": null,
+    "irrigation_guidance": "moderate; avoid over-irrigation; keep soil moist",
+    "sources": [
+      "UAE_MOCCAE_PLANTING_CALENDAR",
+      "UAE_MOCCAE_VEGETABLE_GUIDE_EN"
+    ],
+    "review_status": "verified",
+    "production_allowed": true,
+    "missing_fields_policy": "null_means_no_verified_value_in_pack_do_not_guess"
+  }
+]

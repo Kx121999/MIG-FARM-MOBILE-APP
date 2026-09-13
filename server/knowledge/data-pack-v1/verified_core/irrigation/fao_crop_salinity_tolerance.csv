@@ -1,0 +1,14 @@
+﻿caution,crop,metric,production_allowed,review_status,source_id,yield_loss_0pct,yield_loss_10pct,yield_loss_25pct
+"Tolerance varies with genotype, soil, climate and agronomic practices.",bean,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,0.7,1.0,1.5
+"Tolerance varies with genotype, soil, climate and agronomic practices.",beetroot,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,2.7,3.4,4.5
+"Tolerance varies with genotype, soil, climate and agronomic practices.",broccoli,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,1.9,2.6,3.7
+"Tolerance varies with genotype, soil, climate and agronomic practices.",cabbage,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,1.2,1.9,2.9
+"Tolerance varies with genotype, soil, climate and agronomic practices.",cantaloupe,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,1.7,2.6,5.5
+"Tolerance varies with genotype, soil, climate and agronomic practices.",capsicum,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,1.0,1.5,2.2
+"Tolerance varies with genotype, soil, climate and agronomic practices.",carrot,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,0.7,1.1,1.9
+"Tolerance varies with genotype, soil, climate and agronomic practices.",celery,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,1.2,2.3,3.9
+"Tolerance varies with genotype, soil, climate and agronomic practices.",cucumber,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,1.7,2.2,2.9
+"Tolerance varies with genotype, soil, climate and agronomic practices.",lettuce,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,0.9,1.4,2.1
+"Tolerance varies with genotype, soil, climate and agronomic practices.",onion,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,0.8,1.2,1.8
+"Tolerance varies with genotype, soil, climate and agronomic practices.",potato,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,1.1,1.7,2.5
+"Tolerance varies with genotype, soil, climate and agronomic practices.",radish,irrigation_water_salinity_tolerance_ec_ms_cm,True,verified,FAO_GREENHOUSE_HORT,0.8,1.3,2.1

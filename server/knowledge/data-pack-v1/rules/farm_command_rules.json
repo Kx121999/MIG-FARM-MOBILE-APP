@@ -1,0 +1,396 @@
+[
+  {
+    "id": "FC-0001",
+    "domain": "tasks",
+    "trigger": {
+      "task_status": "overdue"
+    },
+    "action_ar": "لديك مهمة متأخرة تحتاج مراجعة.",
+    "action_en": "You have an overdue task that needs review.",
+    "priority": "high",
+    "requires": [
+      "real_task_record"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0002",
+    "domain": "problems",
+    "trigger": {
+      "problem_status": "open",
+      "followup_due": true
+    },
+    "action_ar": "تابع المشكلة المفتوحة اليوم.",
+    "action_en": "Follow up the open crop problem today.",
+    "priority": "high",
+    "requires": [
+      "real_problem_record"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0003",
+    "domain": "irrigation_records",
+    "trigger": {
+      "days_since_last_record_greater_than_personal_median_factor": 2
+    },
+    "action_ar": "قد يكون سجل الري متأخرًا؛ راجع ما إذا تم الري ولم يُسجل.",
+    "action_en": "Your irrigation record may be overdue; check whether irrigation occurred but was not logged.",
+    "priority": "normal",
+    "requires": [
+      ">=3 prior irrigation records"
+    ],
+    "prohibits": [
+      "claim_crop_is_dehydrated"
+    ],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0004",
+    "domain": "photos",
+    "trigger": {
+      "weekly_photo_due": true
+    },
+    "action_ar": "أضف صورة متابعة أسبوعية للمحصول.",
+    "action_en": "Add a weekly crop progress photo.",
+    "priority": "low",
+    "requires": [
+      "active_crop"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0005",
+    "domain": "harvest",
+    "trigger": {
+      "verified_harvest_window_open": true
+    },
+    "action_ar": "بدأت نافذة الحصاد المتوقعة؛ راقب جاهزية المحصول وسجّل أول حصاد عند حدوثه.",
+    "action_en": "The expected harvest window has opened; monitor readiness and record first harvest when it happens.",
+    "priority": "normal",
+    "requires": [
+      "verified_crop_window"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0006",
+    "domain": "stage",
+    "trigger": {
+      "stage_confirmation_due": true
+    },
+    "action_ar": "أكد المرحلة الحالية للمحصول لتحديث الخطة.",
+    "action_en": "Confirm the crop's current stage to update the plan.",
+    "priority": "normal",
+    "requires": [
+      "active_crop"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0007",
+    "domain": "data_quality",
+    "trigger": {
+      "missing": [
+        "area_m2"
+      ]
+    },
+    "action_ar": "أدخل مساحة منطقة الزراعة لتفعيل الحسابات المرتبطة بالمساحة.",
+    "action_en": "Add the growing area's size to enable area-based calculations.",
+    "priority": "normal",
+    "requires": [],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0008",
+    "domain": "data_quality",
+    "trigger": {
+      "missing": [
+        "planting_date"
+      ]
+    },
+    "action_ar": "أدخل تاريخ الزراعة لحساب عمر المحصول ومراحله.",
+    "action_en": "Add the planting date to calculate crop age and stages.",
+    "priority": "normal",
+    "requires": [],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0009",
+    "domain": "weather",
+    "trigger": {
+      "provider_status": "not_configured"
+    },
+    "action_ar": "بيانات الطقس الحية غير متصلة حاليًا.",
+    "action_en": "Live weather data is not connected.",
+    "priority": "low",
+    "requires": [],
+    "prohibits": [
+      "fake_weather"
+    ],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0010",
+    "domain": "knowledge",
+    "trigger": {
+      "verified_value_missing": true
+    },
+    "action_ar": "لا توجد قيمة موثقة كافية لهذا الحساب حاليًا.",
+    "action_en": "There is not enough verified data for this calculation yet.",
+    "priority": "normal",
+    "requires": [],
+    "prohibits": [
+      "guess_value"
+    ],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0011",
+    "domain": "problem_followup",
+    "trigger": {
+      "problem_age_days": 1,
+      "status": "open"
+    },
+    "action_ar": "راجع حالة المشكلة وسجّل: تحسنت / كما هي / أسوأ.",
+    "action_en": "Review the problem and record: better / same / worse.",
+    "priority": "normal",
+    "requires": [
+      "real_problem_record"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0012",
+    "domain": "problem_followup",
+    "trigger": {
+      "problem_age_days": 2,
+      "status": "open"
+    },
+    "action_ar": "راجع حالة المشكلة وسجّل: تحسنت / كما هي / أسوأ.",
+    "action_en": "Review the problem and record: better / same / worse.",
+    "priority": "normal",
+    "requires": [
+      "real_problem_record"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0013",
+    "domain": "problem_followup",
+    "trigger": {
+      "problem_age_days": 3,
+      "status": "open"
+    },
+    "action_ar": "راجع حالة المشكلة وسجّل: تحسنت / كما هي / أسوأ.",
+    "action_en": "Review the problem and record: better / same / worse.",
+    "priority": "normal",
+    "requires": [
+      "real_problem_record"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0014",
+    "domain": "problem_followup",
+    "trigger": {
+      "problem_age_days": 5,
+      "status": "open"
+    },
+    "action_ar": "راجع حالة المشكلة وسجّل: تحسنت / كما هي / أسوأ.",
+    "action_en": "Review the problem and record: better / same / worse.",
+    "priority": "normal",
+    "requires": [
+      "real_problem_record"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0015",
+    "domain": "problem_followup",
+    "trigger": {
+      "problem_age_days": 7,
+      "status": "open"
+    },
+    "action_ar": "راجع حالة المشكلة وسجّل: تحسنت / كما هي / أسوأ.",
+    "action_en": "Review the problem and record: better / same / worse.",
+    "priority": "normal",
+    "requires": [
+      "real_problem_record"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0016",
+    "domain": "problem_followup",
+    "trigger": {
+      "problem_age_days": 10,
+      "status": "open"
+    },
+    "action_ar": "راجع حالة المشكلة وسجّل: تحسنت / كما هي / أسوأ.",
+    "action_en": "Review the problem and record: better / same / worse.",
+    "priority": "normal",
+    "requires": [
+      "real_problem_record"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0017",
+    "domain": "problem_followup",
+    "trigger": {
+      "problem_age_days": 14,
+      "status": "open"
+    },
+    "action_ar": "راجع حالة المشكلة وسجّل: تحسنت / كما هي / أسوأ.",
+    "action_en": "Review the problem and record: better / same / worse.",
+    "priority": "normal",
+    "requires": [
+      "real_problem_record"
+    ],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0018",
+    "domain": "data_completeness",
+    "trigger": {
+      "completeness_below_pct": 25
+    },
+    "action_ar": "أكمل البيانات الناقصة لتحسين دقة المتابعة.",
+    "action_en": "Complete missing data to improve monitoring accuracy.",
+    "priority": "low",
+    "requires": [],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0019",
+    "domain": "data_completeness",
+    "trigger": {
+      "completeness_below_pct": 50
+    },
+    "action_ar": "أكمل البيانات الناقصة لتحسين دقة المتابعة.",
+    "action_en": "Complete missing data to improve monitoring accuracy.",
+    "priority": "low",
+    "requires": [],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0020",
+    "domain": "data_completeness",
+    "trigger": {
+      "completeness_below_pct": 75
+    },
+    "action_ar": "أكمل البيانات الناقصة لتحسين دقة المتابعة.",
+    "action_en": "Complete missing data to improve monitoring accuracy.",
+    "priority": "low",
+    "requires": [],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0021",
+    "domain": "data_completeness",
+    "trigger": {
+      "completeness_below_pct": 90
+    },
+    "action_ar": "أكمل البيانات الناقصة لتحسين دقة المتابعة.",
+    "action_en": "Complete missing data to improve monitoring accuracy.",
+    "priority": "low",
+    "requires": [],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0022",
+    "domain": "tasks",
+    "trigger": {
+      "overdue_count_gte": 1
+    },
+    "action_ar": "رتّب المهام المتأخرة حسب الأولوية.",
+    "action_en": "Prioritize overdue tasks.",
+    "priority": "normal",
+    "requires": [],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0023",
+    "domain": "tasks",
+    "trigger": {
+      "overdue_count_gte": 2
+    },
+    "action_ar": "رتّب المهام المتأخرة حسب الأولوية.",
+    "action_en": "Prioritize overdue tasks.",
+    "priority": "normal",
+    "requires": [],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0024",
+    "domain": "tasks",
+    "trigger": {
+      "overdue_count_gte": 3
+    },
+    "action_ar": "رتّب المهام المتأخرة حسب الأولوية.",
+    "action_en": "Prioritize overdue tasks.",
+    "priority": "high",
+    "requires": [],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  },
+  {
+    "id": "FC-0025",
+    "domain": "tasks",
+    "trigger": {
+      "overdue_count_gte": 5
+    },
+    "action_ar": "رتّب المهام المتأخرة حسب الأولوية.",
+    "action_en": "Prioritize overdue tasks.",
+    "priority": "high",
+    "requires": [],
+    "prohibits": [],
+    "provenance": "product_rule",
+    "production_allowed": true
+  }
+]

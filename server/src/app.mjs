@@ -7,6 +7,11 @@ import { createOrders } from '../services/orders.mjs';
 import { createFarmOS } from '../services/farms.mjs';
 import { createSmartFarm } from '../smart-farm/service.mjs';
 import { createFarmCommand } from '../farm-command/service.mjs';
+import { createKnowledgeService } from '../knowledge/service.mjs';
+import { auditKnowledge, knowledgeCoverage } from '../knowledge/audit.mjs';
+import { createFarmIntelligence } from '../farm-intelligence/service.mjs';
+import { calculateEtc, calculateIrrigationRuntime, calculateWaterVolume } from '../farm-intelligence/irrigation-engine.mjs';
+import { pesticideSafetyGate } from '../farm-intelligence/risk-engine.mjs';
 import { createPlatform } from '../services/platform.mjs';
 import { stripeGateway } from '../services/stripe.mjs';
 import { fail, page } from '../lib/validation.mjs';
@@ -26,6 +31,8 @@ export function createApp({
     farmOS = createFarmOS(db),
     smartFarm = createSmartFarm(db),
     farmCommand = createFarmCommand(db, { env }),
+    knowledge = createKnowledgeService(db),
+    farmIntelligence = createFarmIntelligence(db, { farmCommand, knowledge, env }),
     platform = createPlatform(db, products);
   const allowed = (env.CORS_ORIGIN || '*')
     .split(',')
@@ -93,6 +100,19 @@ export function createApp({
         return send(response, 200, await smartFarm.search(url));
       if (method === 'GET' && path === '/api/knowledge/uae/regulations')
         return send(response, 200, await smartFarm.regulations());
+      if (method === 'GET' && path === '/api/knowledge/v5/search')
+        return send(response, 200, await knowledge.search(url));
+      if (method === 'GET' && path === '/api/knowledge/v5/crops')
+        return send(response, 200, await knowledge.cropProfiles(url));
+      const verifiedKnowledgeCrop = /^\/api\/knowledge\/v5\/crops\/([^/]+)$/.exec(path);
+      if (method === 'GET' && verifiedKnowledgeCrop)
+        return send(response, 200, await knowledge.cropProfile(verifiedKnowledgeCrop[1]));
+      if (method === 'GET' && path === '/api/knowledge/v5/planting-calendar')
+        return send(response, 200, await knowledge.plantingCalendar(url));
+      if (method === 'GET' && path === '/api/knowledge/v5/uae')
+        return send(response, 200, await knowledge.regulations(url));
+      if (method === 'GET' && path === '/api/knowledge/v5/sources')
+        return send(response, 200, await knowledge.sourceRegistry(url));
       if (method === 'POST' && path === '/api/farm-calculators/area')
         return send(response, 200, smartFarm.area(await jsonBody(request)));
       if (method === 'POST' && path === '/api/farm-calculators/planting')
@@ -105,6 +125,20 @@ export function createApp({
         return send(response, 200, await smartFarm.growth(await jsonBody(request)));
       if (method === 'POST' && path === '/api/diagnosis/guide')
         return send(response, 200, await smartFarm.diagnose(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/diagnosis/verified')
+        return send(response, 200, await knowledge.diagnose(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/farm-calculators/v5/population')
+        return send(response, 200, await knowledge.population(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/farm-calculators/v5/water-quality')
+        return send(response, 200, await knowledge.waterQuality(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/farm-calculators/v5/etc')
+        return send(response, 200, calculateEtc(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/farm-calculators/v5/water-volume')
+        return send(response, 200, calculateWaterVolume(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/farm-calculators/v5/irrigation-runtime')
+        return send(response, 200, calculateIrrigationRuntime(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/crop-protection/v5/safety-check')
+        return send(response, 200, pesticideSafetyGate(await jsonBody(request)));
       if (method === 'GET' && path === '/admin')
         return serveAdmin(response, mediaRoot);
       if (method === 'GET' && path.startsWith('/api/products/')) {
@@ -243,6 +277,10 @@ export function createApp({
           return send(response, 200, await farmCommand.changes(user, url));
         if (method === 'GET' && path === '/api/my-farm/status')
           return send(response, 200, await farmCommand.statusReport(user, url));
+        if (method === 'GET' && path === '/api/my-farm/intelligence')
+          return send(response, 200, await farmIntelligence.center(user, url));
+        if (method === 'GET' && path === '/api/my-farm/provider-status')
+          return send(response, 200, await farmIntelligence.providerStatus());
         if (method === 'GET' && path === '/api/my-farm/search')
           return send(response, 200, await farmOS.search(user, url.searchParams.get('q')));
         if (method === 'GET' && path === '/api/my-farm/report')
@@ -272,6 +310,8 @@ export function createApp({
         if (method === 'POST' && path === '/api/crops') return send(response, 201, { crop: await farmOS.createCrop(user, await body()) });
         const cropMission = /^\/api\/crops\/([^/]+)\/mission$/.exec(path);
         if (method === 'GET' && cropMission) return send(response, 200, await farmCommand.mission(user, cropMission[1]));
+        const cropIntelligence = /^\/api\/crops\/([^/]+)\/intelligence$/.exec(path);
+        if (method === 'GET' && cropIntelligence) return send(response, 200, await farmIntelligence.crop(user, cropIntelligence[1], url));
         const cropCheckIn = /^\/api\/crops\/([^/]+)\/check-in$/.exec(path);
         if (method === 'POST' && cropCheckIn) return await mutate(200, async (payload) => farmCommand.checkIn(user, cropCheckIn[1], payload));
         const cropStageConfirmation = /^\/api\/crops\/([^/]+)\/stage-confirmation$/.exec(path);
@@ -372,6 +412,14 @@ export function createApp({
           return send(response, 200, { user: profile(user) });
         if (method === 'GET' && action === 'system')
           return send(response, 200, await platform.systemStatus(user));
+        if (method === 'GET' && action === 'knowledge/audit') {
+          if (user.role !== 'admin') throw fail(403, 'forbidden');
+          return send(response, 200, await auditKnowledge(db));
+        }
+        if (method === 'GET' && action === 'knowledge/coverage') {
+          if (user.role !== 'admin') throw fail(403, 'forbidden');
+          return send(response, 200, await knowledgeCoverage(db));
+        }
         if (method === 'GET' && action === 'summary')
           return send(response, 200, await platform.adminSummary(user));
         if (method === 'GET' && action === 'customers')

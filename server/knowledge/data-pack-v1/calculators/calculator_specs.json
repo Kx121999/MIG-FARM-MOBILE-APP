@@ -1,0 +1,48 @@
+{
+  "plant_population": {
+    "formula": "floor(usable_area_m2 / ((plant_spacing_cm/100) * (row_spacing_cm/100)))",
+    "preconditions": [
+      "verified plant_spacing_cm",
+      "verified row_spacing_cm",
+      "usable_area_m2 > 0"
+    ],
+    "warning": "Geometric estimate; real layout may reduce plantable area because of aisles, edges, service corridors, equipment and bed design.",
+    "output_label": "CALCULATED_ESTIMATE"
+  },
+  "rectangular_area": {
+    "formula": "length_m * width_m",
+    "preconditions": [
+      "length_m > 0",
+      "width_m > 0"
+    ],
+    "output_label": "CALCULATED_RESULT"
+  },
+  "etc": {
+    "formula": "ETc_mm = Kc * ETo_mm",
+    "preconditions": [
+      "verified stage-specific Kc",
+      "real or verified ETo"
+    ],
+    "source_id": "FAO_56_ETC",
+    "output_label": "CALCULATED_ESTIMATE"
+  },
+  "water_volume_from_depth": {
+    "formula": "liters = irrigation_depth_mm * irrigated_area_m2",
+    "preconditions": [
+      "irrigation_depth_mm known",
+      "irrigated_area_m2 known"
+    ],
+    "note": "1 mm over 1 m² equals 1 litre.",
+    "output_label": "CALCULATED_RESULT"
+  },
+  "drip_runtime": {
+    "formula": "runtime_hours = required_liters / total_emitter_flow_lph",
+    "preconditions": [
+      "required_liters known",
+      "emitter_count known",
+      "emitter_flow_lph known and verified",
+      "system efficiency handled explicitly"
+    ],
+    "output_label": "CALCULATED_ESTIMATE"
+  }
+}

@@ -3,20 +3,32 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Search } from 'lucide-react-native';
 import { AccountField, AccountPage, Notice } from '@/components/account/AccountUI';
 import { AppButton } from '@/components/AppButton';
-import { DataBadge, SourcePanel } from '@/components/farm/SmartFarmUI';
+import { VerifiedSourceLink } from '@/components/farm/FarmIntelligenceUI';
+import { DataBadge } from '@/components/farm/SmartFarmUI';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { smartFarmService } from '@/services/smartFarm';
-import type { CropKnowledgeProfile, UAERegulation } from '@/types/farm';
+import { farmIntelligenceService } from '@/services/farmIntelligence';
+import type { VerifiedKnowledgeRecord } from '@/types/farm';
 
 export default function FarmLibrary(){
   const {language,isRTL}=useLanguage(),ar=language==='ar';
-  const [query,setQuery]=useState(''),[crops,setCrops]=useState<CropKnowledgeProfile[]>([]),[regulations,setRegulations]=useState<UAERegulation[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
-  const load=async()=>{setLoading(true);setError('');try{const [nextCrops,nextRegulations]=await Promise.all([smartFarmService.crops(),smartFarmService.regulations()]);setCrops(nextCrops);setRegulations(nextRegulations);}catch{setError(ar?'تعذر تحميل المكتبة الموثّقة.':'Could not load the verified library.');}finally{setLoading(false);}};
-  useEffect(()=>{void load();},[]);
-  const search=async()=>{if(query.trim().length<2)return;setLoading(true);setError('');try{const result=await smartFarmService.search(query.trim());setCrops(result.crops);setRegulations(result.regulations);}catch{setError(ar?'تعذر تنفيذ البحث.':'Search could not be completed.');}finally{setLoading(false);}};
-  return <AccountPage title={ar?'المكتبة الزراعية':'Growing library'}><View style={[styles.heading,{flexDirection:isRTL?'row-reverse':'row'}]}><Search size={21} color={colors.primary}/><Text style={[styles.intro,{textAlign:isRTL?'right':'left'}]}>{ar?'محتوى منشور بعد المراجعة فقط':'Only reviewed, published knowledge'}</Text><DataBadge kind="verified"/></View><AccountField label={ar?'ابحث في المحاصيل والتشريعات':'Search crops and regulations'} value={query} onChangeText={setQuery} returnKeyType="search" onSubmitEditing={search}/><AppButton secondary label={ar?'بحث':'Search'} onPress={search}/>{error?<Notice error text={error}/>:null}{loading?<View style={styles.skeleton}><View/><View/><View/></View>:<><SectionTitle text={ar?'ملفات المحاصيل':'Crop profiles'} rtl={isRTL}/>{crops.length?crops.map(crop=><View key={crop.id} style={styles.item}><Text style={[styles.title,{textAlign:isRTL?'right':'left'}]}>{ar?crop.nameAr:crop.nameEn}</Text>{crop.scientificName?<Text style={[styles.meta,{textAlign:isRTL?'right':'left'}]}>{crop.scientificName}</Text>:null}<Text style={[styles.body,{textAlign:isRTL?'right':'left'}]}>{ar?crop.summaryAr:crop.summaryEn}</Text>{crop.source?<SourcePanel source={crop.source}/>:null}</View>):<Notice text={ar?'لا توجد ملفات محاصيل موثّقة منشورة حاليًا. لن نعرض مسافات أو مواسم غير مراجعة.':'No verified crop profiles are published yet. Unreviewed spacing or seasons will not be shown.'}/>}<SectionTitle text={ar?'تشريعات الإمارات':'UAE regulations'} rtl={isRTL}/>{regulations.map(item=><View key={item.id} style={styles.item}><Text style={[styles.title,{textAlign:isRTL?'right':'left'}]}>{ar?item.titleAr:item.titleEn}</Text><Text style={[styles.body,{textAlign:isRTL?'right':'left'}]}>{ar?item.summaryAr:item.summaryEn}</Text><SourcePanel source={item.source}/></View>)}</>}</AccountPage>;
+  const [query,setQuery]=useState(''),[items,setItems]=useState<VerifiedKnowledgeRecord[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+  const load=async()=>{setLoading(true);setError('');try{const [crops,uae]=await Promise.all([farmIntelligenceService.crops(),farmIntelligenceService.regulations()]);setItems([...crops.items,...uae.items]);}catch{setError(ar?'تعذر تحميل المكتبة الموثقة.':'The verified library could not be loaded.');}finally{setLoading(false);}};
+  useEffect(()=>{void load();},[ar]);
+  const search=async()=>{if(query.trim().length<2)return;setLoading(true);setError('');try{setItems((await farmIntelligenceService.search(query.trim())).items);}catch{setError(ar?'تعذر البحث الآن.':'Search is unavailable right now.');}finally{setLoading(false);}};
+  return <AccountPage title={ar?'المكتبة الموثقة':'Verified library'}>
+    <View style={[styles.intro,{flexDirection:isRTL?'row-reverse':'row'}]}><Search size={20} color={colors.primary}/><Text style={[styles.introText,{textAlign:isRTL?'right':'left'}]}>{ar?'بحث عربي وإنجليزي داخل بيانات مرتبطة بمصادرها.':'Arabic and English search across source-backed records.'}</Text><DataBadge kind="verified"/></View>
+    <AccountField label={ar?'ابحث عن محصول، عرض، مرض، أو خدمة':'Search crops, symptoms, diseases, or services'} value={query} onChangeText={setQuery} onSubmitEditing={search}/>
+    <View style={styles.actions}><AppButton label={ar?'بحث':'Search'} onPress={search}/><AppButton secondary label={ar?'عرض البداية':'Reset'} onPress={load}/></View>
+    {error?<Notice error text={error}/>:null}
+    {loading?<View style={styles.loading}><Text style={styles.body}>{ar?'جار التحقق من السجلات...':'Checking verified records...'}</Text></View>:items.length?<View style={styles.list}>{items.map((item)=><KnowledgeCard key={item.id} item={item} ar={ar} rtl={isRTL}/>)}</View>:<Notice text={ar?'لا توجد نتيجة موثقة مطابقة.':'No matching verified result.'}/>} 
+  </AccountPage>;
 }
-function SectionTitle({text,rtl}:{text:string;rtl:boolean}){return <Text style={[styles.section,{textAlign:rtl?'right':'left'}]}>{text}</Text>}
-const styles=StyleSheet.create({heading:{alignItems:'center',gap:spacing.sm,flexWrap:'wrap'},intro:{...typography.body,color:colors.text,flex:1},section:{...typography.section,color:colors.text,marginTop:spacing.lg},item:{backgroundColor:colors.surface,padding:spacing.lg,borderRadius:radius.md,gap:spacing.xs},title:{...typography.section,color:colors.text},meta:{...typography.caption,color:colors.muted,fontStyle:'italic'},body:{...typography.body,color:colors.muted},skeleton:{gap:spacing.sm},});
 
+function KnowledgeCard({item,ar,rtl}:{item:VerifiedKnowledgeRecord;ar:boolean;rtl:boolean}){
+  const payload=item.payload;
+  const title=String(payload[ar?'name_ar':'name_en']||payload[ar?'title_ar':'title_en']||payload.name||payload.title||item.crop||item.id);
+  const summary=String(payload[ar?'summary_ar':'summary_en']||payload.summary||payload.description||'');
+  return <View style={styles.card}><Text style={[styles.type,{textAlign:rtl?'right':'left'}]}>{item.type.replaceAll('_',' ')}</Text><Text style={[styles.title,{textAlign:rtl?'right':'left'}]}>{title}</Text>{summary?<Text style={[styles.body,{textAlign:rtl?'right':'left'}]}>{summary}</Text>:null}{item.sources.map((source)=><VerifiedSourceLink key={source.id} source={source}/>)}</View>;
+}
+const styles=StyleSheet.create({intro:{alignItems:'center',gap:spacing.md,backgroundColor:colors.primarySoft,borderRadius:radius.md,padding:spacing.md},introText:{...typography.secondary,color:colors.primaryDark,flex:1},actions:{gap:spacing.sm},loading:{minHeight:160,backgroundColor:colors.surface,borderRadius:radius.md,alignItems:'center',justifyContent:'center'},list:{gap:spacing.sm},card:{backgroundColor:colors.surface,borderRadius:radius.md,padding:spacing.lg,gap:spacing.sm},type:{...typography.caption,color:colors.primary,textTransform:'uppercase'},title:{...typography.section,color:colors.text},body:{...typography.body,color:colors.muted}});

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "id",
+    "organization",
+    "title",
+    "url",
+    "source_type",
+    "retrieved_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "organization": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string"
+    }
+  }
+}

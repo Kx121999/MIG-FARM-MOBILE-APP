@@ -1,0 +1,85 @@
+[
+  {
+    "id": "uae_agri_quarantine_2025",
+    "title_en": "Federal Law No. 7 of 2025 Regarding Agricultural Quarantine",
+    "title_ar": "القانون الاتحادي رقم 7 لسنة 2025 بشأن الحجر الزراعي",
+    "jurisdiction": "UAE Federal",
+    "topics": [
+      "agricultural quarantine",
+      "plant health",
+      "imports",
+      "exports",
+      "phytosanitary measures",
+      "quarantine pests"
+    ],
+    "summary": "Establishes federal agricultural quarantine framework to prevent introduction/spread of regulated pests and protect plant resources; regulates agricultural consignments and phytosanitary measures.",
+    "source_id": "UAE_LAW_AGRI_QUARANTINE_2025",
+    "status": "official",
+    "last_verified_at": "2026-09-12",
+    "production_allowed": true,
+    "review_status": "verified",
+    "legal_disclaimer": "Informational summary only; current requirements must be confirmed through the official authority and latest consolidated legislation."
+  },
+  {
+    "id": "uae_pesticides_2020",
+    "title_en": "Federal Law No. 10 of 2020 Regarding Pesticides",
+    "title_ar": "قانون اتحادي رقم 10 لسنة 2020 بشأن المبيدات",
+    "jurisdiction": "UAE Federal",
+    "topics": [
+      "pesticide registration",
+      "import",
+      "re-export",
+      "circulation",
+      "use",
+      "advertising",
+      "inspection",
+      "safe disposal"
+    ],
+    "summary": "Sets federal objectives and scope for agricultural/public-health pesticides and active substances, including registration, importation, circulation, use, control and safe disposal.",
+    "source_id": "UAE_LAW_PESTICIDES_2020",
+    "status": "official",
+    "last_verified_at": "2026-09-12",
+    "production_allowed": true,
+    "review_status": "verified",
+    "legal_disclaimer": "Informational summary only; current requirements must be confirmed through the official authority and latest consolidated legislation."
+  },
+  {
+    "id": "uae_fertilizers_1992",
+    "title_en": "Federal Law No. 39 of 1992 Regarding Fertilizers and Agricultural Conditioners",
+    "title_ar": "القانون الاتحادي رقم 39 لسنة 1992 بشأن إنتاج واستيراد وتداول الأسمدة والمصلحات الزراعية",
+    "jurisdiction": "UAE Federal",
+    "topics": [
+      "fertilizers",
+      "agricultural conditioners",
+      "production",
+      "import",
+      "circulation"
+    ],
+    "summary": "Regulates production, importation and circulation of fertilizers and agricultural conditioners; official page lists the law as active and amended.",
+    "source_id": "UAE_LAW_FERTILIZERS_1992",
+    "status": "official",
+    "last_verified_at": "2026-09-12",
+    "production_allowed": true,
+    "review_status": "verified",
+    "legal_disclaimer": "Informational summary only; current requirements must be confirmed through the official authority and latest consolidated legislation."
+  },
+  {
+    "id": "uae_pesticide_system_2001",
+    "title_en": "Cabinet Resolution No. 37 of 2001 - Pesticides, Agricultural Conditioners and Fertilizers System",
+    "title_ar": "قرار مجلس الوزراء رقم 37 لسنة 2001 - نظام مبيدات الآفات والمصلحات الزراعية والأسمدة",
+    "jurisdiction": "UAE Federal",
+    "topics": [
+      "prohibited pesticides",
+      "restricted pesticides",
+      "registration",
+      "trade records"
+    ],
+    "summary": "Official legacy regulation includes pesticide registration/trade controls and restrictions. Must be interpreted with later legislation including Federal Law No. 10 of 2020.",
+    "source_id": "UAE_REG_PESTICIDES_2001",
+    "status": "official_legacy_needs_legal_hierarchy_review",
+    "last_verified_at": "2026-09-12",
+    "production_allowed": true,
+    "review_status": "verified",
+    "legal_disclaimer": "Informational summary only; current requirements must be confirmed through the official authority and latest consolidated legislation."
+  }
+]

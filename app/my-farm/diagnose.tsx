@@ -3,21 +3,23 @@ import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { AccountPage, Notice } from '@/components/account/AccountUI';
 import { AppButton } from '@/components/AppButton';
-import { ChoiceGrid, DataBadge, SourcePanel, StepProgress, TransparencyNote, smartUI } from '@/components/farm/SmartFarmUI';
+import { ChoiceGrid, DataBadge, StepProgress, TransparencyNote, smartUI } from '@/components/farm/SmartFarmUI';
+import { VerifiedSourceLink } from '@/components/farm/FarmIntelligenceUI';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { smartFarmService } from '@/services/smartFarm';
-import type { CropKnowledgeProfile, GuidedDiagnosisResult } from '@/types/farm';
+import { farmIntelligenceService } from '@/services/farmIntelligence';
+import type { CropKnowledgeProfile, VerifiedDiagnosisResult } from '@/types/farm';
 
-const parts=[{value:'leaves',ar:'الأوراق',en:'Leaves'},{value:'stem',ar:'الساق',en:'Stem'},{value:'roots',ar:'الجذور',en:'Roots'},{value:'fruit',ar:'الثمار',en:'Fruit'}];
-const symptoms=[{value:'yellowing',ar:'اصفرار',en:'Yellowing'},{value:'spots',ar:'بقع',en:'Spots'},{value:'wilting',ar:'ذبول',en:'Wilting'},{value:'holes',ar:'ثقوب أو قضم',en:'Holes or feeding'}];
+const parts=[{value:'leaf',ar:'الأوراق',en:'Leaves'},{value:'stem',ar:'الساق',en:'Stem'},{value:'root',ar:'الجذور',en:'Roots'},{value:'fruit',ar:'الثمار',en:'Fruit'}];
+const symptoms=[{value:'yellow_angular_spots',ar:'بقع صفراء زاوية',en:'Yellow angular spots'},{value:'white_powdery_growth',ar:'نمو أبيض مسحوقي',en:'White powdery growth'},{value:'stippled_pale_leaves',ar:'تنقيط وشحوب الأوراق',en:'Stippled pale leaves'},{value:'small_brown_spots',ar:'بقع بنية صغيرة',en:'Small brown spots'},{value:'black_sunken_bottom_or_side',ar:'سواد غائر في الثمرة',en:'Black sunken fruit area'},{value:'tan_white_exposed_side',ar:'جانب فاتح مكشوف بالثمرة',en:'Pale exposed fruit side'}];
 const spreads=[{value:'single',ar:'نبات واحد',en:'One plant'},{value:'patches',ar:'بقع متفرقة',en:'Patches'},{value:'widespread',ar:'منتشرة',en:'Widespread'}];
 
 export default function GuidedDiagnosis(){
   const {language,isRTL}=useLanguage(),ar=language==='ar';
-  const [step,setStep]=useState(1),[crops,setCrops]=useState<CropKnowledgeProfile[]>([]),[crop,setCrop]=useState(''),[part,setPart]=useState('leaves'),[symptom,setSymptom]=useState('yellowing'),[spread,setSpread]=useState('single'),[result,setResult]=useState<GuidedDiagnosisResult|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const [step,setStep]=useState(1),[crops,setCrops]=useState<CropKnowledgeProfile[]>([]),[crop,setCrop]=useState(''),[part,setPart]=useState('leaf'),[symptom,setSymptom]=useState('yellow_angular_spots'),[spread,setSpread]=useState('single'),[result,setResult]=useState<VerifiedDiagnosisResult|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
   useEffect(()=>{smartFarmService.crops().then(setCrops).catch(()=>setCrops([]));},[]);
-  const run=async()=>{setBusy(true);setError('');try{setResult(await smartFarmService.diagnose({cropSlug:crop||undefined,plantPart:part,symptoms:[symptom],spread}));setStep(5);}catch{setError(ar?'تعذر فحص قاعدة المعرفة الآن.':'The knowledge base could not be checked.');}finally{setBusy(false);}};
+  const run=async()=>{setBusy(true);setError('');try{setResult(await farmIntelligenceService.diagnose({cropSlug:crop||undefined,plantPart:part,symptoms:[symptom],spread}));setStep(5);}catch{setError(ar?'تعذر فحص قاعدة المعرفة الآن.':'The knowledge base could not be checked.');}finally{setBusy(false);}};
   const cropChoices=[{value:'',ar:'غير محدد',en:'Not specified'},...crops.map(item=>({value:item.slug,ar:item.nameAr,en:item.nameEn}))];
   return (
     <AccountPage title={ar ? 'تشخيص إرشادي' : 'Guided diagnosis'}>
@@ -63,5 +65,5 @@ export default function GuidedDiagnosis(){
     </AccountPage>
   );
 }
-function DiagnosisResult({result,ar,rtl}:{result:GuidedDiagnosisResult;ar:boolean;rtl:boolean}){return <View style={styles.results}><DataBadge kind={result.possibleCauses.length?'verified':'unavailable'}/><Text style={[styles.title,{textAlign:rtl?'right':'left'}]}>{result.possibleCauses.length?(ar?'احتمالات تحتاج فحصًا':'Possibilities to inspect'):(ar?'لا توجد مطابقة موثّقة':'No verified match')}</Text>{result.possibleCauses.map((item,index)=><View key={`${item.causeType}-${index}`} style={styles.result}><Text style={[styles.cause,{textAlign:rtl?'right':'left'}]}>{ar?item.possibleCauseAr:item.possibleCauseEn}</Text>{(ar?item.inspectionChecksAr:item.inspectionChecksEn).map(check=><Text key={check} style={[styles.check,{textAlign:rtl?'right':'left'}]}>• {check}</Text>)}<SourcePanel source={item.source}/></View>)}<TransparencyNote>{ar?result.disclaimerAr:result.disclaimerEn}</TransparencyNote></View>}
+function DiagnosisResult({result,ar,rtl}:{result:VerifiedDiagnosisResult;ar:boolean;rtl:boolean}){return <View style={styles.results}><DataBadge kind={result.possibleCauses.length?'verified':'unavailable'}/><Text style={[styles.title,{textAlign:rtl?'right':'left'}]}>{result.possibleCauses.length?(ar?'احتمالات تحتاج فحصًا':'Possibilities to inspect'):(ar?'لا توجد مطابقة موثقة':'No verified match')}</Text>{result.possibleCauses.map((item,index)=><View key={`${item.causeType}-${index}`} style={styles.result}><Text style={[styles.cause,{textAlign:rtl?'right':'left'}]}>{ar?item.possibleCauseAr:item.possibleCauseEn}</Text>{(ar?item.inspectionChecksAr:item.inspectionChecksEn).map(check=><Text key={check} style={[styles.check,{textAlign:rtl?'right':'left'}]}>• {check}</Text>)}{item.source?<VerifiedSourceLink source={item.source}/>:null}</View>)}<TransparencyNote>{ar?result.disclaimerAr:result.disclaimerEn}</TransparencyNote></View>}
 const styles=StyleSheet.create({results:{gap:spacing.md},title:{...typography.section,color:colors.text},result:{backgroundColor:colors.surface,padding:spacing.lg,borderRadius:radius.md,gap:spacing.sm},cause:{...typography.button,color:colors.text},check:{...typography.body,color:colors.muted}});

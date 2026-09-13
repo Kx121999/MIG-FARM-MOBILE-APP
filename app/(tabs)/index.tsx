@@ -23,6 +23,7 @@ import { useRetention } from '@/contexts/RetentionContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { categories as discoveryCategories, productMatchesCategory } from '@/constants/categories';
 import { useFarm } from '@/contexts/FarmContext';
+import { useFarmIntelligence } from '@/hooks/useFarmIntelligence';
 
 const heroSource = require('../../assets/home-farm.webp');
 const homeCategories = categories.filter((item) => item.id !== 'all');
@@ -36,6 +37,8 @@ export default function HomeScreen() {
   const { personalization } = useRetention();
   const { user } = useAuth();
   const { dashboard: farmDashboard } = useFarm();
+  const activeFarmId=farmDashboard?.farms[0]?.id;
+  const intelligence=useFarmIntelligence(activeFarmId,Boolean(user&&activeFarmId));
   const [remoteSections, setRemoteSections] = useState<HomeContentSection[]>([]);
   useEffect(() => {
     let active = true;
@@ -98,12 +101,12 @@ export default function HomeScreen() {
             <Arrow size={16} color={colors.primary} />
           </MotionPressable>
         ) : null}
-        <MotionPressable accessibilityRole="button" accessibilityLabel={language === 'ar' ? 'فتح مزرعتي' : 'Open My Farm'} onPress={() => router.push('/(tabs)/my-farm' as never)}
+        <MotionPressable accessibilityRole="button" accessibilityLabel={language === 'ar' ? 'فتح ذكاء المزرعة' : 'Open Farm Intelligence'} onPress={() => activeFarmId?router.push({pathname:'/my-farm/intelligence' as never,params:{farmId:activeFarmId}}):router.push('/(tabs)/my-farm' as never)}
           style={[styles.myFarm, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View style={styles.myFarmIcon}><Sprout size={25} color={colors.surface} /></View>
           <View style={styles.assistantCopy}>
-            <Text style={[styles.myFarmTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? (language === 'ar' ? 'مزرعتك اليوم' : 'Your farm today') : (language === 'ar' ? 'ابدأ مزرعتك' : 'Start your farm')}</Text>
-            <Text style={[styles.myFarmBody, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? (language === 'ar' ? `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} إجراءات قادمة · ${farmDashboard.problems.length} مشكلات تحتاج متابعة` : `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} upcoming actions · ${farmDashboard.problems.length} problems to follow up`) : (language === 'ar' ? 'أضف بيانات المزرعة وخطط لأول محصول' : 'Add farm details and plan your first crop')}</Text>
+            <Text style={[styles.myFarmTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? (language === 'ar' ? 'ذكاء المزرعة' : 'Farm Intelligence') : (language === 'ar' ? 'ابدأ مزرعتك' : 'Start your farm')}</Text>
+            <Text style={[styles.myFarmBody, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? intelligence.data?(language==='ar'?`${intelligence.data.brief.riskCount} تنبيهات · ${intelligence.data.brief.anomalyCount} تغيرات في سجلاتك`:`${intelligence.data.brief.riskCount} alerts · ${intelligence.data.brief.anomalyCount} record changes`):(language==='ar'?'اعرف ما يحتاج انتباهك والخطوة التالية':'See what needs attention and what to do next') : (language === 'ar' ? 'أضف بيانات المزرعة وخطط لأول محصول' : 'Add farm details and plan your first crop')}</Text>
           </View><Arrow size={20} color={colors.surface} />
         </MotionPressable>
         <View style={styles.section}>
