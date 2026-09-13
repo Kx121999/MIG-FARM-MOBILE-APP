@@ -6,6 +6,7 @@ import { createCustomers } from '../services/customers.mjs';
 import { createOrders } from '../services/orders.mjs';
 import { createFarmOS } from '../services/farms.mjs';
 import { createSmartFarm } from '../smart-farm/service.mjs';
+import { createFarmCommand } from '../farm-command/service.mjs';
 import { createPlatform } from '../services/platform.mjs';
 import { stripeGateway } from '../services/stripe.mjs';
 import { fail, page } from '../lib/validation.mjs';
@@ -24,6 +25,7 @@ export function createApp({
     orders = createOrders(db, products, stripe, orderOptions),
     farmOS = createFarmOS(db),
     smartFarm = createSmartFarm(db),
+    farmCommand = createFarmCommand(db, { env }),
     platform = createPlatform(db, products);
   const allowed = (env.CORS_ORIGIN || '*')
     .split(',')
@@ -212,7 +214,7 @@ export function createApp({
         return send(response, 200, { ok: true });
       }
       if (
-        /^\/api\/(?:my-farm|farms|zones|crops|farm-tasks|irrigation-records|farm-operations|farm-problems|farm-media|harvest-records|farm-notes|farm-inventory|farm-analyses|diagnosis-sessions|crop-plans)(?:\/|$)/.test(path)
+        /^\/api\/(?:my-farm|farms|zones|crops|problems|farm-tasks|irrigation-records|farm-operations|farm-problems|farm-media|harvest-records|farm-notes|farm-inventory|farm-analyses|farm-expenses|farm-sales|diagnosis-sessions|crop-plans)(?:\/|$)/.test(path)
       ) {
         const user = await auth.authenticate(request);
         const body = () => jsonBody(request);
@@ -233,6 +235,14 @@ export function createApp({
         };
         if (method === 'GET' && path === '/api/my-farm/dashboard')
           return send(response, 200, await farmOS.dashboard(user));
+        if (method === 'GET' && path === '/api/my-farm/today')
+          return send(response, 200, await farmCommand.today(user, url));
+        if (method === 'GET' && path === '/api/my-farm/command-center')
+          return send(response, 200, await farmCommand.commandCenter(user, url));
+        if (method === 'GET' && path === '/api/my-farm/changes')
+          return send(response, 200, await farmCommand.changes(user, url));
+        if (method === 'GET' && path === '/api/my-farm/status')
+          return send(response, 200, await farmCommand.statusReport(user, url));
         if (method === 'GET' && path === '/api/my-farm/search')
           return send(response, 200, await farmOS.search(user, url.searchParams.get('q')));
         if (method === 'GET' && path === '/api/my-farm/report')
@@ -260,8 +270,16 @@ export function createApp({
         const crops = /^\/api\/farms\/([^/]+)\/crops$/.exec(path);
         if (method === 'GET' && crops) return send(response, 200, { crops: await farmOS.listCrops(user, crops[1]) });
         if (method === 'POST' && path === '/api/crops') return send(response, 201, { crop: await farmOS.createCrop(user, await body()) });
+        const cropMission = /^\/api\/crops\/([^/]+)\/mission$/.exec(path);
+        if (method === 'GET' && cropMission) return send(response, 200, await farmCommand.mission(user, cropMission[1]));
+        const cropCheckIn = /^\/api\/crops\/([^/]+)\/check-in$/.exec(path);
+        if (method === 'POST' && cropCheckIn) return await mutate(200, async (payload) => farmCommand.checkIn(user, cropCheckIn[1], payload));
+        const cropStageConfirmation = /^\/api\/crops\/([^/]+)\/stage-confirmation$/.exec(path);
+        if (method === 'POST' && cropStageConfirmation) return await mutate(200, async (payload) => farmCommand.confirmStage(user, cropStageConfirmation[1], payload));
         const cropTimeline = /^\/api\/crops\/([^/]+)\/timeline$/.exec(path);
-        if (method === 'GET' && cropTimeline) return send(response, 200, { timeline: await farmOS.cropTimeline(user, cropTimeline[1]) });
+        if (method === 'GET' && cropTimeline) return send(response, 200, await farmCommand.timeline(user, cropTimeline[1], url));
+        const seasonReport = /^\/api\/crops\/([^/]+)\/season-report$/.exec(path);
+        if (method === 'GET' && seasonReport) return send(response, 200, await farmCommand.seasonReport(user, seasonReport[1]));
         const cropHarvests = /^\/api\/crops\/([^/]+)\/harvests$/.exec(path);
         if (method === 'GET' && cropHarvests) return send(response, 200, { harvests: await farmOS.listHarvests(user, cropHarvests[1]) });
         const cropComplete = /^\/api\/crops\/([^/]+)\/complete$/.exec(path);
@@ -296,8 +314,10 @@ export function createApp({
           if (method === 'GET') return send(response, 200, { problems: await farmOS.listProblems(user, url) });
           if (method === 'POST') return await mutate(201, async (payload) => ({ problem: await farmOS.createProblem(user, payload) }));
         }
-        const followUp = /^\/api\/farm-problems\/([^/]+)\/follow-up$/.exec(path);
-        if (method === 'POST' && followUp) return send(response, 200, await farmOS.followUp(user, followUp[1], await body()));
+        const followUp = /^\/api\/(?:farm-problems|problems)\/([^/]+)\/follow-up$/.exec(path);
+        if (method === 'POST' && followUp) return await mutate(200, async (payload) => farmCommand.followProblem(user, followUp[1], payload));
+        const escalateProblem = /^\/api\/problems\/([^/]+)\/escalate$/.exec(path);
+        if (method === 'POST' && escalateProblem) return await mutate(201, async () => farmCommand.escalateProblem(user, escalateProblem[1]));
         const problemState = /^\/api\/farm-problems\/([^/]+)\/(resolve|reopen)$/.exec(path);
         if (method === 'POST' && problemState) return send(response, 200, { problem: await farmOS.setProblemState(user, problemState[1], problemState[2] === 'resolve' ? 'resolved' : 'reopened', await body()) });
         const problem = /^\/api\/farm-problems\/([^/]+)$/.exec(path);
@@ -326,6 +346,18 @@ export function createApp({
         const diagnoses = /^\/api\/farm-problems\/([^/]+)\/diagnoses$/.exec(path);
         if (method === 'GET' && diagnoses) return send(response, 200, { sessions: await farmOS.listDiagnoses(user, diagnoses[1]) });
         if (method === 'POST' && path === '/api/diagnosis-sessions') return await mutate(201, async (payload) => ({ session: await farmOS.createDiagnosis(user, payload) }));
+        const weeklyReport = /^\/api\/farms\/([^/]+)\/weekly-report$/.exec(path);
+        if (method === 'GET' && weeklyReport) return send(response, 200, await farmCommand.weeklyReport(user, weeklyReport[1], url));
+        const seasonHistory = /^\/api\/farms\/([^/]+)\/seasons$/.exec(path);
+        if (method === 'GET' && seasonHistory) return send(response, 200, await farmCommand.seasonHistory(user, seasonHistory[1]));
+        if (path === '/api/farm-expenses') {
+          if (method === 'GET') return send(response, 200, await farmCommand.listExpenses(user, url));
+          if (method === 'POST') return await mutate(201, async (payload) => farmCommand.createExpense(user, payload));
+        }
+        if (path === '/api/farm-sales') {
+          if (method === 'GET') return send(response, 200, await farmCommand.listSales(user, url));
+          if (method === 'POST') return await mutate(201, async (payload) => farmCommand.createSale(user, payload));
+        }
         if (method === 'POST' && path === '/api/crop-plans')
           return send(response, 201, await smartFarm.createPlan(user, await body()));
         const cropPlan = /^\/api\/crop-plans\/([^/]+)$/.exec(path);

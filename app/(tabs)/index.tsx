@@ -102,8 +102,8 @@ export default function HomeScreen() {
           style={[styles.myFarm, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View style={styles.myFarmIcon}><Sprout size={25} color={colors.surface} /></View>
           <View style={styles.assistantCopy}>
-            <Text style={[styles.myFarmTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'مزرعتي' : 'My Farm'}</Text>
-            <Text style={[styles.myFarmBody, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? (language === 'ar' ? `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} مهام قادمة · ${farmDashboard.problems.length} مشكلات تحتاج متابعة` : `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} upcoming tasks · ${farmDashboard.problems.length} problems to follow up`) : (language === 'ar' ? 'ابدأ بإضافة مزرعتك وتابع يومك الزراعي' : 'Add your farm and manage each growing day')}</Text>
+            <Text style={[styles.myFarmTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? (language === 'ar' ? 'مزرعتك اليوم' : 'Your farm today') : (language === 'ar' ? 'ابدأ مزرعتك' : 'Start your farm')}</Text>
+            <Text style={[styles.myFarmBody, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? (language === 'ar' ? `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} إجراءات قادمة · ${farmDashboard.problems.length} مشكلات تحتاج متابعة` : `${farmDashboard.tasks.filter(item => item.status !== 'completed').length} upcoming actions · ${farmDashboard.problems.length} problems to follow up`) : (language === 'ar' ? 'أضف بيانات المزرعة وخطط لأول محصول' : 'Add farm details and plan your first crop')}</Text>
           </View><Arrow size={20} color={colors.surface} />
         </MotionPressable>
         <View style={styles.section}>

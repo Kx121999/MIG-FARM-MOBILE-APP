@@ -104,8 +104,8 @@ test('Smart My Farm OS API and ownership', async (t) => {
     const harvest=await request('/api/harvest-records','POST',{ farmId:farm.id,zoneId:zone.id,cropCycleId:crop.id,harvestedAt:new Date().toISOString(),quantity:25,unit:'kg',qualityNotes:'User recorded' },a.accessToken);
     assert.equal(harvest.status,201);
     const timeline=await request('/api/crops/'+crop.id+'/timeline','GET',undefined,a.accessToken);
-    assert.ok(timeline.body.timeline.some((item)=>item.eventType==='harvest'));
-    assert.ok(timeline.body.timeline.some((item)=>item.eventType==='problem'));
+    assert.ok(timeline.body.timeline.some((item)=>item.eventType==='harvest_recorded'));
+    assert.ok(timeline.body.timeline.some((item)=>item.eventType==='problem_opened'));
     assert.equal((await request('/api/my-farm/search?q=Yellow','GET',undefined,a.accessToken)).body.problems.length,1);
     const report=await request('/api/my-farm/report?farmId='+farm.id+'&from=2026-01-01&to=2026-12-31','GET',undefined,a.accessToken);
     assert.equal(report.body.facts.harvests[0].quantity,25);

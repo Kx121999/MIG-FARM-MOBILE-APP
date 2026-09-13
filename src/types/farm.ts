@@ -41,12 +41,12 @@ export type FarmTask = {
 };
 export type IrrigationRecord = { id:string; farmId:string; zoneId:string; cropCycleId:string|null; startedAt:string; durationMinutes:number|null; waterVolumeLiters:number|null; method:'drip'|'sprinkler'|'manual'|'pivot'|'other'; notes:string; createdAt:string; updatedAt:string };
 export type FarmOperation = { id:string; farmId:string; zoneId:string|null; cropCycleId:string|null; type:'irrigation'|'fertilization'|'spraying'|'pruning'|'harvest'|'inspection'|'planting'|'maintenance'|'note'|'other'; performedAt:string; productId:number|null; productNameSnapshot:string|null; quantity:number|null; unit:string|null; applicationMethod:string|null; notes:string; source:'user_recorded'|'mig_farm_verified'; createdAt:string };
-export type FarmProblem = { id:string; farmId:string; zoneId:string|null; cropCycleId:string|null; category:'crop'|'soil'|'irrigation'|'water'|'pest'|'disease'|'nutrition'|'growth'|'equipment'|'other'; title:string; description:string; severity:FarmProblemSeverity; status:FarmProblemStatus; firstObservedAt:string; lastFollowUpAt:string|null; resolvedAt:string|null; suspectedCause:string|null; verifiedCause:string|null; confirmedBy:string|null; confirmedAt:string|null; version:number; createdAt:string; updatedAt:string };
+export type FarmProblem = { id:string; farmId:string; zoneId:string|null; cropCycleId:string|null; category:'crop'|'soil'|'irrigation'|'water'|'pest'|'disease'|'nutrition'|'growth'|'equipment'|'other'; title:string; description:string; severity:FarmProblemSeverity; status:FarmProblemStatus; firstObservedAt:string; lastFollowUpAt:string|null; nextFollowUpAt?:string|null; resolvedAt:string|null; suspectedCause:string|null; verifiedCause:string|null; confirmedBy:string|null; confirmedAt:string|null; version:number; createdAt:string; updatedAt:string };
 export type FarmProblemUpdate = { id:string; problemId:string; condition:'better'|'same'|'worse'|'note'|'resolved'|'reopened'; notes:string; createdAt:string };
 export type FarmMedia = { id:string; type:'farm'|'crop'|'problem'|'follow_up'|'harvest'|'analysis'|'note'; url:string; thumbnailUrl:string|null; capturedAt:string; notes:string; createdAt:string };
 export type HarvestRecord = { id:string; farmId:string; zoneId:string|null; cropCycleId:string; harvestedAt:string; quantity:number; unit:'kg'|'ton'|'box'|'piece'|'custom'; customUnit:string|null; qualityNotes:string; createdAt:string };
 export type DiagnosisSession = { id:string; farmId:string; zoneId:string|null; cropCycleId:string|null; problemId:string|null; observations:string[]; questions:string[]; answers:Record<string,string>; possibleCauses:string[]; recommendedInspections:string[]; verifiedDiagnosis:string|null; confirmedBy:string|null; confirmedAt:string|null; reviewStatus:'waiting_review'|'reviewed'|'needs_more_information'|'resolved'; createdAt:string; updatedAt:string };
-export type FarmInventoryItem = { id:string; farmId:string; productId:number|null; productNameSnapshot:string; category:string; quantity:number|null; unit:string|null; notes:string; createdAt:string; updatedAt:string };
+export type FarmInventoryItem = { id:string; farmId:string; productId:number|null; productNameSnapshot:string; category:string; quantity:number|null; minimumQuantity?:number|null; expiresAt?:string|null; status?:'available'|'low_stock'|'out_of_stock'|'expiring_soon'; unit:string|null; notes:string; createdAt:string; updatedAt:string };
 export type AgriculturalAnalysis = { id:string; farmId:string; zoneId:string|null; type:'soil'|'water'; sampledAt:string; labName:string|null; results:Partial<Record<'pH'|'EC'|'salinity'|'organicMatter'|'N'|'P'|'K'|'Ca'|'Mg'|'Na'|'bicarbonate',number>>; notes:string; documentUrl:string|null; createdAt:string };
 export type FarmDashboard = { farms:Farm[]; tasks:FarmTask[]; problems:FarmProblem[]; crops:CropCycle[]; operations:FarmOperation[]; weather:{available:false;reason:'weather_provider_not_configured'}; generatedAt:string };
 export type FarmProblemDetail = { problem:FarmProblem; updates:FarmProblemUpdate[]; media:FarmMedia[] };
@@ -109,3 +109,49 @@ export type CropPlan = {
   productionSystem:string; plantingMethod:string; calculation:PlantPopulationResult|{resultType:'verified_data_unavailable';reason:string};
   status:'planned'|'active'|'completed'|'cancelled'; version:number; createdAt:string; updatedAt:string;
 };
+
+export type FarmCommandStatus = 'good' | 'attention' | 'critical' | 'no_data';
+export type FarmActionPriority = 'critical' | 'high' | 'normal' | 'low';
+export type FarmPriorityAction = {
+  id:string; kind:'task_overdue'|'task_due'|'problem_followup'|'problem_open'|'irrigation_record_gap'|'stage_confirmation'|'harvest_window'|'missing_information';
+  priority:FarmActionPriority; farmId:string; cropCycleId:string|null; entityId:string|null;
+  dueAt:string|null; titleAr:string; titleEn:string; reasonAr:string; reasonEn:string;
+  action:'complete_task'|'follow_up_problem'|'record_irrigation'|'confirm_stage'|'record_harvest'|'complete_crop_data';
+  source:'farm_record'|'verified_knowledge_and_farm_record';
+};
+export type CropMissionStage = {
+  ageDays:number|null;
+  expected:{key:GrowthStage;nameAr:string;nameEn:string;expectedAt:string|null;source:'verified_knowledge'}|null;
+  confirmed:{key:GrowthStage;confirmedAt:string;source:'user_data'}|null;
+  next:{key:GrowthStage;nameAr:string;nameEn:string;expectedAt:string|null;source:'verified_knowledge'}|null;
+  needsConfirmation:boolean; verifiedGuidanceAvailable:boolean;
+};
+export type IrrigationCommandStatus = {
+  status:'good'|'attention'|'no_data'; lastRecordedAt:string|null; daysSinceRecord:number|null;
+  averageIntervalDays:number|null; observationAr:string; observationEn:string; source:'farm_record';
+};
+export type CropMission = {
+  id:string; crop:CropCycle; farm:{id:string;name:string}; zone:{id:string;name:string}|null;
+  ageDays:number|null; stage:CropMissionStage; irrigation:IrrigationCommandStatus;
+  lastOperation:FarmOperation|null; openProblems:FarmProblem[]; upcomingTask:FarmTask|null;
+  harvest:{events:number;totals:Array<{unit:string;quantity:number;events:number}>;status:{status:'good'|'attention'|'no_data';expectedAt:string|null;actualStart:string|null;source:'farm_record'|'verified_knowledge'|'verified_knowledge_unavailable'}};
+  photos:Array<{id:string;cropCycleId:string;type:string;url:string;thumbnailUrl:string|null;capturedAt:string;notes:string}>;
+  financials:{currency:string;totalCostMinor:number;totalRevenueMinor:number;grossMarginMinor:number};
+  completeness:{status:'good'|'attention'|'critical';missing:string[];source:'user_data'};
+  status:'good'|'attention'|'critical'; dataOrigin:'farm_record';
+};
+export type FarmToday = {
+  generatedAt:string; selectedFarmId:string|null; date:string; missions:CropMission[];
+  priorities:FarmPriorityAction[]; topActions:FarmPriorityAction[];
+  morningBrief:{tasks:number;problemFollowUps:number;irrigationChecks:number;activeProblems:number};
+  status:{tasks:FarmCommandStatus;irrigationRecords:FarmCommandStatus;openProblems:FarmCommandStatus;cropProgress:FarmCommandStatus;dataCompleteness:FarmCommandStatus;harvestReadiness:FarmCommandStatus};
+  weather:{weatherStatus:'not_configured'|'provider_not_implemented';messageAr?:string;messageEn?:string};
+  source:'deterministic_farm_command'; emptyState?:'plan_first_crop'|null;
+};
+export type CropCheckInQuestion = { key:'irrigated'|'stageStarted'|'newProblem'|'harvested'; ar:string;en:string;options:string[];stageKey?:GrowthStage;source:string };
+export type CropMissionResponse = { mission:CropMission; todayCheckIn:{id:string;date:string;answers:Record<string,string>;notes:string}|null; checkInQuestions:CropCheckInQuestion[] };
+export type CommandTimelineEvent = { id:string;farmId:string;zoneId:string|null;cropCycleId:string;problemId:string|null;eventType:string;eventAt:string;payload:Record<string,unknown>;source:string };
+export type WeeklyFarmReport = { period:{from:string;to:string};tasksCompleted:number;tasksOverdue:number;irrigationRecords:number;operations:number;problemsOpened:number;problemsResolved:number;stageChanges:number;photosAdded:number;harvests:Array<{unit:string;quantity:number;events:number}>;expensesMinor:number;salesMinor:number;currency:string;source:'farm_record' };
+export type SeasonFarmReport = { cropCycleId:string;plantingDate:string|null;confirmedStages:Array<{stageKey:GrowthStage;confirmedAt:string}>;firstHarvestDate:string|null;lastHarvestDate:string|null;seasonDurationDays:number|null;harvests:Array<{unit:string;quantity:number;events:number}>;yieldPerM2Kg:number|null;irrigationRecords:number;problems:number;expensesMinor:number;revenueMinor:number;grossMarginMinor:number;costPerKgMinor:number|null;currency:string;source:'farm_record_calculation' };
+export type FarmExpense = { id:string;farmId:string;cropCycleId:string|null;cropPlanId:string|null;category:string;amountMinor:number;currency:string;occurredAt:string;notes:string;createdAt:string };
+export type FarmSale = { id:string;farmId:string;cropCycleId:string;soldAt:string;quantity:number;unit:string;unitPriceMinor:number;totalMinor:number;currency:string;buyerNotes:string;createdAt:string };

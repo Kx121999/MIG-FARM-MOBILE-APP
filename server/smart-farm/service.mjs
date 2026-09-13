@@ -359,8 +359,8 @@ export function createSmartFarm(db) {
           const dueDate = new Date(`${startDate}T${String(template.due_time_local).slice(0,8)}+04:00`);
           dueDate.setUTCDate(dueDate.getUTCDate()+template.offset_days);
           await client.query(`INSERT INTO mig_farm.farm_tasks
-            (id,user_id,farm_id,zone_id,crop_cycle_id,crop_plan_id,type,title,description,due_at,status,priority,source)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'scheduled','normal','system')`,
+            (id,user_id,farm_id,zone_id,crop_cycle_id,crop_plan_id,type,title,description,due_at,status,priority,source,original_due_at)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'scheduled','normal','system',$10)`,
             [randomUUID(),user.id,farmId,zoneId,cropCycleId,planId,template.task_type,user.language==='ar'?template.title_ar:template.title_en,user.language==='ar'?template.description_ar:template.description_en,dueDate.toISOString()]);
         }
         return {

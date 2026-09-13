@@ -60,8 +60,8 @@ export const farmService = {
   report: (farmId:string,from:string,to:string) => apiRequest<FarmReport>('/api/my-farm/report'+query({farmId,from,to})),
 };
 
-export type QueuedFarmMutation = { id:string; ownerId:string; kind:'task'|'complete_task'|'irrigation'|'operation'|'problem'|'harvest'|'note'; body:Record<string,unknown>; queuedAt:number };
+export type QueuedFarmMutation = { id:string; ownerId:string; kind:'task'|'complete_task'|'irrigation'|'operation'|'problem'|'harvest'|'note'|'checkin'|'stage_confirmation'|'expense'|'sale'; body:Record<string,unknown>; queuedAt:number };
 export async function runQueuedFarmMutation(item:QueuedFarmMutation) {
-  const path=item.kind==='task'?'/api/farm-tasks':item.kind==='complete_task'?`/api/farm-tasks/${id(String(item.body.taskId))}/complete`:item.kind==='irrigation'?'/api/irrigation-records':item.kind==='operation'?'/api/farm-operations':item.kind==='problem'?'/api/farm-problems':item.kind==='harvest'?'/api/harvest-records':'/api/farm-notes';
+  const path=item.kind==='task'?'/api/farm-tasks':item.kind==='complete_task'?`/api/farm-tasks/${id(String(item.body.taskId))}/complete`:item.kind==='irrigation'?'/api/irrigation-records':item.kind==='operation'?'/api/farm-operations':item.kind==='problem'?'/api/farm-problems':item.kind==='harvest'?'/api/harvest-records':item.kind==='note'?'/api/farm-notes':item.kind==='checkin'?`/api/crops/${id(String(item.body.cropId))}/check-in`:item.kind==='stage_confirmation'?`/api/crops/${id(String(item.body.cropId))}/stage-confirmation`:item.kind==='expense'?'/api/farm-expenses':'/api/farm-sales';
   return apiRequest(path,{method:'POST',body:item.body,headers:{'Idempotency-Key':item.id}});
 }
