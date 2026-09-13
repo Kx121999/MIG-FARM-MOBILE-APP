@@ -1,0 +1,624 @@
+import { fail } from '../lib/validation.mjs';
+
+const DEFAULT_TIMEOUT_MS = 8000;
+const DEFAULT_TTL_MS = 45_000;
+const DEFAULT_STALE_TTL_MS = 5 * 60_000;
+const DISCOVERY_TTL_MS = 5 * 60_000;
+const PAGE_SIZE = 200;
+const MAX_RECORDS = 10_000;
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+
+const FIELD_CANDIDATES = {
+  'product.template': [
+    'id', 'name', 'display_name', 'active', 'sale_ok', 'list_price',
+    'description_sale', 'description', 'categ_id', 'public_categ_ids',
+    'is_published', 'website_published', 'website_url', 'default_code',
+    'create_date', 'write_date', 'image_1920', 'image_1024', 'image_512',
+    'image_256', 'image_128',
+  ],
+  'product.product': [
+    'id', 'name', 'display_name', 'active', 'sale_ok', 'product_tmpl_id',
+    'lst_price', 'list_price', 'default_code', 'free_qty', 'qty_available',
+    'product_template_attribute_value_ids',
+    'product_template_variant_value_ids', 'write_date', 'image_1920',
+    'image_1024', 'image_512', 'image_256', 'image_128',
+  ],
+  'product.category': ['id', 'name', 'complete_name', 'write_date'],
+  'product.public.category': ['id', 'name', 'write_date'],
+  'product.template.attribute.value': [
+    'id', 'name', 'attribute_id', 'product_attribute_value_id',
+  ],
+};
+
+const IMAGE_FIELDS = ['image_512', 'image_1024', 'image_256', 'image_1920', 'image_128'];
+const OPTIONAL_MODELS = new Set([
+  'product.public.category',
+  'product.template.attribute.value',
+]);
+const hasOwn = (value, key) =>
+  Boolean(value && Object.prototype.hasOwnProperty.call(value, key));
+const number = (value) => {
+  if (
+    typeof value !== 'number' &&
+    (typeof value !== 'string' || value.trim() === '')
+  ) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const relationId = (value) => {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(candidate);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+};
+const relationIds = (value) =>
+  Array.isArray(value)
+    ? value.map(relationId).filter((id) => id !== null)
+    : [];
+const cleanText = (value) => (typeof value === 'string' ? value.trim() : '');
+const uniqueNumbers = (values) => [...new Set(values.filter(Number.isSafeInteger))];
+const slugify = (value) =>
+  cleanText(value)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120) || 'product';
+const isoOrUndefined = (value) => {
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? new Date(time).toISOString() : undefined;
+};
+const errorCode = (error) =>
+  typeof error?.code === 'string' ? error.code : 'odoo_unavailable';
+const cacheAge = (cache, now) =>
+  cache ? Math.max(0, now() - cache.loadedAt) : Number.POSITIVE_INFINITY;
+
+export function odooConfiguration(env = process.env) {
+  const rawBaseUrl = cleanText(env.ODOO_BASE_URL);
+  const apiKey = cleanText(env.ODOO_API_KEY);
+  if (!rawBaseUrl && !apiKey)
+    return { configured: false, status: 'not_configured' };
+  if (!rawBaseUrl || !apiKey)
+    return { configured: false, status: 'incomplete' };
+  try {
+    const url = new URL(rawBaseUrl);
+    const local = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+    if (!['https:', 'http:'].includes(url.protocol)) throw new Error('protocol');
+    if (env.NODE_ENV === 'production' && url.protocol !== 'https:' && !local)
+      return { configured: false, status: 'invalid' };
+    url.pathname = url.pathname.replace(/\/+$/, '');
+    url.search = '';
+    url.hash = '';
+    return {
+      configured: true,
+      status: 'configured',
+      baseUrl: url.toString().replace(/\/$/, ''),
+      apiKey,
+    };
+  } catch {
+    return { configured: false, status: 'invalid' };
+  }
+}
+
+function upstreamFailure(status) {
+  if (status === 401 || status === 403) return 'odoo_auth_failed';
+  if (status === 429) return 'odoo_rate_limited';
+  if (status >= 500) return 'odoo_unavailable';
+  return 'odoo_request_failed';
+}
+
+function safeFailure(code, upstreamStatus) {
+  const error = fail(503, code);
+  if (upstreamStatus) error.upstreamStatus = upstreamStatus;
+  return error;
+}
+
+function contentType(buffer) {
+  if (buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])))
+    return 'image/png';
+  if (buffer.subarray(0, 3).equals(Buffer.from([255, 216, 255])))
+    return 'image/jpeg';
+  if (
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) return 'image/webp';
+  return null;
+}
+
+function websiteSlug(value) {
+  if (!value) return null;
+  try {
+    const url = new URL(value, 'https://odoo.invalid');
+    const last = decodeURIComponent(url.pathname.split('/').filter(Boolean).at(-1) || '');
+    const slug = slugify(last);
+    return slug.length >= 2 ? slug : null;
+  } catch {
+    return null;
+  }
+}
+
+function stockFrom(record, fieldNames) {
+  const freeQuantity = fieldNames.includes('free_qty')
+    ? number(record.free_qty)
+    : null;
+  const quantity = freeQuantity ?? (fieldNames.includes('qty_available')
+    ? number(record.qty_available)
+    : null);
+  if (quantity === null) return { stock_state: 'unknown', stock_quantity: null };
+  return quantity > 0
+    ? { stock_state: 'in_stock', stock_quantity: quantity, available: true }
+    : { stock_state: 'out_of_stock', stock_quantity: quantity, available: false };
+}
+
+function visibleTemplate(record, fields) {
+  // MIG FARM exposes only records confirmed active/sellable when those core
+  // fields exist. Publication requires is_published, or website_published as
+  // its fallback. If neither website field exists, no publish state is invented.
+  if (fields.includes('active') && record.active !== true) return false;
+  if (fields.includes('sale_ok') && record.sale_ok !== true) return false;
+  if (fields.includes('is_published')) return record.is_published === true;
+  if (fields.includes('website_published')) return record.website_published === true;
+  return true;
+}
+
+function visibleVariant(record, fields) {
+  if (fields.includes('active') && record.active !== true) return false;
+  if (fields.includes('sale_ok') && record.sale_ok !== true) return false;
+  return true;
+}
+
+export function createOdooCatalog({
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  timeoutMs = Number(env.ODOO_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS,
+  ttlMs = Number(env.ODOO_CATALOG_TTL_MS) || DEFAULT_TTL_MS,
+  staleTtlMs = Number(env.ODOO_CATALOG_STALE_TTL_MS) || DEFAULT_STALE_TTL_MS,
+  now = Date.now,
+  logger = console,
+} = {}) {
+  const config = odooConfiguration(env);
+  let cache = null;
+  let inflight = null;
+  let lastError = null;
+  let discoveredAt = 0;
+  const fieldCache = new Map();
+  const imageCache = new Map();
+
+  const ensureConfigured = () => {
+    if (!config.configured) throw safeFailure('odoo_not_configured');
+    if (typeof fetchImpl !== 'function') throw safeFailure('odoo_unavailable');
+  };
+
+  async function call(model, method, body = {}) {
+    ensureConfigured();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Math.max(100, timeoutMs));
+    try {
+      const response = await fetchImpl(
+        `${config.baseUrl}/json/2/${encodeURIComponent(model)}/${encodeURIComponent(method)}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `bearer ${config.apiKey}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'User-Agent': 'MIG-FARM-APP',
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        },
+      );
+      if (!response.ok)
+        throw safeFailure(upstreamFailure(response.status), response.status);
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw safeFailure('odoo_invalid_response');
+      }
+      if (data && typeof data === 'object' && hasOwn(data, 'error'))
+        throw safeFailure('odoo_request_failed');
+      return data && typeof data === 'object' && hasOwn(data, 'result')
+        ? data.result
+        : data;
+    } catch (error) {
+      if (error?.name === 'AbortError') throw safeFailure('odoo_timeout');
+      if (error?.code && error?.statusCode) throw error;
+      throw safeFailure('odoo_unavailable');
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async function fieldsFor(model) {
+    if (now() - discoveredAt > DISCOVERY_TTL_MS) {
+      fieldCache.clear();
+      discoveredAt = now();
+    }
+    if (fieldCache.has(model)) return fieldCache.get(model);
+    try {
+      const result = await call(model, 'fields_get', { attributes: ['type'] });
+      const available = result && typeof result === 'object' ? Object.keys(result) : [];
+      const selected = FIELD_CANDIDATES[model].filter((field) => available.includes(field));
+      fieldCache.set(model, selected);
+      return selected;
+    } catch (error) {
+      if (
+        OPTIONAL_MODELS.has(model) &&
+        [400, 404].includes(error?.upstreamStatus)
+      ) {
+        fieldCache.set(model, []);
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  async function searchRead(model, domain, fields, order = 'id asc') {
+    const records = [];
+    for (let offset = 0; offset < MAX_RECORDS; offset += PAGE_SIZE) {
+      const page = await call(model, 'search_read', {
+        domain,
+        fields,
+        limit: PAGE_SIZE,
+        offset,
+        order,
+      });
+      if (!Array.isArray(page)) throw safeFailure('odoo_invalid_response');
+      records.push(...page);
+      if (page.length < PAGE_SIZE) break;
+    }
+    return records.slice(0, MAX_RECORDS);
+  }
+
+  async function namedRecords(model, ids, fields) {
+    if (!ids.length || !fields.length) return new Map();
+    const records = await searchRead(model, [['id', 'in', ids]], fields);
+    return new Map(records.map((record) => [Number(record.id), record]));
+  }
+
+  async function loadCatalog() {
+    const [templateFields, variantFields, categoryFields, publicCategoryFields, attributeFields] =
+      await Promise.all([
+        fieldsFor('product.template'),
+        fieldsFor('product.product'),
+        fieldsFor('product.category'),
+        fieldsFor('product.public.category'),
+        fieldsFor('product.template.attribute.value'),
+      ]);
+    for (const [model, fields, required] of [
+      ['product.template', templateFields, ['id', 'name']],
+      ['product.product', variantFields, ['id', 'product_tmpl_id']],
+    ]) {
+      if (required.some((field) => !fields.includes(field)))
+        throw safeFailure(`odoo_${model.replace('.', '_')}_fields_unavailable`);
+    }
+    if (
+      !templateFields.includes('list_price') &&
+      !variantFields.includes('lst_price') &&
+      !variantFields.includes('list_price')
+    ) throw safeFailure('odoo_price_field_unavailable');
+
+    const templatePayloadFields = templateFields.filter((field) => !IMAGE_FIELDS.includes(field));
+    const variantPayloadFields = variantFields.filter((field) => !IMAGE_FIELDS.includes(field));
+    const templateDomain = [];
+    if (templateFields.includes('active')) templateDomain.push(['active', '=', true]);
+    if (templateFields.includes('sale_ok')) templateDomain.push(['sale_ok', '=', true]);
+    if (templateFields.includes('is_published'))
+      templateDomain.push(['is_published', '=', true]);
+    else if (templateFields.includes('website_published'))
+      templateDomain.push(['website_published', '=', true]);
+    const templates = (await searchRead('product.template', templateDomain, templatePayloadFields))
+      .filter((record) => visibleTemplate(record, templateFields));
+    const templateIds = templates.map((record) => Number(record.id));
+    const variants = templateIds.length
+      ? (await searchRead(
+          'product.product',
+          [
+            ['product_tmpl_id', 'in', templateIds],
+            ...(variantFields.includes('active') ? [['active', '=', true]] : []),
+            ...(variantFields.includes('sale_ok') ? [['sale_ok', '=', true]] : []),
+          ],
+          variantPayloadFields,
+        )).filter((record) => visibleVariant(record, variantFields))
+      : [];
+
+    const categoryIds = uniqueNumbers(templates.map((record) => relationId(record.categ_id)));
+    const publicCategoryIds = uniqueNumbers(
+      templates.flatMap((record) => relationIds(record.public_categ_ids)),
+    );
+    const attributeIds = uniqueNumbers(
+      variants.flatMap((record) =>
+        relationIds(
+          record.product_template_attribute_value_ids ||
+            record.product_template_variant_value_ids,
+        ),
+      ),
+    );
+    const [categories, publicCategories, attributes] = await Promise.all([
+      namedRecords('product.category', categoryIds, categoryFields),
+      namedRecords('product.public.category', publicCategoryIds, publicCategoryFields),
+      namedRecords('product.template.attribute.value', attributeIds, attributeFields),
+    ]);
+
+    const variantsByTemplate = new Map();
+    for (const record of variants) {
+      const templateId = relationId(record.product_tmpl_id);
+      if (!templateId) continue;
+      const list = variantsByTemplate.get(templateId) || [];
+      list.push(record);
+      variantsByTemplate.set(templateId, list);
+    }
+
+    const websiteSlugs = templates.map((record) => websiteSlug(record.website_url));
+    const slugCounts = new Map();
+    for (const slug of websiteSlugs)
+      if (slug) slugCounts.set(slug, (slugCounts.get(slug) || 0) + 1);
+
+    const products = [];
+    for (const [index, template] of templates.entries()) {
+      const templateId = Number(template.id);
+      if (!Number.isSafeInteger(templateId) || templateId <= 0) continue;
+      const name = cleanText(template.name || template.display_name) || `Product ${templateId}`;
+      const sourceVariants = variantsByTemplate.get(templateId) || [];
+      if (!sourceVariants.length) continue;
+      const mappedVariants = sourceVariants.map((record) => {
+        const variantId = Number(record.id);
+        const attributeNames = relationIds(
+          record.product_template_attribute_value_ids ||
+            record.product_template_variant_value_ids,
+        )
+          .map((id) => cleanText(attributes.get(id)?.name))
+          .filter(Boolean);
+        const variantName = attributeNames.join(' / ') ||
+          cleanText(record.display_name || record.name) || 'Default';
+        const currentPrice = number(record.lst_price) ??
+          number(record.list_price) ??
+          number(template.list_price);
+        const stock = stockFrom(record, variantFields);
+        const imageVersion = encodeURIComponent(cleanText(record.write_date) || '0');
+        const featuredImage = IMAGE_FIELDS.some((field) => variantFields.includes(field))
+          ? {
+              id: variantId,
+              src: `/api/odoo/product-image/product.product/${variantId}?v=${imageVersion}`,
+              alt: name,
+            }
+          : null;
+        return {
+          id: variantId,
+          odoo_variant_id: variantId,
+          title: variantName,
+          title_ar: null,
+          title_en: variantName,
+          price: currentPrice === null ? '' : currentPrice.toFixed(2),
+          compare_at_price: null,
+          sku: cleanText(record.default_code) || null,
+          option1: attributeNames[0] || null,
+          option2: attributeNames[1] || null,
+          option3: attributeNames[2] || null,
+          featured_image: featuredImage,
+          ...stock,
+        };
+      });
+      const categoryId = relationIds(template.public_categ_ids)[0] || relationId(template.categ_id);
+      const categoryRecord = publicCategories.get(categoryId) || categories.get(categoryId);
+      const categoryName = cleanText(categoryRecord?.complete_name || categoryRecord?.name);
+      const stockStates = mappedVariants.map((variant) => variant.stock_state);
+      const productStock = stockStates.includes('in_stock')
+        ? 'in_stock'
+        : stockStates.every((state) => state === 'out_of_stock')
+          ? 'out_of_stock'
+          : 'unknown';
+      const preferredSlug = websiteSlugs[index];
+      const handle = preferredSlug && slugCounts.get(preferredSlug) === 1
+        ? preferredSlug
+        : `${slugify(name)}-${templateId}`;
+      const imageVersion = encodeURIComponent(cleanText(template.write_date) || '0');
+      const images = IMAGE_FIELDS.some((field) => templateFields.includes(field))
+        ? [{
+            id: templateId,
+            src: `/api/odoo/product-image/product.template/${templateId}?v=${imageVersion}`,
+            alt: name,
+          }]
+        : [];
+      const updatedAt = isoOrUndefined(template.write_date);
+      const publishedAt = isoOrUndefined(template.create_date) || updatedAt;
+      products.push({
+        id: templateId,
+        odoo_template_id: templateId,
+        catalog_source: 'odoo',
+        handle,
+        title: name,
+        title_ar: null,
+        title_en: name,
+        body_html: cleanText(template.description_sale || template.description),
+        body_html_ar: null,
+        body_html_en: cleanText(template.description_sale || template.description),
+        vendor: 'MIG FARM',
+        product_type: categoryName,
+        product_type_ar: null,
+        product_type_en: categoryName,
+        category: categoryId ? { id: categoryId, name: categoryName } : null,
+        tags: [categoryName, cleanText(template.default_code)].filter(Boolean),
+        images,
+        variants: mappedVariants,
+        stock_state: productStock,
+        ...(productStock === 'in_stock'
+          ? { available: true }
+          : productStock === 'out_of_stock'
+            ? { available: false }
+            : {}),
+        published_at: publishedAt,
+        updated_at: updatedAt,
+      });
+    }
+
+    const latestWrite = products
+      .map((product) => product.updated_at || '')
+      .sort()
+      .at(-1) || 'unknown';
+    const loadedAt = now();
+    return {
+      products,
+      version: `odoo:${latestWrite}:${products.length}`,
+      updatedAt: new Date(loadedAt).toISOString(),
+      loadedAt,
+    };
+  }
+
+  async function list({ force = false, allowStale = true } = {}) {
+    const age = cacheAge(cache, now);
+    if (!force && cache && age <= Math.max(0, ttlMs))
+      return {
+        ...cache,
+        catalogMeta: { source: 'odoo', cache: 'fresh', stale: false, ageSeconds: Math.floor(age / 1000) },
+      };
+    if (inflight) return inflight;
+    inflight = (async () => {
+      try {
+        const next = await loadCatalog();
+        cache = next;
+        lastError = null;
+        return {
+          ...next,
+          catalogMeta: { source: 'odoo', cache: 'refreshed', stale: false, ageSeconds: 0 },
+        };
+      } catch (error) {
+        lastError = errorCode(error);
+        const staleAge = cacheAge(cache, now);
+        if (allowStale && cache && staleAge <= Math.max(ttlMs, staleTtlMs)) {
+          logger?.warn?.(`Odoo catalog refresh failed: ${lastError}`);
+          return {
+            ...cache,
+            catalogMeta: {
+              source: 'odoo', cache: 'stale', stale: true,
+              ageSeconds: Math.floor(staleAge / 1000), error: lastError,
+            },
+          };
+        }
+        throw error;
+      } finally {
+        inflight = null;
+      }
+    })();
+    return inflight;
+  }
+
+  async function getByHandle(handle, options) {
+    const current = await list(options);
+    return current.products.find((product) => product.handle === handle) || null;
+  }
+
+  async function filterExistingProductIds(values) {
+    const requested = uniqueNumbers(values.map(Number));
+    if (!requested.length) return [];
+    const current = await list();
+    const existing = new Set(current.products.map((product) => Number(product.id)));
+    return requested.filter((id) => existing.has(id));
+  }
+
+  async function productImage(model, id, { version = '' } = {}) {
+    if (!['product.template', 'product.product'].includes(model))
+      throw fail(404, 'image_not_found');
+    const numericId = Number(id);
+    if (!Number.isSafeInteger(numericId) || numericId <= 0)
+      throw fail(404, 'image_not_found');
+    const key = `${model}:${numericId}:${cleanText(version).slice(0, 100)}`;
+    if (imageCache.has(key)) return imageCache.get(key);
+    const fields = await fieldsFor(model);
+    const imageField = IMAGE_FIELDS.find((field) => fields.includes(field));
+    if (!imageField) throw fail(404, 'image_not_found');
+    const records = await call(model, 'read', { ids: [numericId], fields: [imageField] });
+    const encoded = Array.isArray(records) ? records[0]?.[imageField] : null;
+    if (typeof encoded !== 'string' || !encoded) throw fail(404, 'image_not_found');
+    let body;
+    try {
+      body = Buffer.from(encoded.replace(/^data:[^;]+;base64,/, ''), 'base64');
+    } catch {
+      throw fail(404, 'image_not_found');
+    }
+    if (!body.length || body.length > MAX_IMAGE_BYTES)
+      throw fail(404, 'image_not_found');
+    const type = contentType(body);
+    if (!type) throw fail(404, 'image_not_found');
+    const result = { body, contentType: type };
+    imageCache.set(key, result);
+    if (imageCache.size > 200) imageCache.delete(imageCache.keys().next().value);
+    return result;
+  }
+
+  async function health() {
+    if (!config.configured)
+      return {
+        source: 'odoo', configured: config.status, reachable: false,
+        products: cache?.products.length || 0,
+        cacheAgeSeconds: Number.isFinite(cacheAge(cache, now))
+          ? Math.floor(cacheAge(cache, now) / 1000) : null,
+        lastError: 'odoo_not_configured',
+      };
+    try {
+      const current = await list();
+      return {
+        source: 'odoo', configured: 'configured',
+        reachable: current.catalogMeta.cache !== 'stale',
+        products: current.products.length, version: current.version,
+        cacheAgeSeconds: current.catalogMeta.ageSeconds,
+        stale: current.catalogMeta.stale, lastError,
+      };
+    } catch (error) {
+      return {
+        source: 'odoo', configured: 'configured', reachable: false,
+        products: cache?.products.length || 0,
+        cacheAgeSeconds: Number.isFinite(cacheAge(cache, now))
+          ? Math.floor(cacheAge(cache, now) / 1000) : null,
+        lastError: errorCode(error),
+      };
+    }
+  }
+
+  return {
+    source: 'odoo', configured: config.configured, list, getByHandle,
+    filterExistingProductIds, productImage, health,
+  };
+}
+
+export function createStaticCatalog(input = {}) {
+  const data = Array.isArray(input) ? { products: input } : input;
+  const products = Array.isArray(data?.products) ? data.products : [];
+  const snapshot = {
+    products,
+    version: data?.version || 'fixture',
+    updatedAt: data?.migratedAt || data?.updatedAt,
+  };
+  return {
+    source: 'fixture', configured: true,
+    async list() {
+      return {
+        ...snapshot,
+        catalogMeta: { source: 'fixture', cache: 'fixture', stale: false, ageSeconds: 0 },
+      };
+    },
+    async getByHandle(handle) {
+      return products.find((product) => product.handle === handle) || null;
+    },
+    async filterExistingProductIds(values) {
+      const existing = new Set(products.map((product) => Number(product.id)));
+      return uniqueNumbers(values.map(Number)).filter((id) => existing.has(id));
+    },
+    async productImage() {
+      throw fail(404, 'image_not_found');
+    },
+    async health() {
+      return {
+        source: 'fixture', configured: 'configured', reachable: true,
+        products: products.length, version: snapshot.version,
+        cacheAgeSeconds: 0, stale: false, lastError: null,
+      };
+    },
+  };
+}
+
+export function asCatalogService(value) {
+  if (value && typeof value.list === 'function') return value;
+  return createStaticCatalog(value);
+}

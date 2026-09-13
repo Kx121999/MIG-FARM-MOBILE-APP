@@ -16,6 +16,9 @@ export type ProductVariant = {
   price: string;
   compare_at_price?: string | null;
   available?: boolean;
+  stock_state?: 'in_stock' | 'out_of_stock' | 'unknown';
+  stock_quantity?: number | null;
+  odoo_variant_id?: number;
   sku?: string | null;
   option1?: string | null;
   option2?: string | null;
@@ -39,6 +42,11 @@ export type Product = {
   tags: string[];
   images: ProductImage[];
   variants: ProductVariant[];
+  available?: boolean;
+  stock_state?: 'in_stock' | 'out_of_stock' | 'unknown';
+  odoo_template_id?: number;
+  catalog_source?: 'odoo' | string;
+  category?: { id: number; name: string } | null;
   published_at?: string;
   updated_at?: string;
 };

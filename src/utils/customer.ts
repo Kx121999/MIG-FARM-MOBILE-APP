@@ -150,7 +150,7 @@ export function planReorder(items: CustomerOrderItem[], products: Product[]) {
     if (
       !product ||
       !variant ||
-      variant.available === false ||
+      variant.available !== true ||
       !Number.isFinite(Number(variant.price))
     )
       unavailable.push(item.title);

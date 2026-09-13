@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { address, fail, uuid, pageResult } from '../lib/validation.mjs';
+import { asCatalogService } from './odoo.mjs';
 const addressDTO = (row) => ({
   id: row.id,
   label: row.label,
@@ -32,8 +33,8 @@ export async function lockCustomer(client, id) {
   )
     throw fail(401, 'unauthorized');
 }
-export function createCustomers(db, products) {
-  const productIds = new Set(products.map((p) => Number(p.id)));
+export function createCustomers(db, catalogInput) {
+  const catalog = asCatalogService(catalogInput);
   const addresses = async (user) =>
     (
       await db.query(
@@ -146,7 +147,7 @@ export function createCustomers(db, products) {
       ids.some((id) => !Number.isSafeInteger(id) || id <= 0)
     )
       throw fail(400, 'invalid_input');
-    const selected = [...new Set(ids)].filter((id) => productIds.has(id));
+    const selected = await catalog.filterExistingProductIds([...new Set(ids)]);
     await db.transaction(async (client) => {
       await lockCustomer(client, user.id);
       const existing = new Set(
@@ -172,7 +173,8 @@ export function createCustomers(db, products) {
     if (!Number.isSafeInteger(id) || id <= 0)
       throw fail(400, 'invalid_product');
     if (add) {
-      if (!productIds.has(id)) throw fail(404, 'product_not_found');
+      if (!(await catalog.filterExistingProductIds([id])).length)
+        throw fail(404, 'product_not_found');
       return mergeFavorites(user, [id]);
     }
     await db.query(

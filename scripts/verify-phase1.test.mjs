@@ -12,8 +12,7 @@ const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.Scri
 const { ONBOARDING_KEY, hasCompletedOnboarding, completeOnboarding } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
 const baseline = {
   "eas.json": "BCC06A141B717EB1BD13E51E8598B214AC0A5855C2A9DA75AE73AA9F0AC0C254",
-  "src/services/ai.ts": "FC1759322E47125A39328944322778A6DB83FA5BDA84B5EBCB7DE9079699A8E2",
-  "src/services/catalog.ts": "8EA136FE17A9289763BC7352D13FFD868F06A2EB47904A62285395C21DE73395"
+  "src/services/ai.ts": "FC1759322E47125A39328944322778A6DB83FA5BDA84B5EBCB7DE9079699A8E2"
 };
 const app = JSON.parse(await readFile('app.json', 'utf8')).expo;
 
@@ -34,11 +33,16 @@ test('storage errors never block guest access', async () => {
 test('unresponsive storage has a bounded wait', async () => {
   assert.equal(await hasCompletedOnboarding({ getItem: () => new Promise(() => {}), setItem: async () => {} }), true);
 });
-test('catalog, AI service and EAS configuration remain byte-for-byte unchanged', async () => {
+test('AI service and EAS configuration remain byte-for-byte unchanged', async () => {
   for (const [file, expected] of Object.entries(baseline)) {
     const hash = createHash('sha256').update(await readFile(file)).digest('hex').toUpperCase();
     assert.equal(hash, expected, file);
   }
+});
+test('catalog refresh stays behind MIG FARM API and never exposes Odoo configuration', async () => {
+  const catalogSource = await readFile('src/services/catalog.ts', 'utf8');
+  assert.match(catalogSource, /\/api\/products\?refresh=1/);
+  assert.doesNotMatch(catalogSource, /ODOO_BASE_URL|ODOO_API_KEY|\/json\/2\//);
 });
 test('app identity, API, Stripe and simulator configuration remain intact', async () => {
   assert.equal(app.name, 'MIG FARM | ميغ فارم');

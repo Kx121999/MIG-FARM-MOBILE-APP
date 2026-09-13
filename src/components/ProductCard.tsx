@@ -26,10 +26,10 @@ export function ProductCard({ product, wide = false, cardWidth }: { product: Pro
   const [imageFailed, setImageFailed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const uri = productImage(product);
-  const variant = product.variants.find((item) => item.available !== false) || product.variants[0];
+  const variant = product.variants.find((item) => item.available === true) || product.variants[0];
   const favorite = isFavorite(product.id);
   const compared = isCompared(product.id);
-  const available = Boolean(variant && variant.available !== false);
+  const available = Boolean(variant && variant.available === true);
   const title = localizedProductTitle(product, language);
   const titleDirection = textDirection(title, language);
   const discounted = variant && Number(variant.compare_at_price || 0) > Number(variant.price || 0);

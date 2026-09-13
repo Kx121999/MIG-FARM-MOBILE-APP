@@ -8,7 +8,7 @@ export const API_ORIGIN = (env.EXPO_PUBLIC_API_URL || 'https://mig-farm-api.onre
 export const APP_ORIGIN = (env.EXPO_PUBLIC_APP_URL || API_ORIGIN).replace(/\/+$/, '');
 
 const PRODUCTS_CACHE_KEY = 'mig_farm_catalog_cache_v2';
-const CACHE_TTL_MS = 10 * 60 * 1000;
+const CACHE_TTL_MS = 60 * 1000;
 
 type CachedProducts = { updatedAt: number; products: Product[] };
 type RawProduct = Omit<Product, 'tags' | 'images' | 'variants'> & {
@@ -53,6 +53,11 @@ function normalizeProduct(product: RawProduct): Product {
       ...variant,
       featured_image: variant.featured_image ? normalizeImage(variant.featured_image) : null,
     })) : [],
+    available: product.available,
+    stock_state: product.stock_state,
+    odoo_template_id: product.odoo_template_id,
+    catalog_source: product.catalog_source,
+    category: product.category,
     published_at: product.published_at,
     updated_at: product.updated_at,
   };
@@ -100,7 +105,10 @@ export async function fetchAllProducts(force = false, signal?: AbortSignal) {
     if (cached) return cached;
   }
   try {
-    const data = await requestJson<{ products?: RawProduct[] }>('/api/products', signal);
+    const data = await requestJson<{ products?: RawProduct[] }>(
+      force ? '/api/products?refresh=1' : '/api/products',
+      signal,
+    );
     const products = (data.products || []).map(normalizeProduct).filter((product) => product.handle);
     await writeProductCache(products);
     return products;
@@ -130,7 +138,7 @@ export function productImage(product: Product) {
 }
 
 export function productPrice(product: Product) {
-  const variant = product.variants.find((item) => item.available !== false) || product.variants[0];
+  const variant = product.variants.find((item) => item.available === true) || product.variants[0];
   return variant?.price || '0';
 }
 
@@ -139,7 +147,20 @@ export function productPriceNumber(product: Product) {
 }
 
 export function productAvailable(product: Product) {
-  return product.variants.some((variant) => variant.available !== false);
+  return productStockState(product) === 'in_stock';
+}
+
+export function productStockState(product: Product) {
+  if (
+    product.stock_state === 'in_stock' ||
+    product.variants.some((variant) => variant.available === true || variant.stock_state === 'in_stock')
+  ) return 'in_stock' as const;
+  if (
+    product.stock_state === 'out_of_stock' ||
+    (product.variants.length > 0 &&
+      product.variants.every((variant) => variant.available === false || variant.stock_state === 'out_of_stock'))
+  ) return 'out_of_stock' as const;
+  return 'unknown' as const;
 }
 
 type LocalizedTitle = Pick<Product, 'title' | 'title_ar' | 'title_en'>;
@@ -163,6 +184,7 @@ export function textDirection(text: string, fallbackLanguage: 'ar' | 'en'): 'rtl
 }
 
 export function formatAED(value?: string | number | null) {
+  if (value == null || String(value).trim() === '') return 'AED --';
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount)) return 'AED --';
   return new Intl.NumberFormat('en-AE', {

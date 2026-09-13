@@ -64,7 +64,7 @@ export default function ProductScreen() {
     setError(false);
     fetchProduct(handle)
       .then((data) => {
-        const firstVariant = data.variants.find((item) => item.available !== false) || data.variants[0];
+        const firstVariant = data.variants.find((item) => item.available === true) || data.variants[0];
         setProduct(data);
         setVariant(firstVariant);
         setSelectedImage(firstVariant?.featured_image?.src || productImage(data));
@@ -105,7 +105,7 @@ export default function ProductScreen() {
     );
   }
 
-  const available = variant.available !== false;
+  const available = variant.available === true;
   const currentImage = selectedImage || variant.featured_image?.src || productImage(product);
   const currentImageMeta = product.images.find((item) => item.src === currentImage) || variant.featured_image || null;
   const imageIsWide = Boolean(currentImageMeta?.width && currentImageMeta?.height && currentImageMeta.width / currentImageMeta.height > 1.25);

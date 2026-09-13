@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius } from '@/constants/theme';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { formatAED, localizedProductTitle, localizedProductType, productAvailable, productImage, productPrice, textDirection } from '@/services/catalog';
+import { formatAED, localizedProductTitle, localizedProductType, productImage, productPrice, productStockState, textDirection } from '@/services/catalog';
 import { useProducts } from '@/hooks/useProducts';
 import { Product } from '@/types';
 
@@ -46,7 +46,11 @@ export default function CompareScreen() {
                 <View style={styles.columnBody}>
                   <Text numberOfLines={3} style={[styles.productTitle, { textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{productTitle}</Text>
                   <Text style={styles.price}>{formatAED(productPrice(product))}</Text>
-                  <CompareRow label={language === 'ar' ? 'التوفر' : 'Availability'} value={productAvailable(product) ? (language === 'ar' ? 'متوفر' : 'Available') : (language === 'ar' ? 'غير متوفر' : 'Unavailable')} available={productAvailable(product)} />
+                  <CompareRow
+                    label={language === 'ar' ? 'التوفر' : 'Availability'}
+                    value={stockLabel(product, language)}
+                    available={productStockState(product) === 'in_stock' ? true : productStockState(product) === 'out_of_stock' ? false : undefined}
+                  />
                   <CompareRow label={language === 'ar' ? 'الماركة' : 'Brand'} value={product.vendor || 'MIG FARM'} />
                   <CompareRow label={language === 'ar' ? 'القسم' : 'Category'} value={localizedProductType(product, language) || '-'} />
                   <Pressable accessibilityRole="button" accessibilityLabel={language === 'ar' ? 'إزالة من المقارنة' : 'Remove from comparison'} onPress={() => toggleCompare(product.id)} style={styles.removeButton}><X size={14} color={colors.danger} /><Text style={styles.removeText}>{language === 'ar' ? 'إزالة' : 'Remove'}</Text></Pressable>
@@ -59,6 +63,13 @@ export default function CompareScreen() {
       )}
     </SafeAreaView>
   );
+}
+
+function stockLabel(product: Product, language: 'ar' | 'en') {
+  const state = productStockState(product);
+  if (state === 'in_stock') return language === 'ar' ? 'متوفر' : 'Available';
+  if (state === 'out_of_stock') return language === 'ar' ? 'غير متوفر' : 'Unavailable';
+  return language === 'ar' ? 'التوفر غير مؤكد' : 'Availability unknown';
 }
 
 function CompareRow({ label, value, available }: { label: string; value: string; available?: boolean }) {

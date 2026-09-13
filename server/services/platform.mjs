@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { fail, pageResult, text } from '../lib/validation.mjs';
 import { emailDelivery, avatarStorage, bannerStorage, pushDelivery, mediaStorage } from './adapters.mjs';
+import { asCatalogService } from './odoo.mjs';
 
 const role = (user) => {
   if (user.role !== 'admin') throw fail(403, 'forbidden');
@@ -35,9 +36,9 @@ const intValue = (value, fallback, min = 0, max = 100000) => {
   return next;
 };
 
-export function createPlatform(db, products) {
-  const productIds = new Set(products.map((p) => Number(p.id)));
-  const existingIds = (value) => ids(value).filter((id) => productIds.has(id));
+export function createPlatform(db, catalogInput) {
+  const catalog = asCatalogService(catalogInput);
+  const existingIds = (value) => catalog.filterExistingProductIds(ids(value));
 
   async function publicHome() {
     const rows = db
@@ -87,7 +88,8 @@ export function createPlatform(db, products) {
 
   async function saveRecent(user, body) {
     const productId = Number(body.productId);
-    if (!productIds.has(productId)) throw fail(404, 'product_not_found');
+    if (!(await existingIds([productId])).length)
+      throw fail(404, 'product_not_found');
     await db.query(
       'INSERT INTO mig_farm.recently_viewed(user_id,product_id,viewed_at) VALUES($1,$2,now()) ON CONFLICT(user_id,product_id) DO UPDATE SET viewed_at=now()',
       [user.id, productId],
@@ -133,8 +135,18 @@ export function createPlatform(db, products) {
     const clientUpdatedAt = body.clientUpdatedAt ? new Date(body.clientUpdatedAt) : new Date();
     if (Number.isNaN(clientUpdatedAt.getTime())) throw fail(400, 'invalid_input');
     const cart = Array.isArray(body.cart) ? body.cart.slice(0, 200) : [];
-    const recentProductIds = existingIds(body.recentProductIds || []);
-    const favoriteIds = existingIds(body.favorites || []);
+    const requestedRecentIds = ids(body.recentProductIds);
+    const requestedFavoriteIds = ids(body.favorites);
+    const requestedProductIds = [
+      ...new Set([
+        ...requestedRecentIds,
+        ...requestedFavoriteIds,
+        ...cart.map((item) => Number(item.productId)),
+      ]),
+    ].filter((id) => Number.isSafeInteger(id) && id > 0);
+    const validProductIds = new Set(await existingIds(requestedProductIds));
+    const recentProductIds = requestedRecentIds.filter((id) => validProductIds.has(id));
+    const favoriteIds = requestedFavoriteIds.filter((id) => validProductIds.has(id));
     const farmSnapshot =
       body.myFarm && typeof body.myFarm === 'object' && !Array.isArray(body.myFarm)
         ? body.myFarm
@@ -156,7 +168,7 @@ export function createPlatform(db, products) {
           variantId = Number(item.variant?.id || item.variantId),
           quantity = Math.max(1, Math.min(99, Number(item.quantity || 1))),
           key = text(String(item.key || `${productId}:${variantId}`), 160, true);
-        if (!productIds.has(productId) || !Number.isSafeInteger(variantId) || variantId <= 0) continue;
+        if (!validProductIds.has(productId) || !Number.isSafeInteger(variantId) || variantId <= 0) continue;
         await client.query(
           'INSERT INTO mig_farm.user_cart_items(user_id,item_key,product_id,variant_id,quantity,payload_json,guest_updated_at,server_updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,now()) ON CONFLICT(user_id,item_key) DO UPDATE SET quantity=LEAST(99,GREATEST(mig_farm.user_cart_items.quantity,EXCLUDED.quantity)),payload_json=CASE WHEN mig_farm.user_cart_items.guest_updated_at<=EXCLUDED.guest_updated_at THEN EXCLUDED.payload_json ELSE mig_farm.user_cart_items.payload_json END,guest_updated_at=GREATEST(mig_farm.user_cart_items.guest_updated_at,EXCLUDED.guest_updated_at),server_updated_at=now()',
           [user.id, key, productId, variantId, quantity, JSON.stringify(item), clientUpdatedAt],
@@ -173,6 +185,7 @@ export function createPlatform(db, products) {
 
   async function adminSummary(user) {
     role(user);
+    const catalogHealth = await catalog.health();
     const [customers, orders, pending, offers, notifications, newCustomers, recentOrders, recentCustomers, statusRows, pushRows] = await Promise.all([
       db.query("SELECT count(*)::int AS total FROM mig_farm.users WHERE role='customer' AND deleted_at IS NULL"),
       db.query('SELECT count(*)::int AS total, COALESCE(sum(total),0)::numeric AS revenue, COALESCE(avg(total),0)::numeric AS average FROM mig_farm.orders'),
@@ -202,7 +215,8 @@ export function createPlatform(db, products) {
       system: {
         api: 'online',
         database: db ? 'configured' : 'not_configured',
-        productCount: products.length,
+        productCount: catalogHealth.products,
+        catalogSource: catalogHealth.source,
         pushProvider: pushDelivery.available ? 'configured' : 'not_configured',
         storageProvider: mediaStorage.status(),
         emailProvider: emailDelivery.available ? 'configured' : 'not_configured',
@@ -383,7 +397,7 @@ export function createPlatform(db, products) {
       ctaAr: text(body.ctaAr || '', 80),
       ctaEn: text(body.ctaEn || '', 80),
       deepLink: safeLink(body.deepLink || ''),
-      productIds: existingIds(body.productIds),
+      productIds: await existingIds(body.productIds),
       status: ['draft', 'active', 'inactive', 'scheduled'].includes(body.status) ? body.status : 'draft',
       startsAt: dateValue(body.startsAt),
       endsAt: dateValue(body.endsAt),
@@ -412,9 +426,10 @@ export function createPlatform(db, products) {
     const startsAt = dateValue(body.startsAt);
     const endsAt = dateValue(body.endsAt);
     if (startsAt && endsAt && startsAt > endsAt) throw fail(400, 'invalid_input');
+    const productIds = await existingIds(body.productIds);
     const row = (await db.query(
       'INSERT INTO mig_farm.home_content(id,kind,title_ar,title_en,body_ar,body_en,image_url,deep_link,product_ids,sort_order,visible,starts_at,ends_at,cta_ar,cta_en) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT(id) DO UPDATE SET kind=$2,title_ar=$3,title_en=$4,body_ar=$5,body_en=$6,image_url=$7,deep_link=$8,product_ids=$9,sort_order=$10,visible=$11,starts_at=$12,ends_at=$13,cta_ar=$14,cta_en=$15,updated_at=now() RETURNING *',
-      [id, kind, text(body.titleAr || '', 160), text(body.titleEn || '', 160), text(body.bodyAr || '', 500), text(body.bodyEn || '', 500), text(body.imageUrl || '', 500), safeLink(body.deepLink || ''), existingIds(body.productIds), intValue(body.sortOrder, 100, 0, 10000), body.visible !== false && body.visible !== 'false', startsAt, endsAt, text(body.ctaAr || '', 80), text(body.ctaEn || '', 80)],
+      [id, kind, text(body.titleAr || '', 160), text(body.titleEn || '', 160), text(body.bodyAr || '', 500), text(body.bodyEn || '', 500), text(body.imageUrl || '', 500), safeLink(body.deepLink || ''), productIds, intValue(body.sortOrder, 100, 0, 10000), body.visible !== false && body.visible !== 'false', startsAt, endsAt, text(body.ctaAr || '', 80), text(body.ctaEn || '', 80)],
     )).rows[0];
     return { section: row };
   }
@@ -473,10 +488,12 @@ export function createPlatform(db, products) {
 
   async function systemStatus(user) {
     role(user);
+    const catalogHealth = await catalog.health();
     return {
       api: 'online',
       database: db ? 'configured' : 'not_configured',
-      products: products.length,
+      products: catalogHealth.products,
+      catalogSource: catalogHealth.source,
       emailProvider: emailDelivery.available ? 'configured' : 'not_configured',
       avatarStorage: avatarStorage.status ? avatarStorage.status() : avatarStorage.available ? 'configured' : 'not_configured',
       bannerStorage: bannerStorage.status ? bannerStorage.status() : bannerStorage.available ? 'configured' : 'not_configured',

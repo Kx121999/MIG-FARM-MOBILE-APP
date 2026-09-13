@@ -14,26 +14,32 @@ import { calculateEtc, calculateIrrigationRuntime, calculateWaterVolume } from '
 import { pesticideSafetyGate } from '../farm-intelligence/risk-engine.mjs';
 import { createPlatform } from '../services/platform.mjs';
 import { stripeGateway } from '../services/stripe.mjs';
+import { asCatalogService, createOdooCatalog } from '../services/odoo.mjs';
 import { fail, page } from '../lib/validation.mjs';
 export function createApp({
   db,
   catalog,
+  catalogService,
   mediaRoot,
   env = process.env,
   stripe = stripeGateway(env),
   authOptions = {},
   orderOptions = {},
 }) {
-  const products = catalog.products || [],
+  const productCatalog = catalogService
+      ? asCatalogService(catalogService)
+      : catalog
+        ? asCatalogService(catalog)
+        : createOdooCatalog({ env }),
     auth = createAuth(db, authOptions),
-    customers = createCustomers(db, products),
-    orders = createOrders(db, products, stripe, orderOptions),
+    customers = createCustomers(db, productCatalog),
+    orders = createOrders(db, productCatalog, stripe, orderOptions),
     farmOS = createFarmOS(db),
     smartFarm = createSmartFarm(db),
     farmCommand = createFarmCommand(db, { env }),
     knowledge = createKnowledgeService(db),
     farmIntelligence = createFarmIntelligence(db, { farmCommand, knowledge, env }),
-    platform = createPlatform(db, products);
+    platform = createPlatform(db, productCatalog);
   const allowed = (env.CORS_ORIGIN || '*')
     .split(',')
     .map((value) => value.trim());
@@ -69,20 +75,33 @@ export function createApp({
     try {
       const url = new URL(request.url || '/', 'http://request.invalid'),
         path = url.pathname;
-      if (method === 'GET' && path === '/health')
+      if (method === 'GET' && path === '/health') {
+        const catalogHealth = await productCatalog.health();
         return send(response, 200, {
           ok: true,
           service: 'mig-farm-api',
-          products: products.length,
-          catalogVersion: catalog.version,
+          products: catalogHealth.products,
+          catalogVersion: catalogHealth.version,
+          catalogSource: catalogHealth.source,
+          odoo: catalogHealth.configured,
+          odooReachable: catalogHealth.reachable,
+          catalogCacheAgeSeconds: catalogHealth.cacheAgeSeconds,
+          catalogStale: catalogHealth.stale === true,
+          catalogLastError: catalogHealth.lastError || null,
           database: db ? 'configured' : 'not_configured',
         });
-      if (method === 'GET' && path === '/api/products')
-        return send(response, 200, {
-          products,
-          version: catalog.version,
-          updatedAt: catalog.migratedAt,
+      }
+      if (method === 'GET' && path === '/api/products') {
+        const current = await productCatalog.list({
+          force: url.searchParams.get('refresh') === '1',
         });
+        return send(response, 200, {
+          products: current.products,
+          version: current.version,
+          updatedAt: current.updatedAt,
+          catalogMeta: current.catalogMeta,
+        });
+      }
       if (method === 'GET' && path === '/api/app/home')
         return send(response, 200, await platform.publicHome());
       if (method === 'GET' && path === '/api/offers')
@@ -142,14 +161,29 @@ export function createApp({
       if (method === 'GET' && path === '/admin')
         return serveAdmin(response, mediaRoot);
       if (method === 'GET' && path.startsWith('/api/products/')) {
-        const product = products.find(
-          (p) => p.handle === decodeURIComponent(path.slice(14)),
+        const product = await productCatalog.getByHandle(
+          decodeURIComponent(path.slice(14)),
         );
         return send(
           response,
           product ? 200 : 404,
           product ? { product } : { error: 'product_not_found' },
         );
+      }
+      const odooImage = /^\/api\/odoo\/product-image\/(product\.template|product\.product)\/(\d+)$/.exec(path);
+      if (method === 'GET' && odooImage) {
+        const image = await productCatalog.productImage(
+          odooImage[1],
+          Number(odooImage[2]),
+          { version: url.searchParams.get('v') || '' },
+        );
+        response.writeHead(200, {
+          'Content-Type': image.contentType,
+          'Cache-Control': 'public, max-age=3600',
+          'X-Content-Type-Options': 'nosniff',
+        });
+        response.end(image.body);
+        return;
       }
       if (method === 'GET' && path.startsWith('/media/')) {
         const file = resolve(

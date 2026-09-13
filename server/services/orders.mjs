@@ -2,6 +2,7 @@ import { createHmac, randomUUID, randomBytes } from 'node:crypto';
 import { fail, text, email, phone, pageResult } from '../lib/validation.mjs';
 import { hashToken } from '../auth/security.mjs';
 import { lockCustomer } from './customers.mjs';
+import { asCatalogService } from './odoo.mjs';
 export function priceCheckout(body, products, deliveryValue = '0') {
   if (
     !Array.isArray(body.items) ||
@@ -17,6 +18,10 @@ export function priceCheckout(body, products, deliveryValue = '0') {
     const p = products.find((p) => String(p.id) === String(item.productId)),
       v = p?.variants.find((v) => String(v.id) === String(item.variantId));
     if (!p || !v || v.available === false) throw fail(400, 'invalid_cart_item');
+    if (
+      (typeof v.price !== 'string' && typeof v.price !== 'number') ||
+      String(v.price).trim() === ''
+    ) throw fail(500, 'invalid_catalog_price');
     const minor = Math.round(Number(v.price) * 100);
     if (!Number.isSafeInteger(minor) || minor < 0)
       throw fail(500, 'invalid_catalog_price');
@@ -71,7 +76,8 @@ export function priceCheckout(body, products, deliveryValue = '0') {
     shippingAddress,
   };
 }
-export function createOrders(db, products, stripe, options = {}) {
+export function createOrders(db, catalogInput, stripe, options = {}) {
+  const catalog = asCatalogService(catalogInput);
   const secret = options.orderSecret || process.env.ORDER_TOKEN_SECRET;
   const requireDb = () => {
     if (!db) throw fail(503, 'database_not_configured');
@@ -142,9 +148,13 @@ export function createOrders(db, products, stripe, options = {}) {
         !/^[a-zA-Z0-9_-]{20,128}$/.test(idempotency))
     )
       throw fail(400, 'invalid_idempotency_key');
+    const currentCatalog = await catalog.list({
+      force: true,
+      allowStale: false,
+    });
     const priced = priceCheckout(
       body,
-      products,
+      currentCatalog.products,
       options.delivery ?? process.env.DELIVERY_FEE_AED ?? '0',
     );
     const checkoutKey = hashToken(

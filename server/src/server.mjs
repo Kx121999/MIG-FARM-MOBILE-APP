@@ -1,17 +1,15 @@
-import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createDatabase } from '../db/client.mjs';
 import { loadEnv } from '../lib/env.mjs';
+import { createOdooCatalog } from '../services/odoo.mjs';
 import { createApp } from './app.mjs';
 
 loadEnv();
 const db = createDatabase();
-const catalog = JSON.parse(
-  await readFile(new URL('../data/products.json', import.meta.url), 'utf8'),
-);
+const catalogService = createOdooCatalog({ env: process.env });
 const server = createApp({
   db,
-  catalog,
+  catalogService,
   mediaRoot: fileURLToPath(new URL('../public/', import.meta.url)),
 });
 const port = Number(process.env.PORT || 8787);
