@@ -33,12 +33,25 @@ const FIELD_CANDIDATES = {
   'product.template.attribute.value': [
     'id', 'name', 'attribute_id', 'product_attribute_value_id',
   ],
+  'res.partner': [
+    'id', 'name', 'phone', 'mobile', 'email', 'street', 'street2', 'city',
+    'country_id', 'active', 'type',
+  ],
+  'res.country': ['id', 'name', 'code'],
+  'sale.order': [
+    'id', 'name', 'state', 'partner_id', 'client_order_ref', 'order_line',
+    'amount_untaxed', 'amount_tax', 'amount_total', 'currency_id',
+  ],
+  'sale.order.line': [
+    'id', 'order_id', 'product_id', 'product_uom_qty',
+  ],
 };
 
 const IMAGE_FIELDS = ['image_512', 'image_1024', 'image_256', 'image_1920', 'image_128'];
 const OPTIONAL_MODELS = new Set([
   'product.public.category',
   'product.template.attribute.value',
+  'res.country',
 ]);
 const hasOwn = (value, key) =>
   Boolean(value && Object.prototype.hasOwnProperty.call(value, key));
@@ -60,6 +73,16 @@ const relationIds = (value) =>
     ? value.map(relationId).filter((id) => id !== null)
     : [];
 const cleanText = (value) => (typeof value === 'string' ? value.trim() : '');
+const normalizedEmail = (value) => cleanText(value).toLowerCase();
+const normalizedPhone = (value) => {
+  let digits = cleanText(value)
+    .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 1632))
+    .replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (digits.startsWith('0') && digits.length >= 9) digits = `971${digits.slice(1)}`;
+  if (digits.startsWith('9710')) digits = `971${digits.slice(4)}`;
+  return digits;
+};
 const uniqueNumbers = (values) => [...new Set(values.filter(Number.isSafeInteger))];
 const slugify = (value) =>
   cleanText(value)
@@ -365,6 +388,210 @@ export function createOdooCatalog({
     if (!ids.length || !fields.length) return new Map();
     const records = await searchRead(model, [['id', 'in', ids]], fields);
     return new Map(records.map((record) => [Number(record.id), record]));
+  }
+
+  async function limitedSearchRead(model, domain, fields, limit = 2) {
+    const records = await call(model, 'search_read', {
+      domain,
+      fields,
+      limit,
+      offset: 0,
+      order: 'id asc',
+    });
+    if (!Array.isArray(records)) throw safeFailure('odoo_invalid_response');
+    return records;
+  }
+
+  async function readOne(model, id, fields) {
+    const records = await call(model, 'read', { ids: [id], fields });
+    const record = Array.isArray(records) ? records[0] : null;
+    if (!record || relationId(record.id) !== id)
+      throw safeFailure('odoo_invalid_response');
+    return record;
+  }
+
+  function requiredFields(model, fields, required) {
+    if (required.some((field) => !fields.includes(field)))
+      throw safeFailure(`odoo_${model.replaceAll('.', '_')}_fields_unavailable`);
+  }
+
+  function createdRecordId(result) {
+    if (Array.isArray(result)) return relationId(result[0]);
+    if (result && typeof result === 'object')
+      return relationId(result.id ?? result.ids?.[0]);
+    return relationId(result);
+  }
+
+  async function createRecord(model, values) {
+    const result = await call(model, 'create', { vals_list: [values] });
+    const id = createdRecordId(result);
+    if (!id) throw safeFailure('odoo_invalid_response');
+    return id;
+  }
+
+  async function findExactPartner(customer, fields) {
+    const outputFields = fields.filter((field) =>
+      ['id', 'name', 'phone', 'mobile', 'email'].includes(field));
+    const phoneFields = ['phone', 'mobile'].filter((field) => fields.includes(field));
+    const expectedPhone = normalizedPhone(customer.phone);
+    if (expectedPhone && phoneFields.length) {
+      const needle = expectedPhone.slice(-8);
+      const domain = phoneFields.length === 2
+        ? ['|', ['phone', 'ilike', needle], ['mobile', 'ilike', needle]]
+        : [[phoneFields[0], 'ilike', needle]];
+      const candidates = await searchRead('res.partner', domain, outputFields);
+      const matches = candidates.filter((record) => phoneFields.some((field) =>
+        normalizedPhone(record[field]) === expectedPhone));
+      if (matches.length > 1) throw safeFailure('odoo_partner_ambiguous');
+      if (matches.length === 1)
+        return { id: relationId(matches[0].id), matchedBy: 'phone' };
+    }
+    const expectedEmail = normalizedEmail(customer.email);
+    if (expectedEmail && fields.includes('email')) {
+      const candidates = await searchRead(
+        'res.partner',
+        [['email', '=ilike', expectedEmail]],
+        outputFields,
+      );
+      const matches = candidates.filter((record) =>
+        normalizedEmail(record.email) === expectedEmail);
+      if (matches.length > 1) throw safeFailure('odoo_partner_ambiguous');
+      if (matches.length === 1)
+        return { id: relationId(matches[0].id), matchedBy: 'email' };
+    }
+    return null;
+  }
+
+  async function uaeCountryId() {
+    const fields = await fieldsFor('res.country');
+    if (!fields.includes('id') || !fields.includes('code')) return null;
+    const matches = await limitedSearchRead(
+      'res.country',
+      [['code', '=', 'AE']],
+      fields.filter((field) => ['id', 'code', 'name'].includes(field)),
+      2,
+    );
+    return matches.length === 1 ? relationId(matches[0].id) : null;
+  }
+
+  async function resolvePartner(customer, shippingAddress) {
+    const fields = await fieldsFor('res.partner');
+    requiredFields('res.partner', fields, ['id', 'name']);
+    if (!fields.includes('phone') && !fields.includes('mobile'))
+      throw safeFailure('odoo_res_partner_fields_unavailable');
+    const existing = await findExactPartner(customer, fields);
+    if (existing?.id) return existing;
+    const values = { name: customer.name };
+    const phoneField = fields.includes('phone') ? 'phone' : 'mobile';
+    values[phoneField] = customer.phone;
+    if (fields.includes('email') && customer.email) values.email = customer.email;
+    if (fields.includes('street')) values.street = shippingAddress.addressLine;
+    if (fields.includes('street2') && shippingAddress.emirate)
+      values.street2 = shippingAddress.emirate;
+    if (fields.includes('city')) values.city = shippingAddress.city;
+    if (fields.includes('country_id')) {
+      const countryId = await uaeCountryId();
+      if (countryId) values.country_id = countryId;
+    }
+    return {
+      id: await createRecord('res.partner', values),
+      matchedBy: 'created',
+    };
+  }
+
+  function quotationResult(record, partner) {
+    const id = relationId(record.id);
+    const subtotal = number(record.amount_untaxed);
+    const tax = number(record.amount_tax);
+    const total = number(record.amount_total);
+    const currency = Array.isArray(record.currency_id)
+      ? cleanText(record.currency_id[1])
+      : cleanText(record.currency_id?.name || record.currency_id);
+    if (!id || [subtotal, tax, total].some((value) => value === null) || !currency)
+      throw safeFailure('odoo_invalid_response');
+    return {
+      orderId: id,
+      orderName: cleanText(record.name),
+      state: cleanText(record.state),
+      subtotal,
+      tax,
+      total,
+      currency: currency.toUpperCase(),
+      partnerId: partner?.id || relationId(record.partner_id),
+      partnerMatch: partner?.matchedBy || 'existing_order',
+    };
+  }
+
+  async function findQuotationByReference(reference, fields) {
+    const records = await limitedSearchRead(
+      'sale.order',
+      [['client_order_ref', '=', reference]],
+      fields,
+      2,
+    );
+    if (records.length > 1) throw safeFailure('odoo_order_ambiguous');
+    return records[0] || null;
+  }
+
+  async function prepareQuotation({ orderId, customer, shippingAddress, items }) {
+    const saleFields = await fieldsFor('sale.order');
+    const lineFields = await fieldsFor('sale.order.line');
+    const productFields = await fieldsFor('product.product');
+    requiredFields('sale.order', saleFields, [
+      'id', 'name', 'state', 'partner_id', 'client_order_ref', 'order_line',
+      'amount_untaxed', 'amount_tax', 'amount_total', 'currency_id',
+    ]);
+    requiredFields('sale.order.line', lineFields, ['product_id', 'product_uom_qty']);
+    requiredFields('product.product', productFields, ['id']);
+    const orderReadFields = saleFields.filter((field) => [
+      'id', 'name', 'state', 'partner_id', 'client_order_ref', 'amount_untaxed',
+      'amount_tax', 'amount_total', 'currency_id',
+    ].includes(field));
+    const existing = await findQuotationByReference(orderId, orderReadFields);
+    if (existing) return quotationResult(existing);
+
+    const variantIds = uniqueNumbers(items.map((item) => Number(item.variantId)));
+    if (variantIds.length !== items.length) throw safeFailure('odoo_invalid_order_lines');
+    const productReadFields = productFields.filter((field) => [
+      'id', 'active', 'sale_ok', 'free_qty', 'qty_available',
+    ].includes(field));
+    const variants = await limitedSearchRead(
+      'product.product',
+      [['id', 'in', variantIds]],
+      productReadFields,
+      Math.min(200, variantIds.length + 1),
+    );
+    if (variants.length !== variantIds.length)
+      throw safeFailure('odoo_variant_unavailable');
+    for (const variant of variants) {
+      if (!visibleVariant(variant, productFields))
+        throw safeFailure('odoo_variant_unavailable');
+      if (stockFrom(variant, productFields).stock_state === 'out_of_stock')
+        throw safeFailure('odoo_variant_out_of_stock');
+    }
+
+    const partner = await resolvePartner(customer, shippingAddress);
+    const values = {
+      partner_id: partner.id,
+      client_order_ref: orderId,
+      order_line: items.map((item) => [0, 0, {
+        product_id: Number(item.variantId),
+        product_uom_qty: Number(item.quantity),
+      }]),
+    };
+    try {
+      const createdId = await createRecord('sale.order', values);
+      return quotationResult(await readOne('sale.order', createdId, orderReadFields), partner);
+    } catch (error) {
+      if (!['odoo_timeout', 'odoo_unavailable'].includes(errorCode(error))) throw error;
+      try {
+        const recovered = await findQuotationByReference(orderId, orderReadFields);
+        if (recovered) return quotationResult(recovered, partner);
+      } catch (recoveryError) {
+        if (errorCode(recoveryError) === 'odoo_order_ambiguous') throw recoveryError;
+      }
+      throw error;
+    }
   }
 
   async function loadCatalog() {
@@ -704,7 +931,7 @@ export function createOdooCatalog({
 
   return {
     source: 'odoo', configured: config.configured, list, getByHandle,
-    filterExistingProductIds, productImage, health,
+    filterExistingProductIds, productImage, prepareQuotation, health,
   };
 }
 
@@ -733,6 +960,11 @@ export function createStaticCatalog(input = {}) {
     },
     async productImage() {
       throw fail(404, 'image_not_found');
+    },
+    async prepareQuotation(payload) {
+      if (typeof data?.prepareQuotation === 'function')
+        return data.prepareQuotation(payload);
+      throw safeFailure('odoo_not_configured');
     },
     async health() {
       return {

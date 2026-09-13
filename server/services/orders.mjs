@@ -3,6 +3,34 @@ import { fail, text, email, phone, pageResult } from '../lib/validation.mjs';
 import { hashToken } from '../auth/security.mjs';
 import { lockCustomer } from './customers.mjs';
 import { asCatalogService } from './odoo.mjs';
+
+const UAE_EMIRATES = new Set([
+  'abu dhabi', 'dubai', 'sharjah', 'ajman', 'umm al quwain',
+  'ras al khaimah', 'fujairah', 'أبوظبي', 'ابوظبي', 'دبي', 'الشارقة',
+  'عجمان', 'أم القيوين', 'ام القيوين', 'رأس الخيمة', 'راس الخيمة', 'الفجيرة',
+]);
+const money = (value, code = 'odoo_invalid_totals') => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 9_999_999_999.99)
+    throw fail(503, code);
+  return Math.round(parsed * 100) / 100;
+};
+const syncErrorCode = (error) =>
+  typeof error?.code === 'string' && /^odoo_[a-z0-9_]{1,80}$/.test(error.code)
+    ? error.code
+    : 'odoo_sync_failed';
+
+function requireIdempotencyKey(value) {
+  if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]{20,128}$/.test(value))
+    throw fail(400, 'invalid_idempotency_key');
+  return value;
+}
+
+function validateUaeShippingAddress(address) {
+  const emirate = address.emirate.toLocaleLowerCase('en').replace(/\s+/g, ' ').trim();
+  if (!UAE_EMIRATES.has(emirate)) throw fail(400, 'invalid_uae_shipping_address');
+}
+
 export function priceCheckout(body, products, deliveryValue = '0') {
   if (
     !Array.isArray(body.items) ||
@@ -223,6 +251,178 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
       currency: row.currency,
     };
   }
+
+  async function loadOrderForSync(client, orderId) {
+    const row = (
+      await client.query(
+        'SELECT * FROM mig_farm.orders WHERE id=$1 FOR UPDATE',
+        [orderId],
+      )
+    ).rows[0];
+    if (!row) throw fail(404, 'order_not_found');
+    const items = (
+      await client.query(
+        'SELECT * FROM mig_farm.order_items WHERE order_id=$1 ORDER BY position',
+        [orderId],
+      )
+    ).rows;
+    return { row, items };
+  }
+
+  async function syncOrderToOdoo(orderId, preparedPrice = null) {
+    requireDb();
+    const result = await db.transaction(async (client) => {
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+        [`odoo-order:${orderId}`],
+      );
+      const { row, items } = await loadOrderForSync(client, orderId);
+      if (row.odoo_order_id) return { row, error: null };
+      await client.query(
+        "UPDATE mig_farm.orders SET odoo_sync_status='pending',odoo_sync_error=NULL,updated_at=now() WHERE id=$1",
+        [orderId],
+      );
+      try {
+        let priced = preparedPrice;
+        if (!priced) {
+          const currentCatalog = await catalog.list({ force: true, allowStale: false });
+          priced = priceCheckout(
+            {
+              items: items.map((item) => ({
+                productId: Number(item.product_id),
+                variantId: Number(item.variant_id),
+                quantity: Number(item.quantity),
+              })),
+              customer: row.customer_snapshot,
+              shippingAddress: row.shipping_snapshot,
+            },
+            currentCatalog.products,
+            '0',
+          );
+          validateUaeShippingAddress(priced.shippingAddress);
+        }
+        const quote = await catalog.prepareQuotation({
+          orderId: row.id,
+          customer: priced.customer,
+          shippingAddress: priced.shippingAddress,
+          items: priced.items,
+        });
+        const subtotal = money(quote.subtotal),
+          tax = money(quote.tax),
+          total = money(quote.total),
+          delivery = 0;
+        if (
+          Math.round((subtotal + tax) * 100) !== Math.round(total * 100)
+        ) throw fail(503, 'odoo_invalid_totals');
+        if (String(quote.currency).toUpperCase() !== 'AED')
+          throw fail(503, 'odoo_currency_mismatch');
+        if (quote.state !== 'draft') throw fail(409, 'odoo_order_state_conflict');
+        const updated = (
+          await client.query(
+            "UPDATE mig_farm.orders SET currency='AED',subtotal=$2,tax=$3,delivery=$4,total=$5,odoo_order_id=$6,odoo_order_name=$7,odoo_state=$8,odoo_sync_status='synced',odoo_sync_error=NULL,odoo_synced_at=now(),updated_at=now() WHERE id=$1 AND odoo_order_id IS NULL RETURNING *",
+            [
+              row.id,
+              subtotal,
+              tax,
+              delivery,
+              total,
+              quote.orderId,
+              quote.orderName || null,
+              quote.state,
+            ],
+          )
+        ).rows[0];
+        if (!updated) throw fail(409, 'odoo_order_mapping_conflict');
+        return { row: updated, error: null };
+      } catch (error) {
+        const code = syncErrorCode(error);
+        await client.query(
+          "UPDATE mig_farm.orders SET odoo_sync_status='failed',odoo_sync_error=$2,updated_at=now() WHERE id=$1 AND odoo_order_id IS NULL",
+          [row.id, code],
+        );
+        return { row, error: { code, statusCode: error?.statusCode } };
+      }
+    });
+    if (result.error)
+      throw fail(
+        Number.isInteger(result.error.statusCode) ? result.error.statusCode : 503,
+        result.error.code,
+      );
+    return result.row;
+  }
+
+  async function prepare(body, user, idempotency) {
+    requireDb();
+    if (!secret || secret.length < 32)
+      throw fail(503, 'order_security_not_configured');
+    const key = requireIdempotencyKey(idempotency);
+    const currentCatalog = await catalog.list({ force: true, allowStale: false });
+    const priced = priceCheckout(body, currentCatalog.products, '0');
+    validateUaeShippingAddress(priced.shippingAddress);
+    const checkoutKey = hashToken(`${user?.id || 'guest'}:${key}`);
+    const requestHash = hashToken(
+      JSON.stringify({
+        items: priced.items.map((item) => [
+          item.productId,
+          item.variantId,
+          item.quantity,
+        ]),
+        customer: priced.customer,
+        address: priced.shippingAddress,
+      }),
+    );
+    const row = await db.transaction(async (client) => {
+      if (user) await lockCustomer(client, user.id);
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+        [checkoutKey],
+      );
+      const previous = (
+        await client.query(
+          'SELECT * FROM mig_farm.orders WHERE checkout_key=$1',
+          [checkoutKey],
+        )
+      ).rows[0];
+      if (previous) {
+        if (previous.request_hash !== requestHash)
+          throw fail(409, 'idempotency_conflict');
+        return previous;
+      }
+      const id =
+          'MIG-' +
+          Date.now().toString(36).toUpperCase() +
+          '-' +
+          randomBytes(6).toString('hex').toUpperCase(),
+        nonce = randomBytes(16).toString('hex');
+      return insert(
+        client,
+        { ...priced, id, status: 'awaiting_payment' },
+        user?.id || null,
+        checkoutKey,
+        requestHash,
+        accessToken({ id, token_nonce: nonce }),
+        nonce,
+      );
+    });
+    if (!row) throw fail(503, 'checkout_conflict');
+    const synced = await syncOrderToOdoo(row.id, priced);
+    return {
+      orderId: synced.id,
+      orderToken: accessToken(synced),
+      status: synced.status,
+      currency: synced.currency,
+      subtotal: Number(synced.subtotal),
+      tax: Number(synced.tax || 0),
+      delivery: Number(synced.delivery),
+      total: Number(synced.total),
+      odoo: {
+        orderId: Number(synced.odoo_order_id),
+        orderName: synced.odoo_order_name,
+        state: synced.odoo_state,
+      },
+    };
+  }
+
   async function dto(row) {
     const items = (
       await db.query(
@@ -235,12 +435,16 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
       status: row.status,
       currency: row.currency,
       subtotal: Number(row.subtotal),
+      tax: Number(row.tax || 0),
       delivery: Number(row.delivery),
       total: Number(row.total),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       shippingAddress: row.shipping_snapshot,
       paymentStatus: row.payment_status,
+      odooOrderName: row.odoo_order_name || null,
+      odooState: row.odoo_state || null,
+      odooSyncStatus: row.odoo_sync_status || 'pending',
       items: items.map((i) => ({
         productId: Number(i.product_id),
         variantId: Number(i.variant_id),
@@ -391,5 +595,14 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
       return row;
     });
   }
-  return { checkout, guest, detail, history, webhook, importLegacy };
+  return {
+    prepare,
+    syncOrderToOdoo,
+    checkout,
+    guest,
+    detail,
+    history,
+    webhook,
+    importLegacy,
+  };
 }

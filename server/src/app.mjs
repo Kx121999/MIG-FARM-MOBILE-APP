@@ -225,6 +225,19 @@ export function createApp({
           order: await orders.guest(decodeURIComponent(path.slice(12)), token),
         });
       }
+      if (method === 'POST' && path === '/api/orders/prepare') {
+        const user = await auth.authenticate(request, true);
+        await auth.rate('order-prepare:' + clientIP(request, env), 60, 900);
+        return send(
+          response,
+          200,
+          await orders.prepare(
+            await jsonBody(request),
+            user,
+            request.headers['idempotency-key'],
+          ),
+        );
+      }
       if (method === 'POST' && path === '/api/checkout/session') {
         const user = await auth.authenticate(request, true);
         await auth.rate('checkout:' + clientIP(request, env), 60, 900);
@@ -467,6 +480,13 @@ export function createApp({
         }
         if (method === 'GET' && action === 'orders')
           return send(response, 200, await platform.adminOrders(user, page(url), url));
+        const orderSync = /^orders\/([^/]+)\/odoo-sync$/.exec(action);
+        if (method === 'POST' && orderSync) {
+          if (user.role !== 'admin') throw fail(403, 'forbidden');
+          const id = decodeURIComponent(orderSync[1]);
+          await orders.syncOrderToOdoo(id);
+          return send(response, 200, await platform.adminOrderDetail(user, id));
+        }
         const order = /^orders\/([^/]+)$/.exec(action);
         if (order) {
           if (method === 'GET')

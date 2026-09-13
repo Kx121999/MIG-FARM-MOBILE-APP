@@ -316,7 +316,7 @@ export function createPlatform(db, catalogInput) {
     const sqlWhere = where.length ? 'WHERE ' + where.join(' AND ') : '';
     values.push(pagination.limit + 1, pagination.offset);
     const rows = (await db.query(
-      `SELECT o.id,o.customer_id,u.name AS customer_name,u.email AS customer_email,o.status,o.payment_status,o.delivery_status,o.total,o.currency,o.shipping_snapshot,o.created_at FROM mig_farm.orders o LEFT JOIN mig_farm.users u ON u.id=o.customer_id ${sqlWhere} ORDER BY o.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
+      `SELECT o.id,o.customer_id,u.name AS customer_name,u.email AS customer_email,o.status,o.payment_status,o.delivery_status,o.total,o.tax,o.currency,o.shipping_snapshot,o.odoo_order_name,o.odoo_state,o.odoo_sync_status,o.odoo_synced_at,o.created_at FROM mig_farm.orders o LEFT JOIN mig_farm.users u ON u.id=o.customer_id ${sqlWhere} ORDER BY o.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
       values,
     )).rows;
     return pageResult(rows.map(orderDTO), pagination);
@@ -333,7 +333,7 @@ export function createPlatform(db, catalogInput) {
       'SELECT product_id,variant_id,handle,title,variant_title,image,quantity,unit_price,line_total FROM mig_farm.order_items WHERE order_id=$1 ORDER BY position',
       [id],
     )).rows.map((row) => ({ ...row, unit_price: asNumber(row.unit_price), line_total: asNumber(row.line_total) }));
-    return { order: { ...orderDTO(order), subtotal: asNumber(order.subtotal), delivery: asNumber(order.delivery), items, shippingAddress: order.shipping_snapshot, customer: { id: order.customer_id, name: order.customer_name || order.customer_snapshot?.name, email: order.customer_email || order.customer_snapshot?.email, phone: order.customer_phone || order.customer_snapshot?.phone } } };
+    return { order: { ...orderDTO(order), subtotal: asNumber(order.subtotal), tax: asNumber(order.tax), delivery: asNumber(order.delivery), items, shippingAddress: order.shipping_snapshot, customer: { id: order.customer_id, name: order.customer_name || order.customer_snapshot?.name, email: order.customer_email || order.customer_snapshot?.email, phone: order.customer_phone || order.customer_snapshot?.phone } } };
   }
 
   async function setOrderDeliveryStatus(user, id, body) {
@@ -374,8 +374,13 @@ export function createPlatform(db, catalogInput) {
       paymentStatus: row.payment_status,
       deliveryStatus: row.delivery_status,
       total: Number(row.total),
+      tax: Number(row.tax || 0),
       currency: row.currency,
       emirate: shipping.emirate || '',
+      odooOrderName: row.odoo_order_name || null,
+      odooState: row.odoo_state || null,
+      odooSyncStatus: row.odoo_sync_status || 'pending',
+      odooSyncedAt: row.odoo_synced_at || null,
       createdAt: row.created_at,
     };
   }

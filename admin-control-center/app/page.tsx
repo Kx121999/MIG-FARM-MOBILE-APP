@@ -322,7 +322,16 @@ async function openCustomer(session: Session, id: string, setDetail: (value: { t
 async function openOrder(session: Session, id: string, setDetail: (value: { title: string; content: React.ReactNode }) => void, setToast: (toast: Toast) => void) {
   try {
     const data = await api<any>(session, `/api/admin/orders/${id}`);
-    setDetail({ title: data.order.id, content: <div><p>{data.order.customer?.name || 'Guest'} · {data.order.paymentStatus}</p><Table columns={['Item', 'Qty', 'Unit', 'Line']} empty="No items" rows={(data.order.items || []).map((item: any, index: number) => ({ id: String(index), cells: [item.title, item.quantity, item.unit_price, item.line_total] }))} /><p>Subtotal: AED {data.order.subtotal}<br />Delivery: AED {data.order.delivery}<br />Total: AED {data.order.total}</p></div> });
+    const retryOdoo = async () => {
+      try {
+        await api(session, `/api/admin/orders/${id}/odoo-sync`, { method: 'POST' });
+        setToast({ tone: 'ok', text: 'Odoo sync completed' });
+        await openOrder(session, id, setDetail, setToast);
+      } catch (error) {
+        setToast({ tone: 'error', text: error instanceof Error ? error.message : 'Odoo sync failed' });
+      }
+    };
+    setDetail({ title: data.order.id, content: <div><p>{data.order.customer?.name || 'Guest'} · {data.order.paymentStatus}</p><div className="bar health"><span>Odoo</span><Badge value={data.order.odooSyncStatus === 'synced' ? 'Connected' : data.order.odooSyncStatus || 'Pending'} /></div><p>Quotation: {data.order.odooOrderName || 'Not connected'}<br />State: {data.order.odooState || 'Pending'}<br />Last sync: {data.order.odooSyncedAt ? prettyDate(data.order.odooSyncedAt) : 'Never'}</p>{data.order.odooSyncStatus !== 'synced' ? <button className="btn mini" onClick={retryOdoo}>Retry Odoo Sync</button> : null}<Table columns={['Item', 'Qty', 'Unit', 'Line']} empty="No items" rows={(data.order.items || []).map((item: any, index: number) => ({ id: String(index), cells: [item.title, item.quantity, item.unit_price, item.line_total] }))} /><p>Subtotal: AED {data.order.subtotal}<br />Tax: AED {data.order.tax || 0}<br />Delivery: AED {data.order.delivery}<br />Total: AED {data.order.total}</p></div> });
   } catch (error) {
     setToast({ tone: 'error', text: error instanceof Error ? error.message : 'Unable to open order' });
   }
