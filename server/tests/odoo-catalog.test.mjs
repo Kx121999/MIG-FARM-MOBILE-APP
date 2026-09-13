@@ -12,6 +12,7 @@ const ENV = {
   NODE_ENV: 'production',
   ODOO_BASE_URL: 'https://odoo.example.test/',
   ODOO_API_KEY: 'odoo-test-secret',
+  ODOO_MIN_REQUEST_INTERVAL_MS: '0',
 };
 
 const modelFields = {
@@ -183,6 +184,185 @@ test('Odoo configuration is backend-only, complete, and production-safe', () => 
   assert.equal(configured.baseUrl, 'https://odoo.example.test');
 });
 
+test('initial field discovery and dependent lookups never overlap', async () => {
+  const mock = mockOdoo();
+  let active = 0;
+  let maxActive = 0;
+  const fetchImpl = async (...args) => {
+    active += 1;
+    maxActive = Math.max(maxActive, active);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    try {
+      return await mock.fetchImpl(...args);
+    } finally {
+      active -= 1;
+    }
+  };
+  const catalog = createOdooCatalog({
+    env: ENV,
+    fetchImpl,
+    logger: null,
+  });
+  await catalog.list();
+  assert.equal(maxActive, 1);
+  const discoveries = mock.calls
+    .filter((call) => call.url.endsWith('/fields_get'))
+    .map((call) => decodeURIComponent(
+      /\/json\/2\/([^/]+)\/fields_get$/.exec(call.url)[1],
+    ));
+  assert.deepEqual(discoveries, [
+    'product.template',
+    'product.product',
+    'product.category',
+    'product.public.category',
+    'product.template.attribute.value',
+  ]);
+});
+
+test('429 honors Retry-After, logs safe diagnostics, and stops after three retries', async () => {
+  const delays = [];
+  const logs = [];
+  let calls = 0;
+  const catalog = createOdooCatalog({
+    env: ENV,
+    minRequestIntervalMs: 0,
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response('{}', {
+        status: 429,
+        headers: { 'Retry-After': '2' },
+      });
+    },
+    sleep: async (delay) => delays.push(delay),
+    random: () => 0,
+    logger: { warn: (message, details) => logs.push({ message, details }) },
+  });
+  await assert.rejects(
+    () => catalog.list(),
+    (error) => error.code === 'odoo_rate_limited',
+  );
+  assert.equal(calls, 4);
+  assert.deepEqual(delays, [2000, 2000, 2000]);
+  assert.equal(logs.length, 3);
+  assert.deepEqual(
+    logs.map(({ details }) => ({
+      status: details.upstreamStatus,
+      attempt: details.attempt,
+      delay: details.retryDelayMs,
+      model: details.model,
+      method: details.method,
+    })),
+    [1, 2, 3].map((attempt) => ({
+      status: 429,
+      attempt,
+      delay: 2000,
+      model: 'product.template',
+      method: 'fields_get',
+    })),
+  );
+  assert.equal(JSON.stringify(logs).includes(ENV.ODOO_API_KEY), false);
+});
+
+test('429 without Retry-After uses bounded exponential fallback', async () => {
+  const delays = [];
+  let calls = 0;
+  const catalog = createOdooCatalog({
+    env: ENV,
+    minRequestIntervalMs: 0,
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response('{}', { status: 429 });
+    },
+    sleep: async (delay) => delays.push(delay),
+    random: () => 0,
+    logger: null,
+  });
+  await assert.rejects(
+    () => catalog.list(),
+    (error) => error.code === 'odoo_rate_limited',
+  );
+  assert.equal(calls, 4);
+  assert.deepEqual(delays, [1000, 2500, 5000]);
+});
+
+test('catalog refresh is single-flight across concurrent callers', async () => {
+  const mock = mockOdoo();
+  const fetchImpl = async (...args) => {
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    return mock.fetchImpl(...args);
+  };
+  const catalog = createOdooCatalog({ env: ENV, fetchImpl, logger: null });
+  const results = await Promise.all([
+    catalog.list({ force: true }),
+    catalog.list({ force: true }),
+    catalog.list({ force: true }),
+  ]);
+  assert.ok(results.every((result) => result.products.length === 3));
+  assert.equal(
+    mock.calls.filter((call) =>
+      call.url.endsWith('/product.template/search_read'),
+    ).length,
+    1,
+  );
+  assert.equal(
+    mock.calls.filter((call) =>
+      call.url.endsWith('/product.template/fields_get'),
+    ).length,
+    1,
+  );
+});
+
+test('all Odoo calls share the configured minimum request spacing', async () => {
+  const mock = mockOdoo();
+  const startedAt = [];
+  const waits = [];
+  let clock = 0;
+  const catalog = createOdooCatalog({
+    env: ENV,
+    fetchImpl: async (...args) => {
+      startedAt.push(clock);
+      return mock.fetchImpl(...args);
+    },
+    minRequestIntervalMs: 300,
+    now: () => clock,
+    sleep: async (delay) => {
+      waits.push(delay);
+      clock += delay;
+    },
+    random: () => 0,
+    logger: null,
+  });
+  await catalog.list();
+  assert.ok(startedAt.length > 5);
+  assert.ok(
+    startedAt.slice(1).every((value, index) =>
+      value - startedAt[index] >= 300,
+    ),
+  );
+  assert.ok(waits.every((delay) => delay === 300));
+});
+
+test('field discovery remains cached for six hours', async () => {
+  let clock = 1000;
+  const mock = mockOdoo();
+  const catalog = createOdooCatalog({
+    env: ENV,
+    fetchImpl: mock.fetchImpl,
+    now: () => clock,
+    logger: null,
+  });
+  await catalog.list();
+  const discoveries = () =>
+    mock.calls.filter((call) => call.url.endsWith('/fields_get')).length;
+  assert.equal(discoveries(), 5);
+  clock += 60 * 60_000;
+  await catalog.list({ force: true });
+  assert.equal(discoveries(), 5);
+  clock += 6 * 60 * 60_000 + 1;
+  await catalog.list({ force: true });
+  assert.equal(discoveries(), 10);
+});
+
 test('Odoo templates and variants normalize with visibility, prices, stock, categories, and stable handles', async () => {
   const mock = mockOdoo();
   const catalog = createOdooCatalog({ env: ENV, fetchImpl: mock.fetchImpl, logger: null });
@@ -246,6 +426,8 @@ test('catalog cache supports fresh hits, forced refresh, new products, and bound
     now: () => clock,
     ttlMs: 50,
     staleTtlMs: 200,
+    sleep: async () => {},
+    random: () => 0,
     logger: null,
   });
   const first = await catalog.list();
@@ -283,14 +465,66 @@ test('Odoo auth, rate, 5xx, and timeout failures are safe', async () => {
     [503, 'odoo_unavailable'],
   ]) {
     const mock = mockOdoo({ ...fixtureState(), status });
-    const catalog = createOdooCatalog({ env: ENV, fetchImpl: mock.fetchImpl, logger: null });
+    const catalog = createOdooCatalog({
+      env: ENV,
+      fetchImpl: mock.fetchImpl,
+      sleep: async () => {},
+      random: () => 0,
+      logger: null,
+    });
     await assert.rejects(() => catalog.list(), (error) => error.code === code && error.statusCode === 503);
+    assert.equal(mock.calls.length, [401, 403].includes(status) ? 1 : 4);
   }
   const timeoutFetch = (_url, options) => new Promise((_resolve, reject) => {
     options.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
   });
   const catalog = createOdooCatalog({ env: ENV, fetchImpl: timeoutFetch, timeoutMs: 100, logger: null });
   await assert.rejects(() => catalog.list(), (error) => error.code === 'odoo_timeout');
+});
+
+test('/health shares an initial refresh and applies a cooldown after failure', async (t) => {
+  let clock = 1000;
+  let calls = 0;
+  const catalog = createOdooCatalog({
+    env: ENV,
+    minRequestIntervalMs: 0,
+    now: () => clock,
+    fetchImpl: async () => {
+      calls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return new Response('{}', { status: 401 });
+    },
+    logger: null,
+  });
+  const server = createApp({
+    db: null,
+    catalogService: catalog,
+    mediaRoot: process.cwd(),
+    stripe: { configured: false, verify: () => false },
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const responses = await Promise.all([
+    fetch(origin + '/health'),
+    fetch(origin + '/health'),
+    fetch(origin + '/health'),
+  ]);
+  const payloads = await Promise.all(responses.map((response) => response.json()));
+  assert.equal(calls, 1);
+  assert.ok(payloads.every((payload) =>
+    payload.catalogSource === 'odoo' &&
+    payload.odoo === 'configured' &&
+    payload.odooReachable === false &&
+    payload.products === 0 &&
+    payload.catalogLastError === 'odoo_auth_failed',
+  ));
+  await fetch(origin + '/health');
+  assert.equal(calls, 1);
+  clock += 60_000;
+  await fetch(origin + '/health');
+  assert.equal(calls, 2);
 });
 
 test('image proxy returns normal image bytes and health never exposes the Odoo key', async (t) => {

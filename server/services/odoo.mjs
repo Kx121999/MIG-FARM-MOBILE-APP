@@ -3,7 +3,12 @@ import { fail } from '../lib/validation.mjs';
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_TTL_MS = 45_000;
 const DEFAULT_STALE_TTL_MS = 5 * 60_000;
-const DISCOVERY_TTL_MS = 5 * 60_000;
+const DISCOVERY_TTL_MS = 6 * 60 * 60_000;
+const DEFAULT_MIN_REQUEST_INTERVAL_MS = 300;
+const HEALTH_REFRESH_COOLDOWN_MS = 60_000;
+const RETRY_DELAYS_MS = [1000, 2500, 5000];
+const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
+const MAX_RETRY_AFTER_MS = 60_000;
 const PAGE_SIZE = 200;
 const MAX_RECORDS = 10_000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -113,6 +118,16 @@ function safeFailure(code, upstreamStatus) {
   return error;
 }
 
+function retryAfterMs(value, currentTime) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0)
+    return Math.min(MAX_RETRY_AFTER_MS, Math.ceil(seconds * 1000));
+  const date = Date.parse(value);
+  if (!Number.isFinite(date)) return null;
+  return Math.min(MAX_RETRY_AFTER_MS, Math.max(0, date - currentTime));
+}
+
 function contentType(buffer) {
   if (buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])))
     return 'image/png';
@@ -173,15 +188,27 @@ export function createOdooCatalog({
   timeoutMs = Number(env.ODOO_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS,
   ttlMs = Number(env.ODOO_CATALOG_TTL_MS) || DEFAULT_TTL_MS,
   staleTtlMs = Number(env.ODOO_CATALOG_STALE_TTL_MS) || DEFAULT_STALE_TTL_MS,
+  minRequestIntervalMs = env.ODOO_MIN_REQUEST_INTERVAL_MS === undefined
+    ? DEFAULT_MIN_REQUEST_INTERVAL_MS
+    : Number(env.ODOO_MIN_REQUEST_INTERVAL_MS),
   now = Date.now,
+  sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay)),
+  random = Math.random,
   logger = console,
 } = {}) {
   const config = odooConfiguration(env);
+  const requestInterval = Number.isFinite(minRequestIntervalMs)
+    ? Math.max(0, minRequestIntervalMs)
+    : DEFAULT_MIN_REQUEST_INTERVAL_MS;
   let cache = null;
   let inflight = null;
   let lastError = null;
-  let discoveredAt = 0;
+  let discoveredAt = null;
+  let lastHealthRefreshAt = null;
+  let lastRequestAt = null;
+  let requestQueue = Promise.resolve();
   const fieldCache = new Map();
+  const fieldInflight = new Map();
   const imageCache = new Map();
 
   const ensureConfigured = () => {
@@ -189,69 +216,132 @@ export function createOdooCatalog({
     if (typeof fetchImpl !== 'function') throw safeFailure('odoo_unavailable');
   };
 
+  function enqueue(operation) {
+    const queued = requestQueue.then(operation, operation);
+    requestQueue = queued.then(() => undefined, () => undefined);
+    return queued;
+  }
+
+  async function waitForRequestSlot() {
+    if (lastRequestAt !== null) {
+      const remaining = requestInterval - Math.max(0, now() - lastRequestAt);
+      if (remaining > 0) await sleep(remaining);
+    }
+    lastRequestAt = now();
+  }
+
+  function retryDelay(response, attempt) {
+    const fromHeader = retryAfterMs(response.headers?.get?.('retry-after'), now());
+    const base = fromHeader ?? RETRY_DELAYS_MS[attempt];
+    const randomValue = Number(random());
+    const jitter = Math.floor(
+      Math.max(0, Math.min(1, Number.isFinite(randomValue) ? randomValue : 0)) * 250,
+    );
+    return Math.max(0, base + jitter);
+  }
+
   async function call(model, method, body = {}) {
     ensureConfigured();
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), Math.max(100, timeoutMs));
-    try {
-      const response = await fetchImpl(
-        `${config.baseUrl}/json/2/${encodeURIComponent(model)}/${encodeURIComponent(method)}`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `bearer ${config.apiKey}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'User-Agent': 'MIG-FARM-APP',
-          },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        },
-      );
-      if (!response.ok)
-        throw safeFailure(upstreamFailure(response.status), response.status);
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw safeFailure('odoo_invalid_response');
+    return enqueue(async () => {
+      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+        await waitForRequestSlot();
+        const controller = new AbortController();
+        const timeout = setTimeout(
+          () => controller.abort(),
+          Math.max(100, timeoutMs),
+        );
+        let response;
+        try {
+          response = await fetchImpl(
+            `${config.baseUrl}/json/2/${encodeURIComponent(model)}/${encodeURIComponent(method)}`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `bearer ${config.apiKey}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'User-Agent': 'MIG-FARM-APP',
+              },
+              body: JSON.stringify(body),
+              signal: controller.signal,
+            },
+          );
+        } catch (error) {
+          if (error?.name === 'AbortError') throw safeFailure('odoo_timeout');
+          if (error?.code && error?.statusCode) throw error;
+          throw safeFailure('odoo_unavailable');
+        } finally {
+          clearTimeout(timeout);
+        }
+        if (!response.ok) {
+          if (
+            RETRYABLE_STATUSES.has(response.status) &&
+            attempt < RETRY_DELAYS_MS.length
+          ) {
+            const delay = retryDelay(response, attempt);
+            logger?.warn?.('Odoo request retry', {
+              upstreamStatus: response.status,
+              attempt: attempt + 1,
+              retryDelayMs: delay,
+              model,
+              method,
+            });
+            if (delay > 0) await sleep(delay);
+            continue;
+          }
+          throw safeFailure(upstreamFailure(response.status), response.status);
+        }
+        let data;
+        try {
+          data = await response.json();
+        } catch {
+          throw safeFailure('odoo_invalid_response');
+        }
+        if (data && typeof data === 'object' && hasOwn(data, 'error'))
+          throw safeFailure('odoo_request_failed');
+        return data && typeof data === 'object' && hasOwn(data, 'result')
+          ? data.result
+          : data;
       }
-      if (data && typeof data === 'object' && hasOwn(data, 'error'))
-        throw safeFailure('odoo_request_failed');
-      return data && typeof data === 'object' && hasOwn(data, 'result')
-        ? data.result
-        : data;
-    } catch (error) {
-      if (error?.name === 'AbortError') throw safeFailure('odoo_timeout');
-      if (error?.code && error?.statusCode) throw error;
       throw safeFailure('odoo_unavailable');
-    } finally {
-      clearTimeout(timeout);
-    }
+    });
   }
 
   async function fieldsFor(model) {
-    if (now() - discoveredAt > DISCOVERY_TTL_MS) {
+    if (discoveredAt === null || now() - discoveredAt > DISCOVERY_TTL_MS) {
       fieldCache.clear();
+      fieldInflight.clear();
       discoveredAt = now();
     }
     if (fieldCache.has(model)) return fieldCache.get(model);
-    try {
-      const result = await call(model, 'fields_get', { attributes: ['type'] });
-      const available = result && typeof result === 'object' ? Object.keys(result) : [];
-      const selected = FIELD_CANDIDATES[model].filter((field) => available.includes(field));
-      fieldCache.set(model, selected);
-      return selected;
-    } catch (error) {
-      if (
-        OPTIONAL_MODELS.has(model) &&
-        [400, 404].includes(error?.upstreamStatus)
-      ) {
-        fieldCache.set(model, []);
-        return [];
+    if (fieldInflight.has(model)) return fieldInflight.get(model);
+    const discovery = (async () => {
+      try {
+        const result = await call(model, 'fields_get', {
+          attributes: ['type'],
+        });
+        const available =
+          result && typeof result === 'object' ? Object.keys(result) : [];
+        const selected = FIELD_CANDIDATES[model].filter((field) =>
+          available.includes(field),
+        );
+        fieldCache.set(model, selected);
+        return selected;
+      } catch (error) {
+        if (
+          OPTIONAL_MODELS.has(model) &&
+          [400, 404].includes(error?.upstreamStatus)
+        ) {
+          fieldCache.set(model, []);
+          return [];
+        }
+        throw error;
+      } finally {
+        fieldInflight.delete(model);
       }
-      throw error;
-    }
+    })();
+    fieldInflight.set(model, discovery);
+    return discovery;
   }
 
   async function searchRead(model, domain, fields, order = 'id asc') {
@@ -278,14 +368,11 @@ export function createOdooCatalog({
   }
 
   async function loadCatalog() {
-    const [templateFields, variantFields, categoryFields, publicCategoryFields, attributeFields] =
-      await Promise.all([
-        fieldsFor('product.template'),
-        fieldsFor('product.product'),
-        fieldsFor('product.category'),
-        fieldsFor('product.public.category'),
-        fieldsFor('product.template.attribute.value'),
-      ]);
+    const templateFields = await fieldsFor('product.template');
+    const variantFields = await fieldsFor('product.product');
+    const categoryFields = await fieldsFor('product.category');
+    const publicCategoryFields = await fieldsFor('product.public.category');
+    const attributeFields = await fieldsFor('product.template.attribute.value');
     for (const [model, fields, required] of [
       ['product.template', templateFields, ['id', 'name']],
       ['product.product', variantFields, ['id', 'product_tmpl_id']],
@@ -335,11 +422,21 @@ export function createOdooCatalog({
         ),
       ),
     );
-    const [categories, publicCategories, attributes] = await Promise.all([
-      namedRecords('product.category', categoryIds, categoryFields),
-      namedRecords('product.public.category', publicCategoryIds, publicCategoryFields),
-      namedRecords('product.template.attribute.value', attributeIds, attributeFields),
-    ]);
+    const categories = await namedRecords(
+      'product.category',
+      categoryIds,
+      categoryFields,
+    );
+    const publicCategories = await namedRecords(
+      'product.public.category',
+      publicCategoryIds,
+      publicCategoryFields,
+    );
+    const attributes = await namedRecords(
+      'product.template.attribute.value',
+      attributeIds,
+      attributeFields,
+    );
 
     const variantsByTemplate = new Map();
     for (const record of variants) {
@@ -466,42 +563,68 @@ export function createOdooCatalog({
     };
   }
 
+  function refreshCatalog() {
+    if (!inflight) {
+      inflight = loadCatalog()
+        .then((next) => {
+          cache = next;
+          lastError = null;
+          return next;
+        })
+        .catch((error) => {
+          lastError = errorCode(error);
+          throw error;
+        })
+        .finally(() => {
+          inflight = null;
+        });
+    }
+    return inflight;
+  }
+
   async function list({ force = false, allowStale = true } = {}) {
     const age = cacheAge(cache, now);
     if (!force && cache && age <= Math.max(0, ttlMs))
       return {
         ...cache,
-        catalogMeta: { source: 'odoo', cache: 'fresh', stale: false, ageSeconds: Math.floor(age / 1000) },
+        catalogMeta: {
+          source: 'odoo',
+          cache: 'fresh',
+          stale: false,
+          ageSeconds: Math.floor(age / 1000),
+        },
       };
-    if (inflight) return inflight;
-    inflight = (async () => {
-      try {
-        const next = await loadCatalog();
-        cache = next;
-        lastError = null;
+    try {
+      const next = await refreshCatalog();
+      return {
+        ...next,
+        catalogMeta: {
+          source: 'odoo',
+          cache: 'refreshed',
+          stale: false,
+          ageSeconds: 0,
+        },
+      };
+    } catch (error) {
+      const staleAge = cacheAge(cache, now);
+      if (allowStale && cache && staleAge <= Math.max(ttlMs, staleTtlMs)) {
+        logger?.warn?.('Odoo catalog refresh failed', {
+          upstreamStatus: error?.upstreamStatus || null,
+          errorCode: lastError,
+        });
         return {
-          ...next,
-          catalogMeta: { source: 'odoo', cache: 'refreshed', stale: false, ageSeconds: 0 },
+          ...cache,
+          catalogMeta: {
+            source: 'odoo',
+            cache: 'stale',
+            stale: true,
+            ageSeconds: Math.floor(staleAge / 1000),
+            error: lastError,
+          },
         };
-      } catch (error) {
-        lastError = errorCode(error);
-        const staleAge = cacheAge(cache, now);
-        if (allowStale && cache && staleAge <= Math.max(ttlMs, staleTtlMs)) {
-          logger?.warn?.(`Odoo catalog refresh failed: ${lastError}`);
-          return {
-            ...cache,
-            catalogMeta: {
-              source: 'odoo', cache: 'stale', stale: true,
-              ageSeconds: Math.floor(staleAge / 1000), error: lastError,
-            },
-          };
-        }
-        throw error;
-      } finally {
-        inflight = null;
       }
-    })();
-    return inflight;
+      throw error;
+    }
   }
 
   async function getByHandle(handle, options) {
@@ -556,24 +679,27 @@ export function createOdooCatalog({
           ? Math.floor(cacheAge(cache, now) / 1000) : null,
         lastError: 'odoo_not_configured',
       };
-    try {
-      const current = await list();
-      return {
-        source: 'odoo', configured: 'configured',
-        reachable: current.catalogMeta.cache !== 'stale',
-        products: current.products.length, version: current.version,
-        cacheAgeSeconds: current.catalogMeta.ageSeconds,
-        stale: current.catalogMeta.stale, lastError,
-      };
-    } catch (error) {
-      return {
-        source: 'odoo', configured: 'configured', reachable: false,
-        products: cache?.products.length || 0,
-        cacheAgeSeconds: Number.isFinite(cacheAge(cache, now))
-          ? Math.floor(cacheAge(cache, now) / 1000) : null,
-        lastError: errorCode(error),
-      };
+    if (!cache && inflight) {
+      await inflight.catch(() => undefined);
+    } else if (
+      !cache &&
+      (lastHealthRefreshAt === null ||
+        now() - lastHealthRefreshAt >= HEALTH_REFRESH_COOLDOWN_MS)
+    ) {
+      lastHealthRefreshAt = now();
+      await refreshCatalog().catch(() => undefined);
     }
+    const age = cacheAge(cache, now);
+    return {
+      source: 'odoo',
+      configured: 'configured',
+      reachable: Boolean(cache) && !lastError,
+      products: cache?.products.length || 0,
+      version: cache?.version,
+      cacheAgeSeconds: Number.isFinite(age) ? Math.floor(age / 1000) : null,
+      stale: Boolean(cache && (age > Math.max(0, ttlMs) || lastError)),
+      lastError,
+    };
   }
 
   return {
