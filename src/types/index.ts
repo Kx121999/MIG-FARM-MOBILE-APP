@@ -8,6 +8,14 @@ export type ProductImage = {
   height?: number;
 };
 
+export type StoreCategory = {
+  id: number;
+  name: string;
+  parentId: number | null;
+  sequence?: number;
+  updatedAt?: string;
+};
+
 export type ProductVariant = {
   id: number;
   title: string;
@@ -42,11 +50,13 @@ export type Product = {
   tags: string[];
   images: ProductImage[];
   variants: ProductVariant[];
+  categories: StoreCategory[];
   available?: boolean;
   stock_state?: 'in_stock' | 'out_of_stock' | 'unknown';
   odoo_template_id?: number;
   catalog_source?: 'odoo' | string;
-  category?: { id: number; name: string } | null;
+  category?: StoreCategory | null;
+  internal_category?: { id: number; name: string } | null;
   published_at?: string;
   updated_at?: string;
 };

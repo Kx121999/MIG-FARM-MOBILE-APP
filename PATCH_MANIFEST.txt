@@ -1,0 +1,22 @@
+MIG FARM ORDER BRIDGE CLIENT + ODOO WEBSITE CATEGORY SYNC PATCH
+Validation: typecheck PASS; tests 127/127 PASS; Expo config PASS
+No database migration. No stock writes. No production Odoo order. No payment activation.
+
+Files:
+.env.example
+server/services/odoo.mjs
+server/src/app.mjs
+src/types/index.ts
+src/constants/categories.ts
+src/services/catalog.ts
+src/hooks/useProducts.ts
+src/components/CategoryCard.tsx
+src/components/CategoryIcon.tsx
+app/(tabs)/index.tsx
+app/(tabs)/catalog.tsx
+src/services/orderPreparation.ts
+src/services/payments.ts
+app/checkout.tsx
+server/tests/odoo-website-categories.test.mjs
+scripts/storefront-category-client.test.mjs
+scripts/order-prepare-client.test.mjs

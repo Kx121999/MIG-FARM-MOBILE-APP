@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchAllProducts } from '@/services/catalog';
-import { Product } from '@/types';
+import { fetchCatalog } from '@/services/catalog';
+import { Product, StoreCategory } from '@/types';
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -11,7 +12,9 @@ export function useProducts() {
     setLoading(true);
     setError(null);
     try {
-      setProducts(await fetchAllProducts(force));
+      const catalog = await fetchCatalog(force);
+      setProducts(catalog.products);
+      setCategories(catalog.categories);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'store_unavailable');
     } finally {
@@ -20,5 +23,5 @@ export function useProducts() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-  return { products, loading, error, reload: () => load(true) };
+  return { products, categories, loading, error, reload: () => load(true) };
 }

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CategoryId, productMatchesCategory } from '@/constants/categories';
-import { Product, ProductImage, ProductVariant } from '@/types';
+import { Product, ProductImage, ProductVariant, StoreCategory } from '@/types';
 
 const env = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
 
@@ -10,11 +10,13 @@ export const APP_ORIGIN = (env.EXPO_PUBLIC_APP_URL || API_ORIGIN).replace(/\/+$/
 const PRODUCTS_CACHE_KEY = 'mig_farm_catalog_cache_v2';
 const CACHE_TTL_MS = 60 * 1000;
 
-type CachedProducts = { updatedAt: number; products: Product[] };
-type RawProduct = Omit<Product, 'tags' | 'images' | 'variants'> & {
+type CatalogSnapshot = { products: Product[]; categories: StoreCategory[] };
+type CachedCatalog = CatalogSnapshot & { updatedAt: number };
+type RawProduct = Omit<Product, 'tags' | 'images' | 'variants' | 'categories'> & {
   tags?: string[] | string | null;
   images?: ProductImage[] | null;
   variants?: ProductVariant[] | null;
+  categories?: StoreCategory[] | null;
 };
 
 function parseTags(tags: RawProduct['tags']) {
@@ -31,6 +33,21 @@ function mediaUrl(value?: string | null) {
 
 function normalizeImage(image: ProductImage): ProductImage {
   return { ...image, src: mediaUrl(image.src) };
+}
+
+function normalizeCategory(value: StoreCategory): StoreCategory | null {
+  const id = Number(value?.id);
+  const name = typeof value?.name === 'string' ? value.name.trim() : '';
+  if (!Number.isSafeInteger(id) || id <= 0 || !name) return null;
+  const parent = Number(value.parentId);
+  const sequence = Number(value.sequence);
+  return {
+    id,
+    name,
+    parentId: Number.isSafeInteger(parent) && parent > 0 ? parent : null,
+    ...(Number.isFinite(sequence) ? { sequence } : {}),
+    ...(typeof value.updatedAt === 'string' ? { updatedAt: value.updatedAt } : {}),
+  };
 }
 
 function normalizeProduct(product: RawProduct): Product {
@@ -53,11 +70,15 @@ function normalizeProduct(product: RawProduct): Product {
       ...variant,
       featured_image: variant.featured_image ? normalizeImage(variant.featured_image) : null,
     })) : [],
+    categories: Array.isArray(product.categories)
+      ? product.categories.map(normalizeCategory).filter((item): item is StoreCategory => Boolean(item))
+      : [],
     available: product.available,
     stock_state: product.stock_state,
     odoo_template_id: product.odoo_template_id,
     catalog_source: product.catalog_source,
-    category: product.category,
+    category: product.category ? normalizeCategory(product.category) : null,
+    internal_category: product.internal_category,
     published_at: product.published_at,
     updated_at: product.updated_at,
   };
@@ -78,45 +99,59 @@ async function requestJson<T>(path: string, signal?: AbortSignal, timeoutMs = 12
   }
 }
 
-async function readProductCache(allowExpired = false) {
+async function readCatalogCache(allowExpired = false): Promise<CatalogSnapshot | null> {
   try {
     const cached = await AsyncStorage.getItem(PRODUCTS_CACHE_KEY);
     if (!cached) return null;
-    const parsed = JSON.parse(cached) as CachedProducts;
+    const parsed = JSON.parse(cached) as Partial<CachedCatalog>;
     if (!Array.isArray(parsed.products)) return null;
-    if (!allowExpired && Date.now() - parsed.updatedAt > CACHE_TTL_MS) return null;
-    return parsed.products;
+    if (!Array.isArray(parsed.categories)) return null;
+    if (!allowExpired && Date.now() - Number(parsed.updatedAt) > CACHE_TTL_MS) return null;
+    return {
+      products: (parsed.products as RawProduct[]).map(normalizeProduct),
+      categories: Array.isArray(parsed.categories)
+        ? parsed.categories.map(normalizeCategory).filter((item): item is StoreCategory => Boolean(item))
+        : [],
+    };
   } catch {
     return null;
   }
 }
 
-async function writeProductCache(products: Product[]) {
+async function writeCatalogCache(catalog: CatalogSnapshot) {
   try {
-    await AsyncStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify({ updatedAt: Date.now(), products }));
+    await AsyncStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify({ updatedAt: Date.now(), ...catalog }));
   } catch {
     // Catalog remains usable even if local persistence is unavailable.
   }
 }
 
-export async function fetchAllProducts(force = false, signal?: AbortSignal) {
+export async function fetchCatalog(force = false, signal?: AbortSignal): Promise<CatalogSnapshot> {
   if (!force) {
-    const cached = await readProductCache();
+    const cached = await readCatalogCache();
     if (cached) return cached;
   }
   try {
-    const data = await requestJson<{ products?: RawProduct[] }>(
+    const data = await requestJson<{ products?: RawProduct[]; categories?: StoreCategory[] }>(
       force ? '/api/products?refresh=1' : '/api/products',
       signal,
     );
     const products = (data.products || []).map(normalizeProduct).filter((product) => product.handle);
-    await writeProductCache(products);
-    return products;
+    const categories = (data.categories || [])
+      .map(normalizeCategory)
+      .filter((item): item is StoreCategory => Boolean(item));
+    const catalog = { products, categories };
+    await writeCatalogCache(catalog);
+    return catalog;
   } catch (error) {
-    const stale = await readProductCache(true);
+    const stale = await readCatalogCache(true);
     if (stale) return stale;
     throw error;
   }
+}
+
+export async function fetchAllProducts(force = false, signal?: AbortSignal) {
+  return (await fetchCatalog(force, signal)).products;
 }
 
 export async function fetchProduct(handle: string, signal?: AbortSignal) {

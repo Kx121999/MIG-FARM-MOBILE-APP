@@ -9,7 +9,7 @@ import { colors, radius } from '@/constants/theme';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatAED } from '@/services/catalog';
-import { CheckoutCustomer, CheckoutError, createCheckoutSession, completeCheckoutAttempt, PaymentSession, ShippingAddress } from '@/services/payments';
+import { CheckoutCustomer, CheckoutError, createCheckoutSession, completeCheckoutAttempt, ORDER_PREPARE_ENABLED, PaymentSession, prepareOrder, PreparedOrder, ShippingAddress } from '@/services/payments';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCustomerAddresses } from '@/hooks/useCustomerAddresses';
 import { ChoiceGroup } from '@/components/account/ChoiceGroup';
@@ -36,6 +36,7 @@ export default function CheckoutScreen() {
   const [customer, setCustomer] = useState<CheckoutCustomer>({ name: '', email: '', phone: '' });
   const [address, setAddress] = useState<ShippingAddress>({ emirate: 'Dubai', city: '', addressLine: '', notes: '' });
   const [session, setSession] = useState<PaymentSession | null>(null);
+  const [preparedOrder, setPreparedOrder] = useState<PreparedOrder | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [completedOrder, setCompletedOrder] = useState('');
@@ -66,7 +67,11 @@ export default function CheckoutScreen() {
     requestRef.current?.abort();
     requestRef.current = new AbortController();
     try {
-      setSession(await createCheckoutSession(cart, customer, address, requestRef.current.signal));
+      if (ORDER_PREPARE_ENABLED) {
+        setPreparedOrder(await prepareOrder(cart, customer, address, requestRef.current.signal));
+      } else {
+        setSession(await createCheckoutSession(cart, customer, address, requestRef.current.signal));
+      }
     } catch (reason) {
       if (reason instanceof CheckoutError && reason.code === 'payment_provider_not_configured') {
         setError(language === 'ar' ? 'خدمة الدفع غير متاحة حاليًا. حاول مرة أخرى لاحقًا.' : 'Payment is currently unavailable. Please try again later.');
@@ -140,8 +145,11 @@ export default function CheckoutScreen() {
             <View style={styles.summary}>
               <Text style={[styles.summaryTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'ملخص الدفع' : 'Payment summary'}</Text>
               <View style={[styles.totalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><Text style={styles.totalLabel}>{language === 'ar' ? `${cart.length} منتجات` : `${cart.length} products`}</Text><Text style={styles.total}>{formatAED(subtotal)}</Text></View>
+              {preparedOrder ? <><View style={[styles.totalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><Text style={styles.totalLabel}>{language === 'ar' ? 'الضريبة حسب Odoo' : 'Odoo tax'}</Text><Text style={styles.totalLabel}>{formatAED(preparedOrder.tax)}</Text></View><View style={[styles.totalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><Text style={styles.totalLabel}>{language === 'ar' ? 'الإجمالي المعتمد' : 'Authoritative total'}</Text><Text style={styles.total}>{formatAED(preparedOrder.total)}</Text></View></> : null}
               <View style={[styles.secureRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><ShieldCheck size={15} color={colors.success} /><Text style={styles.secureText}>{language === 'ar' ? 'السعر النهائي يُراجع من خادم Mig Farm قبل الدفع' : 'The final amount is verified by the Mig Farm server'}</Text></View>
             </View>
+
+            {preparedOrder ? <View style={styles.preparedNotice}><Text style={[styles.preparedTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? `تم تجهيز مسودة الطلب ${preparedOrder.odoo.orderName}` : `Draft order ${preparedOrder.odoo.orderName} is prepared`}</Text><Text style={[styles.preparedBody, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'الدفع غير مفعّل في هذه المرحلة، لذلك احتفظنا بالسلة ولم نؤكد الشراء.' : 'Payment is not enabled in this phase. Your cart is kept and no purchase was confirmed.'}</Text></View> : null}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
             {session && Platform.OS === 'web' ? <CheckoutPayment session={session} customer={customer} language={language} onSuccess={paymentSucceeded} onError={setError} /> : null}
@@ -149,10 +157,12 @@ export default function CheckoutScreen() {
         </ScrollView>
         {Platform.OS !== 'web' && session ? (
           <View style={styles.stickyAction}><CheckoutPayment session={session} customer={customer} language={language} onSuccess={paymentSucceeded} onError={setError} /></View>
-        ) : !session ? (
+        ) : !session && !preparedOrder ? (
           <View style={styles.stickyAction}>
-            <Pressable accessibilityRole="button" disabled={busy || !cart.length} style={({ pressed }) => [styles.continueButton, (busy || !cart.length) && styles.disabled, pressed && styles.primaryPressed]} onPress={preparePayment}><Text style={styles.continueButtonText}>{busy ? (language === 'ar' ? 'جاري تجهيز الدفع…' : 'Preparing payment…') : (language === 'ar' ? 'المتابعة لبيانات البطاقة' : 'Continue to card details')}</Text></Pressable>
+            <Pressable accessibilityRole="button" disabled={busy || !cart.length} style={({ pressed }) => [styles.continueButton, (busy || !cart.length) && styles.disabled, pressed && styles.primaryPressed]} onPress={preparePayment}><Text style={styles.continueButtonText}>{busy ? (language === 'ar' ? 'جاري التجهيز…' : 'Preparing…') : ORDER_PREPARE_ENABLED ? (language === 'ar' ? 'تجهيز مسودة الطلب' : 'Prepare draft order') : (language === 'ar' ? 'المتابعة لبيانات البطاقة' : 'Continue to card details')}</Text></Pressable>
           </View>
+        ) : preparedOrder ? (
+          <View style={styles.stickyAction}><View style={[styles.continueButton, styles.disabled]}><Text style={styles.continueButtonText}>{language === 'ar' ? 'الدفع سيتاح لاحقًا' : 'Payment will be enabled later'}</Text></View></View>
         ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -199,6 +209,9 @@ const styles = StyleSheet.create({
   total: { color: colors.primary, fontSize: 21, fontWeight: '900' },
   secureRow: { marginTop: 10, alignItems: 'center', gap: 5 },
   secureText: { color: colors.success, fontSize: 9, fontWeight: '800' },
+  preparedNotice: { padding: 13, borderRadius: radius.md, backgroundColor: colors.surface },
+  preparedTitle: { color: colors.primaryDark, fontSize: 13, fontWeight: '900' },
+  preparedBody: { color: colors.muted, fontSize: 11, lineHeight: 18, marginTop: 5 },
   error: { color: colors.danger, fontSize: 11, lineHeight: 18, fontWeight: '800', textAlign: 'center', paddingHorizontal: 8 },
   stickyAction: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   continueButton: { height: 50, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },

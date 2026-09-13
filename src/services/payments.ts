@@ -10,6 +10,14 @@ import {
   CustomerServiceError,
 } from '@/services/apiClient';
 import { CartItem } from '@/types';
+import {
+  createPrepareOrderClient,
+  orderPrepareFeatureEnabled,
+  prepareOrderBody,
+  type PreparedOrder,
+} from '@/services/orderPreparation';
+
+export type { PreparedOrder } from '@/services/orderPreparation';
 
 export type CheckoutCustomer = { name: string; email: string; phone: string };
 export type ShippingAddress = {
@@ -35,6 +43,10 @@ export class CheckoutError extends Error {
   }
 }
 const ATTEMPT_KEY = 'mig_farm_checkout_attempt_v1';
+const env = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+export const ORDER_PREPARE_ENABLED = orderPrepareFeatureEnabled(
+  env.EXPO_PUBLIC_ORDER_PREPARE_ENABLED,
+);
 let pending: Promise<unknown> = Promise.resolve();
 type Attempt = { digest: string; key: string };
 let cached: Attempt | null = null;
@@ -66,6 +78,27 @@ async function attemptKey(body: unknown) {
   pending = work;
   return work;
 }
+const requestPreparedOrder = createPrepareOrderClient({
+  enabled: ORDER_PREPARE_ENABLED,
+  idempotencyKey: attemptKey,
+  request: (path, options) => apiRequest<unknown>(path, options),
+});
+
+export async function prepareOrder(
+  cart: CartItem[],
+  customer: CheckoutCustomer,
+  shippingAddress: ShippingAddress,
+  signal?: AbortSignal,
+): Promise<PreparedOrder> {
+  try {
+    return await requestPreparedOrder(cart, customer, shippingAddress, signal);
+  } catch (error) {
+    if (error instanceof CustomerServiceError)
+      throw new CheckoutError(error.code, error.status);
+    throw error;
+  }
+}
+
 export async function completeCheckoutAttempt() {
   await pending.catch(() => undefined);
   cached = null;
@@ -77,15 +110,7 @@ export async function createCheckoutSession(
   shippingAddress: ShippingAddress,
   signal?: AbortSignal,
 ) {
-  const body = {
-    items: cart.map((item) => ({
-      productId: item.productId,
-      variantId: item.variant.id,
-      quantity: item.quantity,
-    })),
-    customer,
-    shippingAddress,
-  };
+  const body = prepareOrderBody(cart, customer, shippingAddress);
   const key = await attemptKey(body);
   try {
     return await apiRequest<PaymentSession>('/api/checkout/session', {

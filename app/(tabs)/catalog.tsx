@@ -8,7 +8,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { ProductCard, ProductCardSkeleton } from '@/components/ProductCard';
 import { ScreenState } from '@/components/ScreenState';
-import { CategoryId, categories } from '@/constants/categories';
+import { CategoryId, categoryDisplayName, orderedStoreCategories } from '@/constants/categories';
 import { colors, radius, sizes, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -16,14 +16,19 @@ import { useProducts } from '@/hooks/useProducts';
 import { filterProducts, localizedProductTitle, productAvailable, productPriceNumber, ProductSort, sortProducts, textDirection } from '@/services/catalog';
 
 const SEARCHES_KEY = 'mig_farm_recent_searches_v1';
+const categoryIdFromParam = (value?: string): CategoryId => {
+  if (!value || value === 'all') return 'all';
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : 'all';
+};
 
 export default function CatalogScreen({ searchMode = false }: { searchMode?: boolean } = {}) {
   const params = useLocalSearchParams<{ category?: string; query?: string; favorites?: string }>();
   const { language, isRTL, t } = useLanguage();
   const { favorites, compareIds } = useCommerce();
-  const { products, loading, error, reload } = useProducts();
+  const { products, categories: rawCategories, loading, error, reload } = useProducts();
   const [query, setQuery] = useState(params.query || '');
-  const [category, setCategory] = useState<CategoryId>((params.category as CategoryId) || 'all');
+  const [category, setCategory] = useState<CategoryId>(categoryIdFromParam(params.category));
   const [sort, setSort] = useState<ProductSort>('popular');
   const [brand, setBrand] = useState('all');
   const [productType, setProductType] = useState('all');
@@ -41,6 +46,14 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [shownCount, setShownCount] = useState(20);
   const categoryListRef = useRef<ScrollView>(null);
+  const categories = useMemo(() => orderedStoreCategories(rawCategories), [rawCategories]);
+  const categoryItems = useMemo<Array<{ id: CategoryId; label: string }>>(() => [
+    { id: 'all', label: language === 'ar' ? 'كل المنتجات' : 'All products' },
+    ...categories.map((item) => ({
+      id: item.id,
+      label: categoryDisplayName(item, categories),
+    })),
+  ], [categories, language]);
 
   useEffect(() => {
     AsyncStorage.getItem(SEARCHES_KEY).then((stored) => {
@@ -51,9 +64,14 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   }, []);
 
   useEffect(() => {
-    if (params.category && categories.some((item) => item.id === params.category)) setCategory(params.category as CategoryId);
+    const requested = categoryIdFromParam(params.category);
+    if (requested === 'all' || categories.some((item) => item.id === requested)) {
+      setCategory(requested);
+    } else if (categories.length) {
+      setCategory('all');
+    }
     if (typeof params.query === 'string') setQuery(params.query);
-  }, [params.category, params.query]);
+  }, [categories, params.category, params.query]);
 
   const brands = useMemo(() => Array.from(new Set(products.map((product) => product.vendor.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [products]);
   const productTypes = useMemo(() => Array.from(new Set(products.map((product) => product.product_type.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [products]);
@@ -203,12 +221,12 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
           onContentSizeChange={() => isRTL && categoryListRef.current?.scrollToEnd({ animated: false })}
           contentContainerStyle={[styles.categoryList, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
         >
-          {categories.map((item) => {
+          {categoryItems.map((item) => {
             const active = category === item.id;
             return (
               <Pressable key={item.id} accessibilityRole="button" onPress={() => setCategory(item.id)} style={({ pressed }) => [styles.categoryPill, active && styles.categoryPillActive, pressed && styles.pressed]}>
                 <CategoryIcon id={item.id} size={15} boxSize={28} inverse={active} />
-                <Text style={[styles.categoryText, active && styles.categoryTextActive]}>{item[language]}</Text>
+                <Text style={[styles.categoryText, active && styles.categoryTextActive]}>{item.label}</Text>
               </Pressable>
             );
           })}
@@ -269,7 +287,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
             </View>
             <Text style={[styles.sheetLabel, { textAlign: isRTL ? 'right' : 'left' }]}>{t('chooseCategory')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.sheetChips, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              {categories.map((item) => <Pressable key={item.id} onPress={() => setDraftCategory(item.id)} style={[styles.sheetChip, draftCategory === item.id && styles.sheetChipActive]}><Text style={[styles.sheetChipText, draftCategory === item.id && styles.sheetChipTextActive]}>{item[language]}</Text></Pressable>)}
+              {categoryItems.map((item) => <Pressable key={item.id} onPress={() => setDraftCategory(item.id)} style={[styles.sheetChip, draftCategory === item.id && styles.sheetChipActive]}><Text style={[styles.sheetChipText, draftCategory === item.id && styles.sheetChipTextActive]}>{item.label}</Text></Pressable>)}
             </ScrollView>
             <Text style={[styles.sheetLabel, { textAlign: isRTL ? 'right' : 'left' }]}>{t('brands')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.sheetChips, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>

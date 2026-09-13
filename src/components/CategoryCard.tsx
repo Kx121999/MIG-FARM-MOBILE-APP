@@ -1,42 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { Image, ImageSourcePropType, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { CategoryId, categories } from '@/constants/categories';
+import { Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StoreCategory } from '@/types';
 import { colors, radius, shadow, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { API_ORIGIN } from '@/services/catalog';
 import { MotionPressable } from '@/components/Motion';
 import { Skeleton } from '@/components/Skeleton';
 
-const localCategoryImages: Partial<Record<CategoryId, ImageSourcePropType>> = {
-  seeds: require('../../assets/category-seeds.webp'),
-  fertilizers: require('../../assets/category-fertilizers.webp'),
-  pest: require('../../assets/category-pest.webp'),
-  irrigation: require('../../assets/category-irrigation.webp'),
-  tools: require('../../assets/category-tools.webp'),
-  greenhouses: require('../../assets/category-greenhouses.webp'),
-};
-export function CategoryCard({ id, onPress, image }: { id: CategoryId; onPress: () => void; image?: string }) {
-  const { language, isRTL } = useLanguage();
+export function CategoryCard({ category, onPress, image }: { category: StoreCategory; onPress: () => void; image?: string | null }) {
+  const { isRTL } = useLanguage();
   const { fontScale } = useWindowDimensions();
-  const item = categories.find((entry) => entry.id === id) ?? categories[0];
-  const value = image || item.image;
-  const remote = value ? (/^https?:\/\//i.test(value) ? value : `${API_ORIGIN}${value.startsWith('/') ? '' : '/'}${value}`) : '';
-  const [remoteFailed, setRemoteFailed] = useState(false);
-  const [localFailed, setLocalFailed] = useState(false);
+  const remote = image
+    ? (/^https?:\/\//i.test(image) ? image : `${API_ORIGIN}${image.startsWith('/') ? '' : '/'}${image}`)
+    : '';
+  const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  useEffect(() => { setRemoteFailed(false); setLocalFailed(false); setLoaded(false); }, [id, remote]);
-  const usingLocal = remoteFailed || !remote;
-  const source = usingLocal ? (localFailed ? null : localCategoryImages[id]) : { uri: remote, cache: 'force-cache' as const };
+  useEffect(() => { setFailed(false); setLoaded(false); }, [category.id, remote]);
+  const source = remote && !failed ? { uri: remote, cache: 'force-cache' as const } : null;
   const scale = Math.min(1.6, Math.max(1, fontScale));
-  return <MotionPressable accessibilityRole="button" accessibilityLabel={item[language]} onPress={onPress} style={[styles.card, shadow, { height: 136 + 38 * scale }]}>
+  return <MotionPressable accessibilityRole="button" accessibilityLabel={category.name} onPress={onPress} style={[styles.card, shadow, { height: 136 + 38 * scale }]}>
     <View style={styles.imageArea}>
       {!loaded && source ? <Skeleton style={StyleSheet.absoluteFill} /> : null}
-      {source ? <Image source={source} style={styles.image} resizeMode={item.imageFit || 'contain'} onLoad={() => setLoaded(true)} onError={() => { if (usingLocal) setLocalFailed(true); else setRemoteFailed(true); }} />
+      {source ? <Image source={source} style={styles.image} resizeMode="contain" onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
         : <Text style={styles.fallback}>MIG FARM</Text>}
     </View>
-    <Text maxFontSizeMultiplier={1.6} numberOfLines={2} style={[styles.label, { height: 38 * scale, textAlign: isRTL ? 'right' : 'left' }]}>{item[language]}</Text>
+    <Text maxFontSizeMultiplier={1.6} numberOfLines={2} style={[styles.label, { height: 38 * scale, textAlign: isRTL ? 'right' : 'left' }]}>{category.name}</Text>
   </MotionPressable>;
 }
+
 const styles = StyleSheet.create({
   card: { width: 136, padding: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden' },
   imageArea: { height: 112, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, marginBottom: spacing.sm, overflow: 'hidden', borderRadius: radius.sm },

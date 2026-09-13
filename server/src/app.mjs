@@ -97,6 +97,7 @@ export function createApp({
         });
         return send(response, 200, {
           products: current.products,
+          categories: current.categories || [],
           version: current.version,
           updatedAt: current.updatedAt,
           catalogMeta: current.catalogMeta,

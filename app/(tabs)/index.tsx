@@ -11,28 +11,26 @@ import { ProductRail } from '@/components/ProductRail';
 import { ScreenState } from '@/components/ScreenState';
 import { SectionTitle } from '@/components/SectionTitle';
 import { MotionPressable } from '@/components/Motion';
-import { categories, CategoryId } from '@/constants/categories';
+import { orderedStoreCategories, productMatchesCategory } from '@/constants/categories';
 import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProducts } from '@/hooks/useProducts';
 import { useCommerce } from '@/contexts/CommerceContext';
-import { sortProducts } from '@/services/catalog';
+import { productImage, sortProducts } from '@/services/catalog';
 import { HomeContentSection, platformService } from '@/services/platform';
 import { Product } from '@/types';
 import { useRetention } from '@/contexts/RetentionContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { categories as discoveryCategories, productMatchesCategory } from '@/constants/categories';
 import { useFarm } from '@/contexts/FarmContext';
 import { useFarmIntelligence } from '@/hooks/useFarmIntelligence';
 
 const heroSource = require('../../assets/home-farm.webp');
-const homeCategories = categories.filter((item) => item.id !== 'all');
 const HOME_CONTENT_CACHE = 'mig_farm_home_content_v1';
 
 export default function HomeScreen() {
   const { language, isRTL, t } = useLanguage();
   const { fontScale } = useWindowDimensions();
-  const { products, loading, error, reload } = useProducts();
+  const { products, categories: storeCategories, loading, error, reload } = useProducts();
   const { recentProductIds } = useCommerce();
   const { personalization } = useRetention();
   const { user } = useAuth();
@@ -59,15 +57,20 @@ export default function HomeScreen() {
   const announcement = remoteSections.find((section) => section.kind === 'announcement');
   const promos = remoteSections.filter((section) => section.kind === 'promo').slice(0, 2);
   const arrivals = useMemo(() => sortProducts(products, 'newest').slice(0, 6), [products]);
+  const homeCategories = useMemo(() => orderedStoreCategories(storeCategories), [storeCategories]);
+  const categoryImages = useMemo(() => new Map(homeCategories.map((category) => {
+    const assignedProduct = products.find((product) => productMatchesCategory(product, category.id));
+    return [category.id, assignedProduct ? productImage(assignedProduct) : null];
+  })), [homeCategories, products]);
   const selected = useMemo(() => products.filter((product) => !arrivals.some((item) => item.id === product.id)).slice(0, 6), [products, arrivals]);
   const recent = useMemo(() => recentProductIds.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item)).slice(0, 4), [products, recentProductIds]);
   const personalized = useMemo(() => {
     if (!personalization || !recent.length) return [];
-    const category = discoveryCategories.find(item => item.id !== 'all' && productMatchesCategory(recent[0],item.id));
-    return category ? products.filter(item => !recentProductIds.includes(item.id) && productMatchesCategory(item,category.id)).slice(0,4) : [];
+    const categoryId = recent[0].categories?.[0]?.id;
+    return categoryId ? products.filter(item => !recentProductIds.includes(item.id) && productMatchesCategory(item,categoryId)).slice(0,4) : [];
   }, [personalization,recent,products,recentProductIds]);
   const Arrow = isRTL ? ArrowLeft : ArrowRight;
-  const openCategory = (category: CategoryId) => router.push({ pathname: '/(tabs)/catalog', params: { category } });
+  const openCategory = (category: number) => router.push({ pathname: '/(tabs)/catalog', params: { category: String(category) } });
   const openStore = () => router.push('/(tabs)/catalog');
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
@@ -111,9 +114,9 @@ export default function HomeScreen() {
         </MotionPressable>
         <View style={styles.section}>
           <SectionTitle title={t('categories')} action={t('viewAll')} onPress={openStore} />
-          <FlatList horizontal inverted={isRTL} data={homeCategories} keyExtractor={(item) => item.id} showsHorizontalScrollIndicator={false}
+          <FlatList horizontal inverted={isRTL} data={homeCategories} keyExtractor={(item) => String(item.id)} showsHorizontalScrollIndicator={false}
             style={styles.categoryRail} contentContainerStyle={styles.categories} initialNumToRender={4}
-            renderItem={({ item }) => <CategoryCard id={item.id} onPress={() => openCategory(item.id)} />} />
+            renderItem={({ item }) => <CategoryCard category={item} image={categoryImages.get(item.id)} onPress={() => openCategory(item.id)} />} />
         </View>
         <View style={styles.section}>
           <SectionTitle title={t('featured')} action={t('viewAll')} onPress={openStore} />

@@ -29,7 +29,9 @@ const FIELD_CANDIDATES = {
     'image_1024', 'image_512', 'image_256', 'image_128',
   ],
   'product.category': ['id', 'name', 'complete_name', 'write_date'],
-  'product.public.category': ['id', 'name', 'write_date'],
+  'product.public.category': [
+    'id', 'name', 'parent_id', 'sequence', 'write_date',
+  ],
   'product.template.attribute.value': [
     'id', 'name', 'attribute_id', 'product_attribute_value_id',
   ],
@@ -638,9 +640,6 @@ export function createOdooCatalog({
       : [];
 
     const categoryIds = uniqueNumbers(templates.map((record) => relationId(record.categ_id)));
-    const publicCategoryIds = uniqueNumbers(
-      templates.flatMap((record) => relationIds(record.public_categ_ids)),
-    );
     const attributeIds = uniqueNumbers(
       variants.flatMap((record) =>
         relationIds(
@@ -649,16 +648,39 @@ export function createOdooCatalog({
         ),
       ),
     );
-    const categories = await namedRecords(
+    const internalCategories = await namedRecords(
       'product.category',
       categoryIds,
       categoryFields,
     );
-    const publicCategories = await namedRecords(
-      'product.public.category',
-      publicCategoryIds,
-      publicCategoryFields,
+    const publicCategoryRecords = publicCategoryFields.length
+      ? await searchRead(
+          'product.public.category',
+          [],
+          publicCategoryFields,
+          publicCategoryFields.includes('sequence') ? 'sequence asc,id asc' : 'id asc',
+        )
+      : [];
+    const publicCategories = new Map(
+      publicCategoryRecords.map((record) => [Number(record.id), record]),
     );
+    const storefrontCategories = publicCategoryRecords
+      .map((record) => {
+        const id = relationId(record.id);
+        const name = cleanText(record.name);
+        if (!id || !name) return null;
+        const sequence = number(record.sequence);
+        return {
+          id,
+          name,
+          parentId: relationId(record.parent_id),
+          ...(sequence === null ? {} : { sequence }),
+          ...(isoOrUndefined(record.write_date)
+            ? { updatedAt: isoOrUndefined(record.write_date) }
+            : {}),
+        };
+      })
+      .filter(Boolean);
     const attributes = await namedRecords(
       'product.template.attribute.value',
       attributeIds,
@@ -724,9 +746,19 @@ export function createOdooCatalog({
           ...stock,
         };
       });
-      const categoryId = relationIds(template.public_categ_ids)[0] || relationId(template.categ_id);
-      const categoryRecord = publicCategories.get(categoryId) || categories.get(categoryId);
-      const categoryName = cleanText(categoryRecord?.complete_name || categoryRecord?.name);
+      const assignedCategories = relationIds(template.public_categ_ids)
+        .map((id) => publicCategories.get(id))
+        .filter(Boolean)
+        .map((record) => ({
+          id: Number(record.id),
+          name: cleanText(record.name),
+          parentId: relationId(record.parent_id),
+        }))
+        .filter((category) => category.name);
+      const internalCategoryId = relationId(template.categ_id);
+      const internalCategoryRecord = internalCategories.get(internalCategoryId);
+      const categoryName = assignedCategories[0]?.name ||
+        cleanText(internalCategoryRecord?.complete_name || internalCategoryRecord?.name);
       const stockStates = mappedVariants.map((variant) => variant.stock_state);
       const productStock = stockStates.includes('in_stock')
         ? 'in_stock'
@@ -762,7 +794,16 @@ export function createOdooCatalog({
         product_type: categoryName,
         product_type_ar: null,
         product_type_en: categoryName,
-        category: categoryId ? { id: categoryId, name: categoryName } : null,
+        categories: assignedCategories,
+        category: assignedCategories[0] || null,
+        internal_category: internalCategoryId
+          ? {
+              id: internalCategoryId,
+              name: cleanText(
+                internalCategoryRecord?.complete_name || internalCategoryRecord?.name,
+              ),
+            }
+          : null,
         tags: [categoryName, cleanText(template.default_code)].filter(Boolean),
         images,
         variants: mappedVariants,
@@ -777,14 +818,17 @@ export function createOdooCatalog({
       });
     }
 
-    const latestWrite = products
-      .map((product) => product.updated_at || '')
+    const latestWrite = [
+      ...products.map((product) => product.updated_at || ''),
+      ...storefrontCategories.map((category) => category.updatedAt || ''),
+    ]
       .sort()
       .at(-1) || 'unknown';
     const loadedAt = now();
     return {
       products,
-      version: `odoo:${latestWrite}:${products.length}`,
+      categories: storefrontCategories,
+      version: `odoo:${latestWrite}:${products.length}:${storefrontCategories.length}`,
       updatedAt: new Date(loadedAt).toISOString(),
       loadedAt,
     };
@@ -938,8 +982,10 @@ export function createOdooCatalog({
 export function createStaticCatalog(input = {}) {
   const data = Array.isArray(input) ? { products: input } : input;
   const products = Array.isArray(data?.products) ? data.products : [];
+  const categories = Array.isArray(data?.categories) ? data.categories : [];
   const snapshot = {
     products,
+    categories,
     version: data?.version || 'fixture',
     updatedAt: data?.migratedAt || data?.updatedAt,
   };
