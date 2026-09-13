@@ -57,3 +57,55 @@ export type FarmReport = {
   facts:{crops:number;operations:number;irrigations:number;tasksCompleted:number;problemsResolved:number;harvests:Array<{unit:HarvestRecord['unit'];customUnit:string|null;quantity:number}>};
   labels:{records:'user_recorded_data';ai:'ai_observation';recommendations:'verified_recommendation';engineer:'human_engineer_review'};
 };
+
+export type KnowledgeStatus = 'draft' | 'verified' | 'review_required' | 'deprecated';
+export type KnowledgeSource = {
+  id:string; authority:string; titleAr:string; titleEn:string; url:string;
+  jurisdiction:string; publishedAt:string|null; reviewedAt:string; version:string|null; status:'verified';
+};
+export type CropSpacingProfile = {
+  id:string; productionSystem:string; plantingMethod:string; rowSpacingCm:number;
+  plantSpacingCm:number; plantsPerStation:number; usableAreaPercent:number;
+  notesAr:string; notesEn:string; reviewedAt:string; status:'verified'; source:KnowledgeSource;
+};
+export type CropGrowthStageProfile = {
+  id:string; key:string; nameAr:string; nameEn:string; startDay:number; endDay:number;
+  checksAr:string[]; checksEn:string[]; reviewedAt:string; status:'verified'; source:KnowledgeSource;
+};
+export type CropKnowledgeProfile = {
+  id:string; slug:string; nameAr:string; nameEn:string; scientificName:string|null;
+  aliases:string[]; summaryAr:string; summaryEn:string; productionSystems:string[];
+  climateTags:string[]; reviewedAt:string; status:'verified'; source:KnowledgeSource;
+  spacingProfiles?:CropSpacingProfile[]; growthStages?:CropGrowthStageProfile[];
+};
+export type UAERegulation = {
+  id:string; slug:string; category:string; titleAr:string; titleEn:string;
+  summaryAr:string; summaryEn:string; effectiveAt:string|null; reviewedAt:string;
+  status:'verified'; source:KnowledgeSource;
+};
+export type CalculationOrigin = 'verified_profile' | 'user_supplied' | 'farm_record';
+export type PlantPopulationResult = {
+  plantCount:number; stationCount:number; usableAreaM2:number;
+  spacing:{rowCm:number;plantCm:number}; plantsPerStation:number;
+  dataOrigin:CalculationOrigin; resultType:'calculated_estimate';
+};
+export type IrrigationRuntimeResult = {
+  runtimeMinutes:number; totalFlowLitersPerHour:number; targetVolumeLiters:number;
+  dataOrigin:'user_supplied'; resultType:'calculated_estimate'; advisory:false;
+};
+export type GreenhouseLayoutResult = {
+  bedCount:number; growingAreaM2:number; circulationAreaM2:number; utilizationPercent:number;
+  inputs:{lengthM:number;widthM:number;bedWidthM:number;aisleWidthM:number};
+  dataOrigin:'user_supplied'; resultType:'calculated_estimate';
+};
+export type GuidedDiagnosisResult = {
+  status:'possible_causes_found'|'no_verified_match'; diagnosis:null; verifiedOnly:true;
+  possibleCauses:Array<{causeType:string;possibleCauseAr:string;possibleCauseEn:string;inspectionChecksAr:string[];inspectionChecksEn:string[];source:KnowledgeSource}>;
+  disclaimerAr:string; disclaimerEn:string;
+};
+export type CropPlan = {
+  id:string; farmId:string; zoneId:string|null; cropProfileId:string; spacingProfileId:string|null; cropCycleId:string|null;
+  crop?:{slug:string;nameAr:string;nameEn:string}; plantingDate:string; areaM2:number;
+  productionSystem:string; plantingMethod:string; calculation:PlantPopulationResult|{resultType:'verified_data_unavailable';reason:string};
+  status:'planned'|'active'|'completed'|'cancelled'; version:number; createdAt:string; updatedAt:string;
+};

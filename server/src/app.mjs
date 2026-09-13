@@ -5,6 +5,7 @@ import { createAuth, profile } from '../auth/service.mjs';
 import { createCustomers } from '../services/customers.mjs';
 import { createOrders } from '../services/orders.mjs';
 import { createFarmOS } from '../services/farms.mjs';
+import { createSmartFarm } from '../smart-farm/service.mjs';
 import { createPlatform } from '../services/platform.mjs';
 import { stripeGateway } from '../services/stripe.mjs';
 import { fail, page } from '../lib/validation.mjs';
@@ -22,6 +23,7 @@ export function createApp({
     customers = createCustomers(db, products),
     orders = createOrders(db, products, stripe, orderOptions),
     farmOS = createFarmOS(db),
+    smartFarm = createSmartFarm(db),
     platform = createPlatform(db, products);
   const allowed = (env.CORS_ORIGIN || '*')
     .split(',')
@@ -76,6 +78,31 @@ export function createApp({
         return send(response, 200, await platform.publicHome());
       if (method === 'GET' && path === '/api/offers')
         return send(response, 200, await platform.publicOffers());
+      if (method === 'GET' && path === '/api/knowledge/crops')
+        return send(response, 200, await smartFarm.listCrops(url));
+      const knowledgeCrop = /^\/api\/knowledge\/crops\/([^/]+)$/.exec(path);
+      if (method === 'GET' && knowledgeCrop)
+        return send(response, 200, await smartFarm.crop(knowledgeCrop[1]));
+      if (method === 'GET' && path === '/api/knowledge/pests')
+        return send(response, 200, await smartFarm.conditions('pests'));
+      if (method === 'GET' && path === '/api/knowledge/diseases')
+        return send(response, 200, await smartFarm.conditions('diseases'));
+      if (method === 'GET' && path === '/api/knowledge/search')
+        return send(response, 200, await smartFarm.search(url));
+      if (method === 'GET' && path === '/api/knowledge/uae/regulations')
+        return send(response, 200, await smartFarm.regulations());
+      if (method === 'POST' && path === '/api/farm-calculators/area')
+        return send(response, 200, smartFarm.area(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/farm-calculators/planting')
+        return send(response, 200, await smartFarm.planting(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/farm-calculators/irrigation')
+        return send(response, 200, smartFarm.irrigation(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/farm-calculators/layout')
+        return send(response, 200, smartFarm.layout(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/farm-calculators/growth-stage')
+        return send(response, 200, await smartFarm.growth(await jsonBody(request)));
+      if (method === 'POST' && path === '/api/diagnosis/guide')
+        return send(response, 200, await smartFarm.diagnose(await jsonBody(request)));
       if (method === 'GET' && path === '/admin')
         return serveAdmin(response, mediaRoot);
       if (method === 'GET' && path.startsWith('/api/products/')) {
@@ -185,7 +212,7 @@ export function createApp({
         return send(response, 200, { ok: true });
       }
       if (
-        /^\/api\/(?:my-farm|farms|zones|crops|farm-tasks|irrigation-records|farm-operations|farm-problems|farm-media|harvest-records|farm-notes|farm-inventory|farm-analyses|diagnosis-sessions)(?:\/|$)/.test(path)
+        /^\/api\/(?:my-farm|farms|zones|crops|farm-tasks|irrigation-records|farm-operations|farm-problems|farm-media|harvest-records|farm-notes|farm-inventory|farm-analyses|diagnosis-sessions|crop-plans)(?:\/|$)/.test(path)
       ) {
         const user = await auth.authenticate(request);
         const body = () => jsonBody(request);
@@ -299,6 +326,11 @@ export function createApp({
         const diagnoses = /^\/api\/farm-problems\/([^/]+)\/diagnoses$/.exec(path);
         if (method === 'GET' && diagnoses) return send(response, 200, { sessions: await farmOS.listDiagnoses(user, diagnoses[1]) });
         if (method === 'POST' && path === '/api/diagnosis-sessions') return await mutate(201, async (payload) => ({ session: await farmOS.createDiagnosis(user, payload) }));
+        if (method === 'POST' && path === '/api/crop-plans')
+          return send(response, 201, await smartFarm.createPlan(user, await body()));
+        const cropPlan = /^\/api\/crop-plans\/([^/]+)$/.exec(path);
+        if (method === 'GET' && cropPlan)
+          return send(response, 200, await smartFarm.plan(user, cropPlan[1]));
         throw fail(404, 'not_found');
       }
       if (path.startsWith('/api/admin/')) {
