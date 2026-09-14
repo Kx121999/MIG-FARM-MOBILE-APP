@@ -11,7 +11,7 @@ import { ProductRail } from '@/components/ProductRail';
 import { ScreenState } from '@/components/ScreenState';
 import { SectionTitle } from '@/components/SectionTitle';
 import { MotionPressable } from '@/components/Motion';
-import { orderedStoreCategories, productMatchesCategory } from '@/constants/categories';
+import { productMatchesCategory, rootStoreCategories } from '@/constants/categories';
 import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProducts } from '@/hooks/useProducts';
@@ -57,7 +57,7 @@ export default function HomeScreen() {
   const announcement = remoteSections.find((section) => section.kind === 'announcement');
   const promos = remoteSections.filter((section) => section.kind === 'promo').slice(0, 2);
   const arrivals = useMemo(() => sortProducts(products, 'newest').slice(0, 6), [products]);
-  const homeCategories = useMemo(() => orderedStoreCategories(storeCategories), [storeCategories]);
+  const homeCategories = useMemo(() => rootStoreCategories(storeCategories), [storeCategories]);
   const categoryImages = useMemo(() => new Map(homeCategories.map((category) => {
     const assignedProduct = products.find((product) => productMatchesCategory(product, category.id));
     return [category.id, assignedProduct ? productImage(assignedProduct) : null];

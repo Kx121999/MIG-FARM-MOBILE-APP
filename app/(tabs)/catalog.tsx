@@ -2,13 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, Clock3, GitCompareArrows, Search, SlidersHorizontal, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, Clock3, GitCompareArrows, Search, SlidersHorizontal, X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { ProductCard, ProductCardSkeleton } from '@/components/ProductCard';
 import { ScreenState } from '@/components/ScreenState';
-import { CategoryId, categoryDisplayName, orderedStoreCategories } from '@/constants/categories';
+import { CategoryId, categoryDisplayName, categoryLineage, directChildCategories, orderedStoreCategories, productMatchesCategory, rootStoreCategories } from '@/constants/categories';
 import { colors, radius, sizes, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -47,6 +47,11 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   const [shownCount, setShownCount] = useState(20);
   const categoryListRef = useRef<ScrollView>(null);
   const categories = useMemo(() => orderedStoreCategories(rawCategories), [rawCategories]);
+  const selectedCategory = useMemo(() => category === 'all' ? null : categories.find((item) => item.id === category) || null, [categories, category]);
+  const childCategories = useMemo(() => selectedCategory
+    ? directChildCategories(categories, selectedCategory.id)
+    : rootStoreCategories(categories), [categories, selectedCategory]);
+  const lineage = useMemo(() => selectedCategory ? categoryLineage(selectedCategory.id, categories) : [], [categories, selectedCategory]);
   const categoryItems = useMemo<Array<{ id: CategoryId; label: string }>>(() => [
     { id: 'all', label: language === 'ar' ? 'كل المنتجات' : 'All products' },
     ...categories.map((item) => ({
@@ -73,14 +78,17 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
     if (typeof params.query === 'string') setQuery(params.query);
   }, [categories, params.category, params.query]);
 
-  const brands = useMemo(() => Array.from(new Set(products.map((product) => product.vendor.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [products]);
-  const productTypes = useMemo(() => Array.from(new Set(products.map((product) => product.product_type.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [products]);
+  const categoryProducts = useMemo(() => category === 'all'
+    ? products
+    : products.filter((product) => productMatchesCategory(product, category)), [products, category]);
+  const brands = useMemo(() => Array.from(new Set(categoryProducts.map((product) => product.vendor.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [categoryProducts]);
+  const productTypes = useMemo(() => Array.from(new Set(categoryProducts.map((product) => product.product_type.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [categoryProducts]);
   const suggestions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return [];
-    return products.filter((product) => [product.title, product.title_ar, product.title_en, product.vendor, product.product_type, product.product_type_ar, product.product_type_en, product.tags.join(' ')].join(' ').toLowerCase().includes(normalized)).slice(0, 5);
-  }, [products, query]);
-  const featuredPreview = useMemo(() => products.slice(0, 4), [products]);
+    return categoryProducts.filter((product) => [product.title, product.title_ar, product.title_en, product.vendor, product.product_type, product.product_type_ar, product.product_type_en, product.tags.join(' ')].join(' ').toLowerCase().includes(normalized)).slice(0, 5);
+  }, [categoryProducts, query]);
+  const featuredPreview = useMemo(() => categoryProducts.slice(0, 4), [categoryProducts]);
 
   useEffect(() => {
     setShownCount(20);
@@ -105,6 +113,12 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
     AsyncStorage.setItem(SEARCHES_KEY, JSON.stringify(next)).catch(() => undefined);
   };
 
+  const selectCategory = (next: CategoryId) => {
+    setCategory(next);
+    setDraftCategory(next);
+    router.setParams({ category: String(next) });
+  };
+
   const openFilters = () => {
     setDraftCategory(category);
     setDraftBrand(brand);
@@ -117,7 +131,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   };
 
   const resetFilters = () => {
-    setCategory('all');
+    selectCategory('all');
     setBrand('all');
     setProductType('all');
     setMinPrice('');
@@ -132,6 +146,8 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
     setDraftSort('popular');
     setDraftOnlyAvailable(false);
   };
+  const BackIcon = isRTL ? ChevronRight : ChevronLeft;
+  const TrailIcon = isRTL ? ChevronLeft : ChevronRight;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -213,24 +229,49 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
           </Pressable>
         </View>
 
-        {!searchMode ? <ScrollView
-          ref={categoryListRef}
-          horizontal
-          style={styles.categoryScroller}
-          showsHorizontalScrollIndicator={false}
-          onContentSizeChange={() => isRTL && categoryListRef.current?.scrollToEnd({ animated: false })}
-          contentContainerStyle={[styles.categoryList, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
-        >
-          {categoryItems.map((item) => {
-            const active = category === item.id;
-            return (
-              <Pressable key={item.id} accessibilityRole="button" onPress={() => setCategory(item.id)} style={({ pressed }) => [styles.categoryPill, active && styles.categoryPillActive, pressed && styles.pressed]}>
-                <CategoryIcon id={item.id} size={15} boxSize={28} inverse={active} />
-                <Text style={[styles.categoryText, active && styles.categoryTextActive]}>{item.label}</Text>
+        {!searchMode ? <View style={styles.categoryNavigation}>
+          {selectedCategory ? <View style={[styles.breadcrumbRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={language === 'ar' ? 'العودة إلى التصنيف السابق' : 'Back to parent category'}
+              onPress={() => selectCategory(selectedCategory.parentId ?? 'all')}
+              style={({ pressed }) => [styles.categoryBack, pressed && styles.pressed]}
+            >
+              <BackIcon size={18} color={colors.primaryDark} />
+            </Pressable>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.breadcrumbList, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Pressable accessibilityRole="button" onPress={() => selectCategory('all')} style={styles.breadcrumbItem}>
+                <Text style={styles.breadcrumbText}>{language === 'ar' ? 'كل المنتجات' : 'All products'}</Text>
               </Pressable>
-            );
-          })}
-        </ScrollView> : null}
+              {lineage.map((item, index) => <React.Fragment key={item.id}>
+                <TrailIcon size={13} color={colors.textSubtle} />
+                <Pressable accessibilityRole="button" onPress={() => selectCategory(item.id)} style={styles.breadcrumbItem}>
+                  <Text numberOfLines={1} style={[styles.breadcrumbText, index === lineage.length - 1 && styles.breadcrumbCurrent]}>{item.name}</Text>
+                </Pressable>
+              </React.Fragment>)}
+            </ScrollView>
+          </View> : null}
+          {childCategories.length ? <ScrollView
+            ref={categoryListRef}
+            horizontal
+            style={styles.categoryScroller}
+            showsHorizontalScrollIndicator={false}
+            onContentSizeChange={() => isRTL && categoryListRef.current?.scrollToEnd({ animated: false })}
+            contentContainerStyle={[styles.categoryList, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+          >
+            {childCategories.map((item) => <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={item.name}
+              onPress={() => selectCategory(item.id)}
+              style={({ pressed }) => [styles.categoryPill, pressed && styles.pressed]}
+            >
+              <CategoryIcon id={item.id} size={15} boxSize={28} />
+              <Text numberOfLines={1} style={styles.categoryText}>{item.name}</Text>
+              <TrailIcon size={13} color={colors.muted} />
+            </Pressable>)}
+          </ScrollView> : null}
+        </View> : null}
 
         {compareIds.length > 0 ? (
           <Pressable accessibilityRole="button" onPress={() => router.push('/compare')} style={({ pressed }) => [styles.compareBar, pressed && styles.pressed]}>
@@ -241,9 +282,9 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
         ) : null}
 
         {loading ? <View accessibilityLabel={t('loading')} style={styles.skeletonGrid}>{Array.from({ length: 4 }).map((_, index) => <ProductCardSkeleton key={index} />)}</View> : error || !visible.length ? <ScrollView style={styles.productList} contentContainerStyle={{ flexGrow: 1 }}><ScreenState error={error} empty={!error && !visible.length} onRetry={reload}
-          emptyTitle={query ? (language === 'ar' ? 'لم نجد نتائج مطابقة' : 'No matching results') : undefined}
-          emptyAction={query ? (language === 'ar' ? 'مسح البحث' : 'Clear search') : t('resetFilters')}
-          onEmptyAction={() => { setQuery(''); resetFilters(); }} /></ScrollView> : null}
+          emptyTitle={query ? (language === 'ar' ? 'لم نجد نتائج مطابقة' : 'No matching results') : selectedCategory && childCategories.length ? (language === 'ar' ? 'اختر تصنيفًا فرعيًا' : 'Choose a subcategory') : undefined}
+          emptyAction={query ? (language === 'ar' ? 'مسح البحث' : 'Clear search') : selectedCategory ? (language === 'ar' ? 'كل المنتجات' : 'All products') : t('resetFilters')}
+          onEmptyAction={() => { if (query) setQuery(''); else if (selectedCategory) selectCategory('all'); else resetFilters(); }} /></ScrollView> : null}
         {!loading && !error && visible.length ? (
           <FlatList
             data={visible.slice(0, shownCount)}
@@ -305,7 +346,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
             </Pressable>
             <View style={[styles.sheetActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Pressable accessibilityRole="button" onPress={resetFilters} style={styles.resetButton}><Text style={styles.resetText}>{t('resetFilters')}</Text></Pressable>
-              <Pressable accessibilityRole="button" onPress={() => { setCategory(draftCategory); setBrand(draftBrand); setProductType(draftProductType); setMinPrice(draftMinPrice); setMaxPrice(draftMaxPrice); setSort(draftSort); setOnlyAvailable(draftOnlyAvailable); setFiltersOpen(false); }} style={styles.applyButton}><Text style={styles.applyText}>{t('applyFilters')}</Text></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => { selectCategory(draftCategory); setBrand(draftBrand); setProductType(draftProductType); setMinPrice(draftMinPrice); setMaxPrice(draftMaxPrice); setSort(draftSort); setOnlyAvailable(draftOnlyAvailable); setFiltersOpen(false); }} style={styles.applyButton}><Text style={styles.applyText}>{t('applyFilters')}</Text></Pressable>
             </View>
           </ScrollView>
         </View>
@@ -344,6 +385,13 @@ const styles = StyleSheet.create({
   compareBar: { minHeight: 42, marginHorizontal: 16, marginBottom: 7, paddingHorizontal: 13, borderRadius: radius.md, backgroundColor: colors.primaryDark, flexDirection: 'row', alignItems: 'center', gap: 7, position: 'relative', zIndex: 20, elevation: 6 },
   compareBarText: { flex: 1, color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   compareBarAction: { color: colors.sun, fontSize: 10, fontWeight: '900' },
+  categoryNavigation: { flexShrink: 0 },
+  breadcrumbRow: { minHeight: 38, marginHorizontal: 16, alignItems: 'center', gap: 7 },
+  categoryBack: { width: 32, height: 32, flexShrink: 0, borderRadius: radius.md, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  breadcrumbList: { alignItems: 'center', gap: 5, paddingEnd: 8 },
+  breadcrumbItem: { minHeight: 30, maxWidth: 170, justifyContent: 'center' },
+  breadcrumbText: { color: colors.muted, fontSize: 10, fontWeight: '700' },
+  breadcrumbCurrent: { color: colors.primaryDark, fontWeight: '900' },
   categoryScroller: { flexGrow: 0, flexShrink: 0, height: 68 },
   categoryList: { paddingHorizontal: 16, paddingVertical: 13, gap: 8 },
   categoryPill: { height: 42, paddingHorizontal: 8, paddingEnd: 12, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },

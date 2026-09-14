@@ -27,6 +27,8 @@ function websiteCategoryMock() {
   const categories = [
     { id: 1, name: 'Seeds', parent_id: false, sequence: 1, write_date: '2026-09-01 00:00:00' },
     { id: 2, name: 'Vegetable Seeds', parent_id: [1, 'Seeds'], sequence: 1, write_date: '2026-09-01 00:00:00' },
+    { id: 5, name: 'Tomato', parent_id: [2, 'Vegetable Seeds'], sequence: 1, write_date: '2026-09-01 00:00:00' },
+    { id: 6, name: 'Cherry Tomato', parent_id: [5, 'Tomato'], sequence: 1, write_date: '2026-09-01 00:00:00' },
     { id: 3, name: 'Fertilizers', parent_id: false, sequence: 2, write_date: '2026-09-01 00:00:00' },
     { id: 4, name: 'Tools', parent_id: false, sequence: 3, write_date: '2026-09-01 00:00:00' },
   ];
@@ -37,6 +39,7 @@ function websiteCategoryMock() {
     ['Drill', [4]],
     ['Shared product', [1, 3]],
     ['Lettuce', [2]],
+    ['Cherry Tomato packet', [6]],
     ['Seed words but unassigned', []],
   ];
   const templates = assignments.map(([name, categoryIds], index) => ({
@@ -99,7 +102,9 @@ test('Odoo website categories remain isolated, hierarchical and live', async () 
   assert.deepEqual(productNames(first, 3), ['NPK', 'Shared product']);
   assert.deepEqual(productNames(first, 4), ['Drill']);
   assert.deepEqual(productNames(first, 2), ['Lettuce']);
+  assert.deepEqual(productNames(first, 6), ['Cherry Tomato packet']);
   assert.equal(productNames(first, 1).includes('Lettuce'), false);
+  assert.equal(productNames(first, 2).includes('Cherry Tomato packet'), false);
   assert.deepEqual(
     first.products.find((product) => product.title === 'Shared product').categories.map((category) => category.id),
     [1, 3],
@@ -110,12 +115,17 @@ test('Odoo website categories remain isolated, hierarchical and live', async () 
   );
   assert.equal(first.products.find((product) => product.title === 'Seed words but unassigned').category, null);
   assert.equal(first.categories.find((category) => category.id === 2).parentId, 1);
+  assert.equal(first.categories.find((category) => category.id === 5).parentId, 2);
+  assert.equal(first.categories.find((category) => category.id === 6).parentId, 5);
 
   mock.categories[0].name = 'Seed Collection';
   mock.categories[0].write_date = '2026-09-02 00:00:00';
+  mock.categories.find((category) => category.id === 2).parent_id = [3, 'Fertilizers'];
+  mock.categories.find((category) => category.id === 2).write_date = '2026-09-02 00:00:00';
   mock.templates.find((product) => product.name === 'NPK').public_categ_ids = [4];
   const refreshed = await service.list({ force: true, allowStale: false });
   assert.equal(refreshed.categories.find((category) => category.id === 1).name, 'Seed Collection');
+  assert.equal(refreshed.categories.find((category) => category.id === 2).parentId, 3);
   assert.deepEqual(
     refreshed.products.find((product) => product.title === 'Tomato').categories.map((category) => category.id),
     [1],

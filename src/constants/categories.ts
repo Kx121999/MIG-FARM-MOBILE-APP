@@ -8,18 +8,43 @@ const categoryOrder = (left: StoreCategory, right: StoreCategory) => {
   return leftSequence - rightSequence || left.name.localeCompare(right.name) || left.id - right.id;
 };
 
-export function orderedStoreCategories(categories: StoreCategory[]) {
-  const valid = categories.filter((category) =>
-    Number.isSafeInteger(category.id) && category.id > 0 && category.name.trim());
-  const byId = new Map(valid.map((category) => [category.id, category]));
+const validStoreCategories = (categories: StoreCategory[]) => categories.filter((category) =>
+  Number.isSafeInteger(category.id) && category.id > 0 && category.name.trim());
+
+const categoryChildren = (categories: StoreCategory[]) => {
   const children = new Map<number | null, StoreCategory[]>();
-  for (const category of valid) {
-    const parentId = category.parentId && byId.has(category.parentId)
-      ? category.parentId
-      : null;
+  for (const category of validStoreCategories(categories)) {
+    const parentId = category.parentId === null ? null : category.parentId;
     children.set(parentId, [...(children.get(parentId) || []), category]);
   }
   for (const items of children.values()) items.sort(categoryOrder);
+  return children;
+};
+
+export function rootStoreCategories(categories: StoreCategory[]) {
+  return categoryChildren(categories).get(null) || [];
+}
+
+export function directChildCategories(categories: StoreCategory[], parentId: number) {
+  return categoryChildren(categories).get(parentId) || [];
+}
+
+export function categoryLineage(categoryId: number, categories: StoreCategory[]) {
+  const byId = new Map(validStoreCategories(categories).map((category) => [category.id, category]));
+  const lineage: StoreCategory[] = [];
+  const visited = new Set<number>();
+  let current = byId.get(categoryId);
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    lineage.unshift(current);
+    current = current.parentId === null ? undefined : byId.get(current.parentId);
+  }
+  return lineage;
+}
+
+export function orderedStoreCategories(categories: StoreCategory[]) {
+  const valid = validStoreCategories(categories);
+  const children = categoryChildren(valid);
   const output: StoreCategory[] = [];
   const visited = new Set<number>();
   const visit = (category: StoreCategory) => {
@@ -34,18 +59,8 @@ export function orderedStoreCategories(categories: StoreCategory[]) {
 }
 
 export function categoryDisplayName(category: StoreCategory, categories: StoreCategory[]) {
-  const byId = new Map(categories.map((item) => [item.id, item]));
-  const names = [category.name];
-  const visited = new Set([category.id]);
-  let parentId = category.parentId;
-  while (parentId && !visited.has(parentId) && names.length < 8) {
-    visited.add(parentId);
-    const parent = byId.get(parentId);
-    if (!parent) break;
-    names.unshift(parent.name);
-    parentId = parent.parentId;
-  }
-  return names.join(' / ');
+  const lineage = categoryLineage(category.id, categories);
+  return (lineage.length ? lineage : [category]).map((item) => item.name).join(' / ');
 }
 
 export function productMatchesCategory(product: Product, category: CategoryId) {
