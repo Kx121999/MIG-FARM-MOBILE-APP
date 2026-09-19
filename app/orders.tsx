@@ -14,7 +14,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { customerService } from '@/services/customer';
 import { getGuestOrders } from '@/services/orders';
 import { formatAED } from '@/services/catalog';
-import { orderStatusLabel } from '@/utils/orders';
+import { fulfillmentStatusLabel, paymentStatusLabel } from '@/utils/orders';
 import type { CustomerOrder } from '@/types/customer';
 
 export default function OrdersScreen() {
@@ -91,8 +91,8 @@ function OrdersContent() {
           <Notice
             text={
               ar
-                ? 'طلبات هذا الجهاز. سجل الطلبات عبر الأجهزة يحتاج خدمة حسابات غير متاحة حاليًا.'
-                : 'Orders from this device. Cross-device history requires an account service that is not available yet.'
+                ? 'طلبات الضيف محفوظة بأمان على هذا الجهاز. سجّل الدخول لمزامنة الطلبات الجديدة عبر أجهزتك.'
+                : 'Guest orders are kept securely on this device. Sign in to sync new orders across devices.'
             }
           />
         </View>
@@ -108,8 +108,8 @@ function OrdersContent() {
           title={ar ? 'ما عندك طلبات بعد' : 'No orders yet'}
           body={
             ar
-              ? 'طلباتك المكتملة على هذا الجهاز ستظهر هنا.'
-              : 'Orders completed on this device will appear here.'
+              ? 'طلباتك ستظهر هنا بعد تجهيزها.'
+              : 'Your orders will appear here after checkout.'
           }
           action={ar ? 'ابدأ التسوق' : 'Start shopping'}
           onAction={() => router.push('/(tabs)/catalog')}
@@ -159,7 +159,10 @@ function OrdersContent() {
                 ))}
               </View>
               <Text style={[ui.label, { textAlign: ar ? 'right' : 'left' }]}>
-                {orderStatusLabel(item.status, ar)}
+                {fulfillmentStatusLabel(item.fulfillmentStatus, ar)}
+              </Text>
+              <Text style={[ui.caption, { textAlign: ar ? 'right' : 'left' }]}>
+                {paymentStatusLabel(item.paymentStatus, ar)}
               </Text>
               <Text style={[ui.label, { textAlign: ar ? 'right' : 'left' }]}>
                 {formatAED(item.total)}

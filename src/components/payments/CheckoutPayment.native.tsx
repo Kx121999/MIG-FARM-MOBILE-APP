@@ -23,13 +23,14 @@ export function CheckoutPayment({ session, customer, language, onSuccess, onErro
       appearance: { colors: { primary: colors.primary, background: colors.surface, componentBackground: colors.surfaceMuted, primaryText: colors.text } },
     });
     if (initialized.error) {
-      onError(initialized.error.message);
+      onError('payment_initialization_failed');
       setBusy(false);
       return;
     }
     const result = await presentPaymentSheet();
     setBusy(false);
-    if (result.error) onError(result.error.message);
+    if (result.error?.code === 'Canceled') return;
+    if (result.error) onError('payment_failed');
     else onSuccess();
   };
 

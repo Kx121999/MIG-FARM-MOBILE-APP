@@ -13,9 +13,9 @@ import { CartItem } from '@/types';
 import {
   createPrepareOrderClient,
   orderPrepareFeatureEnabled,
-  prepareOrderBody,
   type PreparedOrder,
 } from '@/services/orderPreparation';
+import { rememberGuestOrder } from '@/services/orders';
 
 export type { PreparedOrder } from '@/services/orderPreparation';
 
@@ -43,9 +43,13 @@ export class CheckoutError extends Error {
   }
 }
 const ATTEMPT_KEY = 'mig_farm_checkout_attempt_v1';
+const PAYMENT_ATTEMPT_KEY = 'mig_farm_payment_attempt_v1';
 const env = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
 export const ORDER_PREPARE_ENABLED = orderPrepareFeatureEnabled(
   env.EXPO_PUBLIC_ORDER_PREPARE_ENABLED,
+);
+export const PAYMENT_ENABLED = orderPrepareFeatureEnabled(
+  env.EXPO_PUBLIC_PAYMENT_ENABLED,
 );
 let pending: Promise<unknown> = Promise.resolve();
 type Attempt = { digest: string; key: string };
@@ -91,7 +95,10 @@ export async function prepareOrder(
   signal?: AbortSignal,
 ): Promise<PreparedOrder> {
   try {
-    return await requestPreparedOrder(cart, customer, shippingAddress, signal);
+    const prepared = await requestPreparedOrder(cart, customer, shippingAddress, signal);
+    if (!apiSession.get())
+      await rememberGuestOrder(prepared.orderId, prepared.orderToken);
+    return prepared;
   } catch (error) {
     if (error instanceof CustomerServiceError)
       throw new CheckoutError(error.code, error.status);
@@ -103,30 +110,50 @@ export async function completeCheckoutAttempt() {
   await pending.catch(() => undefined);
   cached = null;
   await AsyncStorage.removeItem(ATTEMPT_KEY).catch(() => undefined);
+  await AsyncStorage.removeItem(PAYMENT_ATTEMPT_KEY).catch(() => undefined);
 }
-export async function createCheckoutSession(
-  cart: CartItem[],
-  customer: CheckoutCustomer,
-  shippingAddress: ShippingAddress,
+let paymentInflight: Promise<PaymentSession> | null = null;
+export async function createPaymentSession(
+  prepared: PreparedOrder,
   signal?: AbortSignal,
 ) {
-  const body = prepareOrderBody(cart, customer, shippingAddress);
-  const key = await attemptKey(body);
-  try {
-    return await apiRequest<PaymentSession>('/api/checkout/session', {
-      method: 'POST',
-      body,
-      auth: 'optional',
-      signal,
-      timeout: 30000,
-      headers: { 'Idempotency-Key': key },
-    });
-  } catch (error) {
-    if (error instanceof CustomerServiceError) {
-      if (error.code === 'order_already_completed')
-        await completeCheckoutAttempt();
-      throw new CheckoutError(error.code, error.status);
+  if (!PAYMENT_ENABLED) throw new CheckoutError('payment_disabled', 503);
+  if (paymentInflight) return paymentInflight;
+  paymentInflight = (async () => {
+    let key = await AsyncStorage.getItem(PAYMENT_ATTEMPT_KEY).catch(() => null);
+    if (!key) {
+      key = randomUUID();
+      await AsyncStorage.setItem(PAYMENT_ATTEMPT_KEY, key).catch(() => undefined);
     }
-    throw error;
-  }
+    try {
+      const session = await apiRequest<PaymentSession>(
+        `/api/orders/${encodeURIComponent(prepared.orderId)}/payment-session`,
+        {
+          method: 'POST',
+          body: {},
+          auth: 'optional',
+          signal,
+          timeout: 30000,
+          headers: {
+            'Idempotency-Key': key,
+            'X-Order-Token': prepared.orderToken,
+          },
+        },
+      );
+      if (
+        session.orderId !== prepared.orderId ||
+        session.currency !== prepared.currency ||
+        Math.round(session.amount * 100) !== Math.round(prepared.total * 100)
+      ) throw new CheckoutError('invalid_payment_session', 502);
+      return session;
+    } catch (error) {
+      if (error instanceof CheckoutError) throw error;
+      if (error instanceof CustomerServiceError)
+        throw new CheckoutError(error.code, error.status);
+      throw error;
+    }
+  })().finally(() => {
+    paymentInflight = null;
+  });
+  return paymentInflight;
 }

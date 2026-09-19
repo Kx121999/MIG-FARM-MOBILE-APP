@@ -88,5 +88,11 @@ test('product browsing remains order, payment, stock-write and hardcoding safe',
   assert.match(commerce, /mergeCartLine\(current, product, variant/);
   assert.match(commerce, /variant,/);
   assert.match(env, /^EXPO_PUBLIC_ORDER_PREPARE_ENABLED=false$/m);
-  assert.doesNotMatch(odoo, /stock\.quant|action_confirm|qty_available\s*=|free_qty\s*=/);
+  assert.doesNotMatch(odoo, /stock\.quant|qty_available\s*=|free_qty\s*=/);
+  const prepareQuotation = odoo.slice(
+    odoo.indexOf('async function prepareQuotation'),
+    odoo.indexOf('async function confirmQuotation'),
+  );
+  assert.doesNotMatch(prepareQuotation, /action_confirm/);
+  assert.match(odoo, /async function confirmQuotation[\s\S]*action_confirm/);
 });

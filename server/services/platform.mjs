@@ -304,7 +304,7 @@ export function createPlatform(db, catalogInput) {
     }
     for (const [param, column, allowed] of [
       ['status', 'o.delivery_status', ['new','processing','ready','shipped','delivered','cancelled']],
-      ['payment', 'o.payment_status', ['pending','paid','failed','requires_payment_method','processing','canceled']],
+      ['payment', 'o.payment_status', ['pending','awaiting_payment','paid','failed','payment_failed','requires_payment_method','processing','canceled']],
     ]) {
       const value = url?.searchParams.get(param);
       if (value) {
@@ -316,7 +316,7 @@ export function createPlatform(db, catalogInput) {
     const sqlWhere = where.length ? 'WHERE ' + where.join(' AND ') : '';
     values.push(pagination.limit + 1, pagination.offset);
     const rows = (await db.query(
-      `SELECT o.id,o.customer_id,u.name AS customer_name,u.email AS customer_email,o.status,o.payment_status,o.delivery_status,o.total,o.tax,o.currency,o.shipping_snapshot,o.odoo_order_name,o.odoo_state,o.odoo_sync_status,o.odoo_synced_at,o.created_at FROM mig_farm.orders o LEFT JOIN mig_farm.users u ON u.id=o.customer_id ${sqlWhere} ORDER BY o.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
+      `SELECT o.id,o.customer_id,u.name AS customer_name,u.email AS customer_email,o.status,o.payment_status,o.delivery_status,o.total,o.tax,o.currency,o.shipping_snapshot,o.payment_intent_id,o.odoo_order_name,o.odoo_state,o.odoo_sync_status,o.odoo_sync_error,o.odoo_synced_at,o.created_at FROM mig_farm.orders o LEFT JOIN mig_farm.users u ON u.id=o.customer_id ${sqlWhere} ORDER BY o.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
       values,
     )).rows;
     return pageResult(rows.map(orderDTO), pagination);
@@ -340,11 +340,49 @@ export function createPlatform(db, catalogInput) {
     role(user);
     const status = ['new','processing','ready','shipped','delivered','cancelled'].includes(body.deliveryStatus) ? body.deliveryStatus : null;
     if (!status) throw fail(400, 'invalid_input');
-    const row = (await db.query(
-      'UPDATE mig_farm.orders SET delivery_status=$2,updated_at=now() WHERE id=$1 RETURNING id,customer_id,status,payment_status,delivery_status,total,currency,shipping_snapshot,created_at',
-      [id, status],
-    )).rows[0];
-    if (!row) throw fail(404, 'not_found');
+    const row = await db.transaction(async (client) => {
+      const current = (await client.query(
+        'SELECT * FROM mig_farm.orders WHERE id=$1 FOR UPDATE',
+        [id],
+      )).rows[0];
+      if (!current) throw fail(404, 'not_found');
+      if (current.delivery_status === status) return current;
+      const updated = (await client.query(
+        'UPDATE mig_farm.orders SET delivery_status=$2,updated_at=now() WHERE id=$1 RETURNING *',
+        [id, status],
+      )).rows[0];
+      if (updated.customer_id && status !== 'cancelled') {
+        const pref = (await client.query(
+          'SELECT order_updates FROM mig_farm.notification_preferences WHERE user_id=$1',
+          [updated.customer_id],
+        )).rows[0];
+        if (pref?.order_updates) {
+          const labels = {
+            new: ['تم استلام الطلب', 'Order received'],
+            processing: ['جاري التجهيز', 'Preparing'],
+            ready: ['جاري التجهيز', 'Preparing'],
+            shipped: ['خرج للتوصيل', 'Out for delivery'],
+            delivered: ['تم التسليم', 'Delivered'],
+          };
+          await client.query(
+            "INSERT INTO mig_farm.notifications(id,user_id,type,title,body,data_json) VALUES($1,$2,'order',$3,$4,$5)",
+            [
+              randomUUID(),
+              updated.customer_id,
+              labels[status][1],
+              updated.id,
+              JSON.stringify({
+                orderId: updated.id,
+                deliveryStatus: status,
+                titleAr: labels[status][0],
+                titleEn: labels[status][1],
+              }),
+            ],
+          );
+        }
+      }
+      return updated;
+    });
     return { order: orderDTO(row) };
   }
 
@@ -373,6 +411,10 @@ export function createPlatform(db, catalogInput) {
       status: row.status,
       paymentStatus: row.payment_status,
       deliveryStatus: row.delivery_status,
+      fulfillmentStatus: ({
+        new: 'received', processing: 'preparing', ready: 'preparing',
+        shipped: 'out_for_delivery', delivered: 'delivered', cancelled: 'canceled',
+      })[row.delivery_status] || 'received',
       total: Number(row.total),
       tax: Number(row.tax || 0),
       currency: row.currency,
@@ -380,7 +422,9 @@ export function createPlatform(db, catalogInput) {
       odooOrderName: row.odoo_order_name || null,
       odooState: row.odoo_state || null,
       odooSyncStatus: row.odoo_sync_status || 'pending',
+      odooSyncError: row.odoo_sync_error || null,
       odooSyncedAt: row.odoo_synced_at || null,
+      paymentIntentId: row.payment_intent_id || null,
       createdAt: row.created_at,
     };
   }

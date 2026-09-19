@@ -59,7 +59,7 @@ export function createApp({
       response.setHeader('Access-Control-Allow-Origin', origin);
     response.setHeader(
       'Access-Control-Allow-Headers',
-      'Content-Type, Authorization, Stripe-Signature, Idempotency-Key',
+      'Content-Type, Authorization, X-Order-Token, Stripe-Signature, Idempotency-Key',
     );
     response.setHeader(
       'Access-Control-Allow-Methods',
@@ -89,6 +89,8 @@ export function createApp({
           catalogStale: catalogHealth.stale === true,
           catalogLastError: catalogHealth.lastError || null,
           database: db ? 'configured' : 'not_configured',
+          payments: stripe.configurationStatus || (stripe.configured ? 'configured' : 'not_configured'),
+          stripeMode: stripe.mode || 'external',
         });
       }
       if (method === 'GET' && path === '/api/products') {
@@ -217,6 +219,21 @@ export function createApp({
           throw fail(400, 'invalid_signature');
         await orders.webhook(parseJson(raw));
         return send(response, 200, { received: true });
+      }
+      const orderPayment = /^\/api\/orders\/([^/]+)\/payment-session$/.exec(path);
+      if (method === 'POST' && orderPayment) {
+        const user = await auth.authenticate(request, true);
+        await auth.rate('order-payment:' + clientIP(request, env), 30, 900);
+        return send(
+          response,
+          200,
+          await orders.paymentSession(
+            decodeURIComponent(orderPayment[1]),
+            user,
+            request.headers['x-order-token'],
+            request.headers['idempotency-key'],
+          ),
+        );
       }
       if (method === 'GET' && path.startsWith('/api/orders/')) {
         const token =
@@ -485,7 +502,7 @@ export function createApp({
         if (method === 'POST' && orderSync) {
           if (user.role !== 'admin') throw fail(403, 'forbidden');
           const id = decodeURIComponent(orderSync[1]);
-          await orders.syncOrderToOdoo(id);
+          await orders.retryOdooSync(id);
           return send(response, 200, await platform.adminOrderDetail(user, id));
         }
         const order = /^orders\/([^/]+)$/.exec(action);

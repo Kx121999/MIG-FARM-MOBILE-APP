@@ -47,6 +47,7 @@ export function OrderItems({ items }: { items: CustomerOrderItem[] }) {
               {item.title}
             </Text>
             <Text style={[ui.caption, { textAlign: ar ? 'right' : 'left' }]}>
+              {item.variantTitle ? `${item.variantTitle} · ` : ''}
               {item.quantity} × {formatAED(item.unitPrice)}
             </Text>
             <Text style={[ui.label, { textAlign: ar ? 'right' : 'left' }]}>

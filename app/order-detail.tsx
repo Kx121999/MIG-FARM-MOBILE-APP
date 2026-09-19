@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { customerService, customerError } from '@/services/customer';
 import { currentProductsForReorder, getGuestOrder } from '@/services/orders';
-import { orderStatusLabel } from '@/utils/orders';
+import { fulfillmentStatusLabel, paymentStatusLabel } from '@/utils/orders';
 import { planReorder } from '@/utils/customer';
 import { formatAED } from '@/services/catalog';
 import type { CustomerOrder } from '@/types/customer';
@@ -84,34 +84,30 @@ function OrderDetailContent() {
               ar ? 'ar-AE' : 'en-AE',
             )}
           </Text>
-          <AccountHeading>{orderStatusLabel(order.status, ar)}</AccountHeading>
-          <View style={[ui.row, { flexDirection: ar ? 'row-reverse' : 'row' }]}>
-            <Check size={20} />
-            <Text style={ui.body}>
-              {ar ? 'تم إنشاء الطلب' : 'Order created'}
-            </Text>
-          </View>
-          <View style={[ui.row, { flexDirection: ar ? 'row-reverse' : 'row' }]}>
-            {order.status === 'paid' ? (
-              <Check size={20} />
-            ) : (
-              <Circle size={20} />
-            )}
-            <Text style={ui.body}>{orderStatusLabel(order.status, ar)}</Text>
-          </View>
-          {order.status === 'paid' ? (
-            <Notice
-              text={
-                ar
-                  ? 'تحديثات التجهيز والتوصيل غير متاحة بعد. تواصل مع الدعم لمتابعة الشحنة.'
-                  : 'Preparation and delivery updates are not available yet. Contact support to track delivery.'
-              }
-            />
-          ) : null}
+          <AccountHeading>{ar ? 'حالة الطلب' : 'Order status'}</AccountHeading>
+          <Text style={[ui.label, { textAlign: ar ? 'right' : 'left' }]}>
+            {fulfillmentStatusLabel(order.fulfillmentStatus, ar)}
+          </Text>
+          {(['received', 'preparing', 'out_for_delivery', 'delivered'] as const).map((step) => {
+            const positions = ['received', 'preparing', 'out_for_delivery', 'delivered'];
+            const done = positions.indexOf(step) <= positions.indexOf(order.fulfillmentStatus);
+            return (
+              <View key={step} style={[ui.row, { flexDirection: ar ? 'row-reverse' : 'row' }]}>
+                {done ? <Check size={20} /> : <Circle size={20} />}
+                <Text style={ui.body}>{fulfillmentStatusLabel(step, ar)}</Text>
+              </View>
+            );
+          })}
+          <AccountHeading>{ar ? 'الدفع' : 'Payment'}</AccountHeading>
+          <Text style={[ui.body, { textAlign: ar ? 'right' : 'left' }]}>
+            {paymentStatusLabel(order.paymentStatus, ar)}
+          </Text>
+          {order.odooOrderName ? <Text style={[ui.caption, { textAlign: ar ? 'right' : 'left' }]}>{ar ? 'مرجع الطلب: ' : 'Order reference: '}{order.odooOrderName}</Text> : null}
           <OrderItems items={order.items} />
           <AccountHeading>{ar ? 'ملخص الطلب' : 'Order summary'}</AccountHeading>
           {[
             [ar ? 'المنتجات' : 'Subtotal', order.subtotal],
+            [ar ? 'الضريبة' : 'VAT', order.tax],
             [ar ? 'التوصيل' : 'Delivery', order.delivery],
             [ar ? 'الإجمالي' : 'Total', order.total],
           ].map(([label, value]) => (

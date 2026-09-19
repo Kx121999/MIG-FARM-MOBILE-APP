@@ -19,6 +19,14 @@ const syncErrorCode = (error) =>
   typeof error?.code === 'string' && /^odoo_[a-z0-9_]{1,80}$/.test(error.code)
     ? error.code
     : 'odoo_sync_failed';
+const fulfillmentStatus = (value) => ({
+  new: 'received',
+  processing: 'preparing',
+  ready: 'preparing',
+  shipped: 'out_for_delivery',
+  delivered: 'delivered',
+  cancelled: 'canceled',
+})[value] || 'received';
 
 function requireIdempotencyKey(value) {
   if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]{20,128}$/.test(value))
@@ -107,6 +115,7 @@ export function priceCheckout(body, products, deliveryValue = '0') {
 export function createOrders(db, catalogInput, stripe, options = {}) {
   const catalog = asCatalogService(catalogInput);
   const secret = options.orderSecret || process.env.ORDER_TOKEN_SECRET;
+  const logger = options.logger || console;
   const requireDb = () => {
     if (!db) throw fail(503, 'database_not_configured');
   };
@@ -166,90 +175,13 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
     return result.rows[0];
   }
   async function checkout(body, user, idempotency) {
-    requireDb();
-    if (!stripe.configured) throw fail(503, 'payment_provider_not_configured');
-    if (!secret || secret.length < 32)
-      throw fail(503, 'order_security_not_configured');
-    if (
-      idempotency !== undefined &&
-      (typeof idempotency !== 'string' ||
-        !/^[a-zA-Z0-9_-]{20,128}$/.test(idempotency))
-    )
-      throw fail(400, 'invalid_idempotency_key');
-    const currentCatalog = await catalog.list({
-      force: true,
-      allowStale: false,
-    });
-    const priced = priceCheckout(
-      body,
-      currentCatalog.products,
-      options.delivery ?? process.env.DELIVERY_FEE_AED ?? '0',
+    const prepared = await prepare(body, user, idempotency);
+    return paymentSession(
+      prepared.orderId,
+      user,
+      user ? null : prepared.orderToken,
+      idempotency,
     );
-    const checkoutKey = hashToken(
-      (user?.id || 'guest') + ':' + (idempotency || randomUUID()),
-    );
-    const requestHash = hashToken(
-      JSON.stringify({
-        items: priced.items.map((i) => [i.productId, i.variantId, i.quantity]),
-        customer: priced.customer,
-        address: priced.shippingAddress,
-      }),
-    );
-    const row = await db.transaction(async (client) => {
-      if (user) await lockCustomer(client, user.id);
-      await client.query(
-        'SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
-        [checkoutKey],
-      );
-      const previous = (
-        await client.query(
-          'SELECT * FROM mig_farm.orders WHERE checkout_key=$1',
-          [checkoutKey],
-        )
-      ).rows[0];
-      if (previous) {
-        if (previous.request_hash !== requestHash)
-          throw fail(409, 'idempotency_conflict');
-        return previous;
-      }
-      const id =
-          'MIG-' +
-          Date.now().toString(36).toUpperCase() +
-          '-' +
-          randomBytes(6).toString('hex').toUpperCase(),
-        nonce = randomBytes(16).toString('hex');
-      return insert(
-        client,
-        { ...priced, id },
-        user?.id || null,
-        checkoutKey,
-        requestHash,
-        accessToken({ id, token_nonce: nonce }),
-        nonce,
-      );
-    });
-    if (!row) throw fail(503, 'checkout_conflict');
-    if (row.status === 'paid' || row.status === 'canceled')
-      throw fail(409, 'order_already_completed');
-    const intent = await stripe.intent(row);
-    if (
-      intent.metadata?.order_id !== row.id ||
-      intent.amount !== Math.round(Number(row.total) * 100) ||
-      intent.currency !== 'aed'
-    )
-      throw fail(502, 'payment_provider_error');
-    await db.query(
-      'UPDATE mig_farm.orders SET payment_intent_id=$2,updated_at=now() WHERE id=$1 AND (payment_intent_id IS NULL OR payment_intent_id=$2)',
-      [row.id, intent.id],
-    );
-    return {
-      orderId: row.id,
-      orderToken: accessToken(row),
-      clientSecret: intent.client_secret,
-      publishableKey: stripe.publishableKey,
-      amount: Number(row.total),
-      currency: row.currency,
-    };
   }
 
   async function loadOrderForSync(client, orderId) {
@@ -423,6 +355,156 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
     };
   }
 
+  async function ownedOrder(orderId, user, rawToken) {
+    if (typeof orderId !== 'string' || !/^MIG-[A-Z0-9-]{6,100}$/i.test(orderId))
+      throw fail(404, 'order_not_found');
+    if (user) {
+      const row = (
+        await db.query(
+          'SELECT * FROM mig_farm.orders WHERE id=$1 AND customer_id=$2',
+          [orderId, user.id],
+        )
+      ).rows[0];
+      if (!row) throw fail(404, 'order_not_found');
+      return row;
+    }
+    if (typeof rawToken !== 'string' || rawToken.length < 20 || rawToken.length > 256)
+      throw fail(404, 'order_not_found');
+    const row = (
+      await db.query(
+        'SELECT * FROM mig_farm.orders WHERE id=$1 AND customer_id IS NULL AND access_hash=$2',
+        [orderId, hashToken(rawToken)],
+      )
+    ).rows[0];
+    if (!row) throw fail(404, 'order_not_found');
+    return row;
+  }
+
+  async function paymentSession(orderId, user, rawToken, idempotency) {
+    requireDb();
+    requireIdempotencyKey(idempotency);
+    if (!stripe.configured)
+      throw fail(503, stripe.configurationStatus || 'payment_provider_not_configured');
+    const row = await ownedOrder(orderId, user, rawToken);
+    if (row.status === 'paid') throw fail(409, 'order_already_paid');
+    if (!['awaiting_payment', 'payment_failed', 'canceled'].includes(row.status))
+      throw fail(409, 'order_not_payable');
+    if (
+      !row.odoo_order_id ||
+      row.odoo_sync_status !== 'synced' ||
+      row.odoo_state !== 'draft'
+    ) throw fail(409, 'order_not_ready_for_payment');
+    const expectedAmount = Math.round(Number(row.total) * 100);
+    if (
+      row.currency !== 'AED' ||
+      !Number.isSafeInteger(expectedAmount) ||
+      expectedAmount <= 0
+    ) throw fail(409, 'invalid_order_total');
+    const previousIntentId = row.payment_intent_id || null;
+    const intent = await stripe.intent(row);
+    if (
+      typeof intent?.id !== 'string' ||
+      typeof intent.client_secret !== 'string' ||
+      intent.metadata?.order_id !== row.id ||
+      String(intent.metadata?.odoo_order_id) !== String(row.odoo_order_id) ||
+      intent.amount !== expectedAmount ||
+      intent.currency !== 'aed' ||
+      !['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(intent.status)
+    ) throw fail(502, 'payment_provider_error');
+    const updated = (
+      await db.query(
+        "UPDATE mig_farm.orders SET status='awaiting_payment',payment_status='awaiting_payment',payment_intent_id=$2,updated_at=now() WHERE id=$1 AND (payment_intent_id IS NULL OR payment_intent_id=$2 OR payment_intent_id=$3) RETURNING *",
+        [row.id, intent.id, previousIntentId],
+      )
+    ).rows[0];
+    if (!updated) throw fail(409, 'payment_session_conflict');
+    return {
+      orderId: updated.id,
+      orderToken: accessToken(updated),
+      clientSecret: intent.client_secret,
+      publishableKey: stripe.publishableKey,
+      amount: Number(updated.total),
+      currency: updated.currency,
+    };
+  }
+
+  async function confirmPaidOrder(orderId) {
+    requireDb();
+    const result = await db.transaction(async (client) => {
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+        [`odoo-confirm:${orderId}`],
+      );
+      const row = (
+        await client.query(
+          'SELECT * FROM mig_farm.orders WHERE id=$1 FOR UPDATE',
+          [orderId],
+        )
+      ).rows[0];
+      if (!row) throw fail(404, 'order_not_found');
+      if (row.status !== 'paid' || row.payment_status !== 'paid')
+        throw fail(409, 'payment_not_verified');
+      if (!row.odoo_order_id || !row.odoo_order_name) {
+        await client.query(
+          "UPDATE mig_farm.orders SET odoo_sync_status='needs_retry',odoo_sync_error='odoo_order_mapping_missing',updated_at=now() WHERE id=$1",
+          [row.id],
+        );
+        return { row, error: { code: 'odoo_order_mapping_missing' } };
+      }
+      if (['sale', 'done'].includes(row.odoo_state)) {
+        const updated = (
+          await client.query(
+            "UPDATE mig_farm.orders SET odoo_sync_status='synced',odoo_sync_error=NULL,odoo_synced_at=now(),updated_at=now() WHERE id=$1 RETURNING *",
+            [row.id],
+          )
+        ).rows[0];
+        return { row: updated, error: null };
+      }
+      try {
+        const confirmed = await catalog.confirmQuotation({
+          orderId: Number(row.odoo_order_id),
+          orderReference: row.id,
+          expectedTotal: Number(row.total),
+          expectedCurrency: row.currency,
+        });
+        if (
+          Number(confirmed.orderId) !== Number(row.odoo_order_id) ||
+          !['sale', 'done'].includes(confirmed.state)
+        ) throw fail(503, 'odoo_order_confirmation_failed');
+        const updated = (
+          await client.query(
+            "UPDATE mig_farm.orders SET odoo_state=$2,odoo_sync_status='synced',odoo_sync_error=NULL,odoo_synced_at=now(),updated_at=now() WHERE id=$1 RETURNING *",
+            [row.id, confirmed.state],
+          )
+        ).rows[0];
+        return { row: updated, error: null };
+      } catch (error) {
+        const code = syncErrorCode(error);
+        await client.query(
+          "UPDATE mig_farm.orders SET odoo_sync_status='needs_retry',odoo_sync_error=$2,updated_at=now() WHERE id=$1",
+          [row.id, code],
+        );
+        return { row, error: { code, statusCode: error?.statusCode } };
+      }
+    });
+    if (result.error)
+      throw fail(
+        Number.isInteger(result.error.statusCode) ? result.error.statusCode : 503,
+        result.error.code,
+      );
+    return result.row;
+  }
+
+  async function retryOdooSync(orderId) {
+    requireDb();
+    const row = (
+      await db.query('SELECT * FROM mig_farm.orders WHERE id=$1', [orderId])
+    ).rows[0];
+    if (!row) throw fail(404, 'order_not_found');
+    if (row.status === 'paid') return confirmPaidOrder(orderId);
+    return syncOrderToOdoo(orderId);
+  }
+
   async function dto(row) {
     const items = (
       await db.query(
@@ -442,6 +524,8 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
       updatedAt: row.updated_at,
       shippingAddress: row.shipping_snapshot,
       paymentStatus: row.payment_status,
+      fulfillmentStatus: fulfillmentStatus(row.delivery_status),
+      deliveryStatus: row.delivery_status,
       odooOrderName: row.odoo_order_name || null,
       odooState: row.odoo_state || null,
       odooSyncStatus: row.odoo_sync_status || 'pending',
@@ -493,18 +577,37 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
   }
   async function webhook(event) {
     requireDb();
-    const statuses = {
-      'payment_intent.succeeded': 'paid',
-      'payment_intent.payment_failed': 'payment_failed',
-      'payment_intent.canceled': 'canceled',
+    const transitions = {
+      'payment_intent.succeeded': {
+        intentStatus: 'succeeded',
+        status: 'paid',
+        paymentStatus: 'paid',
+      },
+      'payment_intent.payment_failed': {
+        intentStatus: 'requires_payment_method',
+        status: 'payment_failed',
+        paymentStatus: 'failed',
+      },
+      'payment_intent.canceled': {
+        intentStatus: 'canceled',
+        status: 'canceled',
+        paymentStatus: 'canceled',
+      },
     };
-    if (!statuses[event.type]) return;
+    const transition = transitions[event.type];
+    if (!transition) return;
     if (typeof event.id !== 'string' || event.id.length > 200)
       throw fail(400, 'invalid_event');
     const intent = event.data?.object,
       id = intent?.metadata?.order_id;
-    if (!id) return;
-    await db.transaction(async (client) => {
+    if (
+      typeof intent?.id !== 'string' ||
+      intent.id.length > 200 ||
+      typeof id !== 'string' ||
+      !/^MIG-[A-Z0-9-]{6,100}$/i.test(id) ||
+      intent.status !== transition.intentStatus
+    ) throw fail(400, 'invalid_event');
+    const result = await db.transaction(async (client) => {
       const candidate = (
         await client.query(
           'SELECT customer_id FROM mig_farm.orders WHERE id=$1',
@@ -522,24 +625,32 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
           [id],
         )
       ).rows[0];
-      if (!row) return;
+      if (!row) return { orderId: null, shouldConfirm: false };
       if (
-        (row.payment_intent_id && row.payment_intent_id !== intent.id) ||
+        row.payment_intent_id !== intent.id ||
+        String(intent.metadata?.odoo_order_id) !== String(row.odoo_order_id) ||
         intent.amount !== Math.round(Number(row.total) * 100) ||
-        intent.currency !== 'aed'
+        intent.currency !== 'aed' ||
+        row.currency !== 'AED'
       )
         throw fail(400, 'invalid_event');
       const receipt = await client.query(
         'INSERT INTO mig_farm.stripe_events(id) VALUES($1) ON CONFLICT DO NOTHING RETURNING id',
         [event.id],
       );
-      if (!receipt.rows.length) return;
-      if (row.status === 'paid' || row.status === 'canceled') return;
-      const status = statuses[event.type];
+      if (!receipt.rows.length)
+        return { orderId: row.id, shouldConfirm: row.status === 'paid' };
+      if (row.status === 'paid')
+        return { orderId: row.id, shouldConfirm: true };
       await client.query(
         'UPDATE mig_farm.orders SET status=$2,payment_status=$2,payment_intent_id=$3,updated_at=now() WHERE id=$1',
-        [id, status, intent.id],
+        [id, transition.status, intent.id],
       );
+      if (transition.paymentStatus !== transition.status)
+        await client.query(
+          'UPDATE mig_farm.orders SET payment_status=$2 WHERE id=$1',
+          [id, transition.paymentStatus],
+        );
       if (row.customer_id) {
         const pref = (
           await client.query(
@@ -547,7 +658,7 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
             [row.customer_id],
           )
         ).rows[0];
-        if (pref?.order_updates && row.status !== status)
+        if (pref?.order_updates && row.status !== transition.status)
           await client.query(
             "INSERT INTO mig_farm.notifications(id,user_id,type,title,body,data_json) VALUES($1,$2,'order',$3,$4,$5)",
             [
@@ -557,14 +668,28 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
               id,
               JSON.stringify({
                 orderId: id,
-                status,
+                status: transition.status,
                 titleAr: 'تحديث الطلب',
                 bodyAr: id,
               }),
             ],
           );
       }
+      return {
+        orderId: row.id,
+        shouldConfirm: transition.status === 'paid',
+      };
     });
+    if (result?.shouldConfirm && result.orderId) {
+      try {
+        await confirmPaidOrder(result.orderId);
+      } catch (error) {
+        logger?.warn?.('Paid order requires Odoo confirmation retry', {
+          orderId: result.orderId,
+          errorCode: syncErrorCode(error),
+        });
+      }
+    }
   }
   async function importLegacy(order) {
     requireDb();
@@ -598,6 +723,9 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
   return {
     prepare,
     syncOrderToOdoo,
+    retryOdooSync,
+    paymentSession,
+    confirmPaidOrder,
     checkout,
     guest,
     detail,

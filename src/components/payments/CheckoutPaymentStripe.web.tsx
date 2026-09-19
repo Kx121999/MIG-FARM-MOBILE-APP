@@ -25,7 +25,7 @@ function WebPaymentForm({ language, onSuccess, onError }: CheckoutPaymentProps) 
     setBusy(true);
     const result = await stripe.confirmPayment({ elements, redirect: 'if_required' });
     setBusy(false);
-    if (result.error) onError(result.error.message || 'payment_failed');
+    if (result.error) onError('payment_failed');
     else onSuccess();
   };
 

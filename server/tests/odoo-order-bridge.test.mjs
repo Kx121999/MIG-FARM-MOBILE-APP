@@ -86,6 +86,13 @@ function mockOrderOdoo({ partners = [], timeoutAfterCreate = false } = {}) {
     }
     if (method === 'read' && model === 'sale.order')
       return Response.json(state.orders.filter((order) => body.ids.includes(order.id)));
+    if (method === 'action_confirm' && model === 'sale.order') {
+      for (const id of body.ids || []) {
+        const order = state.orders.find((candidate) => candidate.id === id);
+        if (order?.state === 'draft') order.state = 'sale';
+      }
+      return Response.json(true);
+    }
     return new Response(JSON.stringify({ error: 'unexpected_mock_call' }), { status: 400 });
   };
   return { state, fetchImpl };
@@ -186,6 +193,30 @@ test('Odoo order bridge matches partners safely and creates draft variant lines'
       1,
     );
   });
+
+  await t.test('confirmation validates the same quotation and is repeat-safe', async () => {
+    const mock = mockOrderOdoo();
+    const catalog = createOdooCatalog({ env: ODOO_ENV, fetchImpl: mock.fetchImpl, logger: null });
+    const quote = await catalog.prepareQuotation(quotationPayload({ orderId: 'MIG-CONFIRM-1' }));
+    assert.equal(mock.state.calls.some((call) => call.method === 'action_confirm'), false);
+    const confirmed = await catalog.confirmQuotation({
+      orderId: quote.orderId,
+      orderReference: 'MIG-CONFIRM-1',
+      expectedTotal: quote.total,
+      expectedCurrency: 'AED',
+    });
+    assert.equal(confirmed.state, 'sale');
+    assert.equal(mock.state.calls.filter((call) => call.method === 'action_confirm').length, 1);
+    const repeated = await catalog.confirmQuotation({
+      orderId: quote.orderId,
+      orderReference: 'MIG-CONFIRM-1',
+      expectedTotal: quote.total,
+      expectedCurrency: 'AED',
+    });
+    assert.equal(repeated.state, 'sale');
+    assert.equal(mock.state.calls.filter((call) => call.method === 'action_confirm').length, 1);
+    assert.equal(mock.state.calls.some((call) => call.model === 'stock.quant'), false);
+  });
 });
 
 test('prepare order API persists Odoo totals and remains independent from Stripe', async (t) => {
@@ -206,6 +237,9 @@ test('prepare order API persists Odoo totals and remains independent from Stripe
   let failSync = false;
   const listCalls = [];
   const quoteCalls = [];
+  const quotes = new Map();
+  const confirmCalls = [];
+  let failConfirm = false;
   const product = {
     id: 11,
     handle: 'seed',
@@ -236,7 +270,7 @@ test('prepare order API persists Odoo totals and remains independent from Stripe
           code: 'odoo_rate_limited',
           statusCode: 503,
         });
-      return {
+      const quote = {
         orderId: 900 + quoteCalls.length,
         orderName: `S00${900 + quoteCalls.length}`,
         state: 'draft',
@@ -245,6 +279,25 @@ test('prepare order API persists Odoo totals and remains independent from Stripe
         total: 24.68,
         currency: 'AED',
       };
+      quotes.set(payload.orderId, quote);
+      return quote;
+    },
+    async confirmQuotation(payload) {
+      const quote = quotes.get(payload.orderReference);
+      if (!quote || Number(quote.orderId) !== Number(payload.orderId))
+        throw Object.assign(new Error('mapping mismatch'), { code: 'odoo_order_mapping_conflict' });
+      assert.equal(payload.expectedTotal, quote.total);
+      assert.equal(payload.expectedCurrency, quote.currency);
+      if (failConfirm)
+        throw Object.assign(new Error('temporary upstream failure'), {
+          code: 'odoo_unavailable',
+          statusCode: 503,
+        });
+      if (quote.state === 'draft') {
+        confirmCalls.push(payload);
+        quote.state = 'sale';
+      }
+      return quote;
     },
     async filterExistingProductIds(values) { return values; },
     async health() { return { source: 'odoo', configured: 'configured', reachable: true, products: 1 }; },
@@ -421,7 +474,11 @@ test('prepare order API persists Odoo totals and remains independent from Stripe
             client_secret: 'stripe-test-client-secret',
             amount: Math.round(Number(row.total) * 100),
             currency: 'aed',
-            metadata: { order_id: row.id },
+            status: 'requires_payment_method',
+            metadata: {
+              order_id: row.id,
+              odoo_order_id: String(row.odoo_order_id),
+            },
           };
         },
       },
@@ -429,6 +486,140 @@ test('prepare order API persists Odoo totals and remains independent from Stripe
     );
     const checkout = await stripeOrders.checkout(body, null, randomUUID());
     assert.equal(checkout.clientSecret, 'stripe-test-client-secret');
-    assert.equal(checkout.amount, 24.7);
+    assert.equal(checkout.amount, 24.68);
+  });
+
+  await t.test('verified payment confirms the same quotation exactly once', async () => {
+    const intents = new Map();
+    let intentSequence = 0;
+    const stripe = {
+      configured: true,
+      publishableKey: 'pk_test_production_flow',
+      async intent(row) {
+        const current = row.payment_intent_id && intents.get(row.payment_intent_id);
+        if (current && current.status !== 'canceled') return current;
+        const intent = {
+          id: `pi_production_${++intentSequence}`,
+          client_secret: `secret_${intentSequence}`,
+          amount: Math.round(Number(row.total) * 100),
+          currency: 'aed',
+          status: 'requires_payment_method',
+          metadata: {
+            order_id: row.id,
+            odoo_order_id: String(row.odoo_order_id),
+          },
+        };
+        intents.set(intent.id, intent);
+        return intent;
+      },
+    };
+    const orders = createOrders(db, catalog, stripe, {
+      orderSecret,
+      logger: { warn() {} },
+    });
+    const key = randomUUID();
+    const prepared = await orders.prepare(body, null, key);
+    const repeated = await orders.prepare(body, null, key);
+    assert.equal(repeated.orderId, prepared.orderId);
+    assert.equal(
+      (await db.query('SELECT count(*)::int count FROM mig_farm.orders WHERE checkout_key IS NOT NULL')).rows[0].count >= 1,
+      true,
+    );
+    await assert.rejects(
+      orders.paymentSession(prepared.orderId, null, 'wrong-token-value-that-is-long-enough', randomUUID()),
+      (error) => error.code === 'order_not_found',
+    );
+    const session = await orders.paymentSession(
+      prepared.orderId,
+      null,
+      prepared.orderToken,
+      randomUUID(),
+    );
+    assert.equal(session.amount, prepared.total);
+    assert.equal(confirmCalls.length, 0);
+    const intent = intents.get((await db.query(
+      'SELECT payment_intent_id FROM mig_farm.orders WHERE id=$1',
+      [prepared.orderId],
+    )).rows[0].payment_intent_id);
+    intent.status = 'succeeded';
+    const succeeded = {
+      id: 'evt_production_success',
+      type: 'payment_intent.succeeded',
+      data: { object: { ...intent } },
+    };
+    await orders.webhook(succeeded);
+    await orders.webhook(succeeded);
+    const paid = (await db.query(
+      'SELECT * FROM mig_farm.orders WHERE id=$1',
+      [prepared.orderId],
+    )).rows[0];
+    assert.equal(paid.status, 'paid');
+    assert.equal(paid.payment_status, 'paid');
+    assert.equal(paid.odoo_state, 'sale');
+    assert.equal(paid.odoo_sync_status, 'synced');
+    assert.equal(confirmCalls.filter((call) => call.orderReference === prepared.orderId).length, 1);
+
+    const failed = await orders.prepare(body, null, randomUUID());
+    await orders.paymentSession(failed.orderId, null, failed.orderToken, randomUUID());
+    const failedRow = (await db.query('SELECT * FROM mig_farm.orders WHERE id=$1', [failed.orderId])).rows[0];
+    const failedIntent = intents.get(failedRow.payment_intent_id);
+    failedIntent.status = 'requires_payment_method';
+    await orders.webhook({
+      id: 'evt_production_failed',
+      type: 'payment_intent.payment_failed',
+      data: { object: { ...failedIntent } },
+    });
+    assert.equal((await db.query('SELECT status FROM mig_farm.orders WHERE id=$1', [failed.orderId])).rows[0].status, 'payment_failed');
+    assert.equal(confirmCalls.some((call) => call.orderReference === failed.orderId), false);
+
+    const canceled = await orders.prepare(body, null, randomUUID());
+    await orders.paymentSession(canceled.orderId, null, canceled.orderToken, randomUUID());
+    const canceledRow = (await db.query('SELECT * FROM mig_farm.orders WHERE id=$1', [canceled.orderId])).rows[0];
+    const canceledIntent = intents.get(canceledRow.payment_intent_id);
+    canceledIntent.status = 'canceled';
+    await orders.webhook({
+      id: 'evt_production_canceled',
+      type: 'payment_intent.canceled',
+      data: { object: { ...canceledIntent } },
+    });
+    assert.equal((await db.query('SELECT status FROM mig_farm.orders WHERE id=$1', [canceled.orderId])).rows[0].status, 'canceled');
+    const retried = await orders.paymentSession(canceled.orderId, null, canceled.orderToken, randomUUID());
+    assert.notEqual(retried.clientSecret, session.clientSecret);
+    assert.equal(confirmCalls.some((call) => call.orderReference === canceled.orderId), false);
+
+    const mismatched = await orders.prepare(body, null, randomUUID());
+    await orders.paymentSession(mismatched.orderId, null, mismatched.orderToken, randomUUID());
+    const mismatchRow = (await db.query('SELECT * FROM mig_farm.orders WHERE id=$1', [mismatched.orderId])).rows[0];
+    const mismatchIntent = intents.get(mismatchRow.payment_intent_id);
+    await assert.rejects(
+      orders.webhook({
+        id: 'evt_production_mismatch',
+        type: 'payment_intent.succeeded',
+        data: { object: { ...mismatchIntent, status: 'succeeded', amount: mismatchIntent.amount + 1 } },
+      }),
+      (error) => error.code === 'invalid_event',
+    );
+    assert.equal((await db.query('SELECT status FROM mig_farm.orders WHERE id=$1', [mismatched.orderId])).rows[0].status, 'awaiting_payment');
+
+    const recoverable = await orders.prepare(body, null, randomUUID());
+    await orders.paymentSession(recoverable.orderId, null, recoverable.orderToken, randomUUID());
+    const recoverableRow = (await db.query('SELECT * FROM mig_farm.orders WHERE id=$1', [recoverable.orderId])).rows[0];
+    const recoverableIntent = intents.get(recoverableRow.payment_intent_id);
+    failConfirm = true;
+    await orders.webhook({
+      id: 'evt_production_recoverable',
+      type: 'payment_intent.succeeded',
+      data: { object: { ...recoverableIntent, status: 'succeeded' } },
+    });
+    const needsRetry = (await db.query('SELECT * FROM mig_farm.orders WHERE id=$1', [recoverable.orderId])).rows[0];
+    assert.equal(needsRetry.status, 'paid');
+    assert.equal(needsRetry.odoo_sync_status, 'needs_retry');
+    assert.equal(needsRetry.odoo_sync_error, 'odoo_unavailable');
+    failConfirm = false;
+    await orders.retryOdooSync(recoverable.orderId);
+    const recovered = (await db.query('SELECT * FROM mig_farm.orders WHERE id=$1', [recoverable.orderId])).rows[0];
+    assert.equal(recovered.status, 'paid');
+    assert.equal(recovered.odoo_state, 'sale');
+    assert.equal(recovered.odoo_sync_status, 'synced');
   });
 });

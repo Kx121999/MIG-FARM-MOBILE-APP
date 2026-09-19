@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { API_ORIGIN } from '@/services/catalog';
 import { mapCustomerOrder } from '@/utils/orders';
 import { CustomerServiceError } from '@/services/customer';
@@ -7,8 +9,31 @@ import type { CustomerOrder, Page } from '@/types/customer';
 
 const KEY = 'mig_farm_order_refs_v1';
 type OrderRef = { id: string; token: string; createdAt: number };
+let webReferences = '[]';
+async function readReferences() {
+  if (Platform.OS === 'web') return webReferences;
+  const secure = await SecureStore.getItemAsync(KEY);
+  if (secure) return secure;
+  const legacy = await AsyncStorage.getItem(KEY);
+  if (legacy) {
+    await SecureStore.setItemAsync(KEY, legacy, {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+    });
+    await AsyncStorage.removeItem(KEY);
+  }
+  return legacy || '[]';
+}
+async function writeReferences(value: string) {
+  if (Platform.OS === 'web') {
+    webReferences = value;
+    return;
+  }
+  await SecureStore.setItemAsync(KEY, value, {
+    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+  });
+}
 async function references(): Promise<OrderRef[]> {
-  const data: unknown = JSON.parse((await AsyncStorage.getItem(KEY)) || '[]');
+  const data: unknown = JSON.parse(await readReferences());
   if (!Array.isArray(data)) return [];
   const seen = new Set<string>();
   return data
@@ -26,6 +51,16 @@ async function references(): Promise<OrderRef[]> {
     })
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 30);
+}
+export async function rememberGuestOrder(id: string, token: string) {
+  if (!/^MIG-[A-Z0-9-]+$/i.test(id) || typeof token !== 'string' || token.length < 20)
+    throw new CustomerServiceError('invalid');
+  const current = await references();
+  const next = [
+    { id, token, createdAt: Date.now() },
+    ...current.filter((item) => item.id !== id),
+  ].slice(0, 30);
+  await writeReferences(JSON.stringify(next));
 }
 async function request(path: string, token?: string) {
   const controller = new AbortController();

@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { PGlite } from '@electric-sql/pglite';
+import { migrate } from '../db/migrate.mjs';
 import { createApp } from '../src/app.mjs';
 import { createOrders } from '../services/orders.mjs';
 import {
@@ -570,25 +572,19 @@ test('image proxy returns normal image bytes and health never exposes the Odoo k
   assert.equal(readCall.options.headers.Authorization, `bearer ${ENV.ODOO_API_KEY}`);
 });
 
-function fakeCheckoutDb() {
-  const query = async (sql, values = []) => {
-    if (sql.startsWith('INSERT INTO mig_farm.orders'))
-      return {
-        rows: [{
-          id: values[0], status: values[2], currency: values[3],
-          subtotal: values[4], delivery: values[5], total: values[6],
-          token_nonce: values[12],
-        }],
-      };
-    return { rows: [] };
+test('prepare force-reloads Odoo, reprices server-side, and rejects missing or confirmed unavailable variants', async (t) => {
+  const engine = new PGlite();
+  const wrap = (client) => ({
+    query: (sql, values) => values
+      ? client.query(sql, values)
+      : client.exec(sql).then((results) => results.at(-1)),
+  });
+  const db = {
+    ...wrap(engine),
+    transaction: (operation) => engine.transaction((tx) => operation(wrap(tx))),
   };
-  return {
-    query,
-    transaction: async (operation) => operation({ query }),
-  };
-}
-
-test('checkout force-reloads Odoo, reprices server-side, and rejects missing or confirmed unavailable variants', async () => {
+  t.after(() => engine.close());
+  await migrate(db);
   const calls = [];
   let products = [{
     id: 1,
@@ -602,17 +598,17 @@ test('checkout force-reloads Odoo, reprices server-side, and rejects missing or 
       calls.push(options);
       return { products };
     },
-  };
-  const stripe = {
-    configured: true,
-    publishableKey: 'pk_test',
-    intent: async (row) => ({
-      id: 'pi_test', client_secret: 'secret',
-      amount: Math.round(Number(row.total) * 100), currency: 'aed',
-      metadata: { order_id: row.id },
+    prepareQuotation: async ({ orderId, items }) => ({
+      orderId: 901,
+      orderName: `S-${orderId}`,
+      state: 'draft',
+      subtotal: items.reduce((total, item) => total + item.lineTotal, 0),
+      tax: 0,
+      total: items.reduce((total, item) => total + item.lineTotal, 0),
+      currency: 'AED',
     }),
   };
-  const orders = createOrders(fakeCheckoutDb(), catalog, stripe, {
+  const orders = createOrders(db, catalog, { configured: false }, {
     orderSecret: 'test-order-secret-at-least-32-characters',
     delivery: '0',
   });
@@ -622,12 +618,12 @@ test('checkout force-reloads Odoo, reprices server-side, and rejects missing or 
     customer: { name: 'Buyer', email: 'buyer@example.test', phone: '+971501234567' },
     shippingAddress: { emirate: 'Dubai', city: 'Dubai', addressLine: 'Farm 1' },
   };
-  const result = await orders.checkout(body, null, 'a'.repeat(20));
-  assert.equal(result.amount, 39.5);
+  const result = await orders.prepare(body, null, 'a'.repeat(20));
+  assert.equal(result.total, 39.5);
   assert.deepEqual(calls[0], { force: true, allowStale: false });
 
   products = [{ ...products[0], variants: [] }];
-  await assert.rejects(() => orders.checkout(body, null, 'b'.repeat(20)), (error) => error.code === 'invalid_cart_item');
+  await assert.rejects(() => orders.prepare(body, null, 'b'.repeat(20)), (error) => error.code === 'invalid_cart_item');
   products = [{ ...products[0], variants: [{ id: 11, title: 'Packet', price: '19.75', available: false }] }];
-  await assert.rejects(() => orders.checkout(body, null, 'c'.repeat(20)), (error) => error.code === 'invalid_cart_item');
+  await assert.rejects(() => orders.prepare(body, null, 'c'.repeat(20)), (error) => error.code === 'invalid_cart_item');
 });

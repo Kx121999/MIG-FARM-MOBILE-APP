@@ -24,6 +24,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChoiceGroup } from '@/components/account/ChoiceGroup';
 import { Notice } from '@/components/account/AccountUI';
+import { CheckoutPayment } from '@/components/payments/CheckoutPayment';
 import { colors, radius } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -33,7 +34,10 @@ import { formatAED, localizedProductTitle } from '@/services/catalog';
 import {
   CheckoutCustomer,
   CheckoutError,
+  createPaymentSession,
   ORDER_PREPARE_ENABLED,
+  PAYMENT_ENABLED,
+  PaymentSession,
   prepareOrder,
   PreparedOrder,
   ShippingAddress,
@@ -76,6 +80,10 @@ function checkoutError(code: string, language: 'ar' | 'en') {
     return ar ? 'تغيّرت بيانات المحاولة السابقة. ارجع للسلة ثم أعد المحاولة.' : 'The previous attempt details changed. Return to the cart and try again.';
   if (code === 'network')
     return ar ? 'تعذر الاتصال. الطلب لم يُدفع والسلة ما زالت محفوظة.' : 'Could not connect. Nothing was paid and your cart is still saved.';
+  if (code === 'payment_disabled' || code === 'missing_credentials' || code === 'credential_mode_mismatch')
+    return ar ? 'الدفع الإلكتروني غير متاح مؤقتًا. طلبك وسلتك محفوظان.' : 'Online payment is temporarily unavailable. Your order and cart are saved.';
+  if (code.startsWith('payment_') || code === 'invalid_payment_session')
+    return ar ? 'تعذر تجهيز الدفع بأمان. لم يتم خصم أي مبلغ ويمكنك المحاولة مرة أخرى.' : 'Secure payment could not be prepared. Nothing was charged and you can retry.';
   if (code.startsWith('odoo_'))
     return ar ? 'تعذر التحقق من Odoo الآن. السلة محفوظة ويمكنك المحاولة لاحقًا.' : 'Odoo verification is currently unavailable. Your cart is saved for retry.';
   return ar ? 'تعذر تجهيز مراجعة الطلب. راجع البيانات وحاول مرة أخرى.' : 'Final review could not be prepared. Check the details and try again.';
@@ -91,6 +99,8 @@ export default function CheckoutScreen() {
   const [customer, setCustomer] = useState<CheckoutCustomer>({ name: '', email: '', phone: '' });
   const [address, setAddress] = useState<ShippingAddress>({ emirate: 'Dubai', city: '', addressLine: '', notes: '' });
   const [preparedOrder, setPreparedOrder] = useState<PreparedOrder | null>(null);
+  const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
+  const [paymentBusy, setPaymentBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const requestRef = useRef<AbortController | null>(null);
@@ -168,6 +178,27 @@ export default function CheckoutScreen() {
       notes: saved.notes || '',
     });
     setCustomer((current) => ({ ...current, name: saved.name || current.name, phone: saved.phone || current.phone }));
+  };
+
+  const startPayment = async () => {
+    if (!preparedOrder || paymentBusy || paymentSession) return;
+    setPaymentBusy(true);
+    setError('');
+    try {
+      setPaymentSession(await createPaymentSession(preparedOrder));
+    } catch (reason) {
+      setError(checkoutError(reason instanceof CheckoutError ? reason.code : 'network', language));
+    } finally {
+      setPaymentBusy(false);
+    }
+  };
+
+  const paymentSubmitted = () => {
+    if (!preparedOrder) return;
+    router.replace({
+      pathname: '/order-detail',
+      params: { number: preparedOrder.orderId },
+    });
   };
 
   const priceChanged = Boolean(preparedOrder && Math.abs(preparedOrder.subtotal - subtotal) >= 0.01);
@@ -259,10 +290,18 @@ export default function CheckoutScreen() {
 
         <View style={styles.stickyAction}>
           {preparedOrder ? (
-            <View style={styles.stopPanel}>
-              <ShieldCheck size={17} color={colors.success} />
-              <Text style={styles.stopText}>{language === 'ar' ? 'توقّفنا قبل الدفع. السلة محفوظة ولم يتم تأكيد أو دفع الطلب.' : 'Stopped before payment. The cart is kept and nothing was confirmed or paid.'}</Text>
-            </View>
+            paymentSession ? (
+              <CheckoutPayment session={paymentSession} customer={customer} language={language} onSuccess={paymentSubmitted} onError={(code) => setError(checkoutError(code || 'payment_error', language))} />
+            ) : PAYMENT_ENABLED ? (
+              <Pressable accessibilityRole="button" disabled={paymentBusy} style={({ pressed }) => [styles.continueButton, paymentBusy && styles.disabled, pressed && styles.primaryPressed]} onPress={startPayment}>
+                <Text style={styles.continueButtonText}>{paymentBusy ? (language === 'ar' ? 'جاري تجهيز الدفع الآمن…' : 'Preparing secure payment…') : (language === 'ar' ? 'المتابعة إلى الدفع الآمن' : 'Continue to secure payment')}</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.stopPanel}>
+                <ShieldCheck size={17} color={colors.success} />
+                <Text style={styles.stopText}>{language === 'ar' ? 'الدفع الإلكتروني غير متاح مؤقتًا. تم حفظ مرجع الطلب والسلة.' : 'Online payment is temporarily unavailable. Your order reference and cart are saved.'}</Text>
+              </View>
+            )
           ) : (
             <Pressable accessibilityRole="button" disabled={busy || !cart.length || !ORDER_PREPARE_ENABLED} style={({ pressed }) => [styles.continueButton, (busy || !cart.length || !ORDER_PREPARE_ENABLED) && styles.disabled, pressed && styles.primaryPressed]} onPress={prepareReview}>
               <Text style={styles.continueButtonText}>{busy ? (language === 'ar' ? 'جاري التحقق مع Odoo…' : 'Verifying with Odoo…') : (language === 'ar' ? 'تجهيز المراجعة النهائية' : 'Prepare final review')}</Text>

@@ -38,7 +38,7 @@ test('cart identity merges the same real Odoo variant and separates different va
   assert.equal(cart.clampCartQuantity(100), 99);
 });
 
-test('checkout stops after authoritative Odoo review and keeps the cart', async () => {
+test('checkout pays only the prepared authoritative Odoo order and keeps the cart until verification', async () => {
   const checkout = await readFile(new URL('../app/checkout.tsx', import.meta.url), 'utf8');
   const env = await readFile(new URL('../.env.example', import.meta.url), 'utf8');
   assert.match(checkout, /prepareOrder\(cart, customer, address/);
@@ -49,8 +49,12 @@ test('checkout stops after authoritative Odoo review and keeps the cart', async 
   assert.match(checkout, /preparedOrder\.currency/);
   assert.match(checkout, /preparedOrder\.odoo\.orderName/);
   assert.match(checkout, /ORDER_PREPARE_ENABLED/);
+  assert.match(checkout, /PAYMENT_ENABLED/);
+  assert.match(checkout, /createPaymentSession\(preparedOrder\)/);
+  assert.match(checkout, /CheckoutPayment/);
   assert.match(env, /^EXPO_PUBLIC_ORDER_PREPARE_ENABLED=false$/m);
-  assert.doesNotMatch(checkout, /createCheckoutSession|CheckoutPayment|PaymentSession|completeCheckoutAttempt|clearCart|confirmPayment/);
+  assert.match(env, /^EXPO_PUBLIC_PAYMENT_ENABLED=false$/m);
+  assert.doesNotMatch(checkout, /createCheckoutSession|completeCheckoutAttempt|clearCart|confirmPayment/);
   assert.doesNotMatch(checkout, /action_confirm|stock\.quant|qty_available\s*=|free_qty\s*=/);
 });
 

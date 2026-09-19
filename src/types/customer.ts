@@ -71,6 +71,7 @@ export type CustomerOrderItem = {
   variantId: number;
   handle: string;
   title: string;
+  variantTitle: string;
   image: string | null;
   quantity: number;
   unitPrice: number;
@@ -85,10 +86,14 @@ export type CustomerOrder = {
     | 'canceled'
     | 'unknown';
   createdAt: string;
+  paymentStatus: 'pending' | 'awaiting_payment' | 'paid' | 'failed' | 'canceled' | 'unknown';
+  fulfillmentStatus: 'received' | 'preparing' | 'out_for_delivery' | 'delivered' | 'canceled';
   subtotal: number;
+  tax: number;
   delivery: number;
   total: number;
   currency: string;
+  odooOrderName: string | null;
   items: CustomerOrderItem[];
   address: {
     emirate: string;

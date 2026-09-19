@@ -36,6 +36,7 @@ test('customer API foundation on PostgreSQL', async (t) => {
     },
   ];
   const intents = new Map();
+  const quotations = new Map();
   const webhookSecret = 'test-webhook-secret';
   const verify = stripeGateway({ STRIPE_WEBHOOK_SECRET: webhookSecret }).verify;
   const stripe = {
@@ -48,8 +49,12 @@ test('customer API foundation on PostgreSQL', async (t) => {
           id: 'pi_' + row.id,
           client_secret: 'test-only',
           amount: Math.round(Number(row.total) * 100),
-          currency: 'aed',
-          metadata: { order_id: row.id },
+           currency: 'aed',
+           status: 'requires_payment_method',
+           metadata: {
+             order_id: row.id,
+             odoo_order_id: String(row.odoo_order_id),
+           },
         });
       return intents.get(row.id);
     },
@@ -60,7 +65,29 @@ test('customer API foundation on PostgreSQL', async (t) => {
   };
   const server = createApp({
     db,
-    catalog: { products },
+    catalog: {
+      products,
+      async prepareQuotation(payload) {
+        if (!quotations.has(payload.orderId))
+          quotations.set(payload.orderId, {
+            orderId: 500 + quotations.size,
+            orderName: `S00${500 + quotations.size}`,
+            state: 'draft',
+            subtotal: 24.7,
+            tax: 2.5,
+            total: 27.2,
+            currency: 'AED',
+          });
+        return quotations.get(payload.orderId);
+      },
+      async confirmQuotation(payload) {
+        const quote = quotations.get(payload.orderReference);
+        assert.equal(quote?.orderId, payload.orderId);
+        assert.equal(payload.expectedTotal, quote.total);
+        quote.state = 'sale';
+        return quote;
+      },
+    },
     mediaRoot: fileURLToPath(new URL('../public/', import.meta.url)),
     stripe,
     orderOptions: options,
@@ -431,7 +458,9 @@ test('customer API foundation on PostgreSQL', async (t) => {
       const event = {
         id: 'evt_paid_test',
         type: 'payment_intent.succeeded',
-        data: { object: intents.get(order.orderId) },
+        data: {
+          object: { ...intents.get(order.orderId), status: 'succeeded' },
+        },
       };
       const post = async (value) => {
         const timestamp = Math.floor(Date.now() / 1000),
@@ -455,6 +484,12 @@ test('customer API foundation on PostgreSQL', async (t) => {
             ...event,
             id: 'evt_late',
             type: 'payment_intent.payment_failed',
+            data: {
+              object: {
+                ...intents.get(order.orderId),
+                status: 'requires_payment_method',
+              },
+            },
           })
         ).status,
         200,

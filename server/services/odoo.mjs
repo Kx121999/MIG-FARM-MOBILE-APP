@@ -597,6 +597,53 @@ export function createOdooCatalog({
     }
   }
 
+  async function confirmQuotation({
+    orderId,
+    orderReference,
+    expectedTotal,
+    expectedCurrency,
+  }) {
+    const numericOrderId = Number(orderId);
+    if (!Number.isSafeInteger(numericOrderId) || numericOrderId <= 0)
+      throw safeFailure('odoo_invalid_order');
+    const reference = cleanText(orderReference);
+    if (!reference) throw safeFailure('odoo_invalid_order');
+    const saleFields = await fieldsFor('sale.order');
+    requiredFields('sale.order', saleFields, [
+      'id', 'name', 'state', 'client_order_ref', 'amount_untaxed',
+      'amount_tax', 'amount_total', 'currency_id',
+    ]);
+    const orderReadFields = saleFields.filter((field) => [
+      'id', 'name', 'state', 'partner_id', 'client_order_ref', 'amount_untaxed',
+      'amount_tax', 'amount_total', 'currency_id',
+    ].includes(field));
+    let record = await readOne('sale.order', numericOrderId, orderReadFields);
+    if (cleanText(record.client_order_ref) !== reference)
+      throw safeFailure('odoo_order_mapping_conflict');
+    const current = quotationResult(record);
+    if (
+      number(expectedTotal) === null ||
+      Math.round(current.total * 100) !== Math.round(number(expectedTotal) * 100) ||
+      current.currency !== cleanText(expectedCurrency).toUpperCase()
+    ) throw safeFailure('odoo_order_totals_changed');
+    if (['sale', 'done'].includes(cleanText(record.state)))
+      return current;
+    if (cleanText(record.state) !== 'draft')
+      throw safeFailure('odoo_order_state_conflict');
+    await call('sale.order', 'action_confirm', { ids: [numericOrderId] });
+    record = await readOne('sale.order', numericOrderId, orderReadFields);
+    if (
+      cleanText(record.client_order_ref) !== reference ||
+      !['sale', 'done'].includes(cleanText(record.state))
+    ) throw safeFailure('odoo_order_confirmation_failed');
+    const confirmed = quotationResult(record);
+    if (
+      Math.round(confirmed.total * 100) !== Math.round(number(expectedTotal) * 100) ||
+      confirmed.currency !== cleanText(expectedCurrency).toUpperCase()
+    ) throw safeFailure('odoo_order_totals_changed');
+    return confirmed;
+  }
+
   async function loadCatalog() {
     const templateFields = await fieldsFor('product.template');
     const variantFields = await fieldsFor('product.product');
@@ -986,7 +1033,8 @@ export function createOdooCatalog({
 
   return {
     source: 'odoo', configured: config.configured, list, getByHandle,
-    filterExistingProductIds, productImage, prepareQuotation, health,
+    filterExistingProductIds, productImage, prepareQuotation, confirmQuotation,
+    health,
   };
 }
 
@@ -1021,6 +1069,11 @@ export function createStaticCatalog(input = {}) {
     async prepareQuotation(payload) {
       if (typeof data?.prepareQuotation === 'function')
         return data.prepareQuotation(payload);
+      throw safeFailure('odoo_not_configured');
+    },
+    async confirmQuotation(payload) {
+      if (typeof data?.confirmQuotation === 'function')
+        return data.confirmQuotation(payload);
       throw safeFailure('odoo_not_configured');
     },
     async health() {
