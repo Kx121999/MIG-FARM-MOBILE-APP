@@ -199,7 +199,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
               {featuredPreview.map((product) => {
                 const title = localizedProductTitle(product, language);
                 const direction = textDirection(title, language);
-                return <Pressable key={product.id} onPress={() => { saveSearch(title); router.push({ pathname: '/product/[handle]', params: { handle: product.handle } }); }} style={styles.discoveryProduct}>
+                return <Pressable key={product.id} onPress={() => { saveSearch(title); router.push({ pathname: '/product/[handle]', params: { handle: product.handle, ...(category !== 'all' ? { category: String(category) } : {}) } }); }} style={styles.discoveryProduct}>
                   <Text numberOfLines={2} style={[styles.discoveryProductText, { textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{title}</Text>
                   <Text style={styles.discoveryProductPrice}>{productPriceNumber(product) > 0 ? `${productPriceNumber(product)} AED` : 'MIG FARM'}</Text>
                 </Pressable>;
@@ -214,7 +214,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
             {suggestions.map((product) => {
               const title = localizedProductTitle(product, language);
               const direction = textDirection(title, language);
-              return <Pressable key={product.id} onPress={() => { saveSearch(title); router.push({ pathname: '/product/[handle]', params: { handle: product.handle } }); }} style={[styles.suggestionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              return <Pressable key={product.id} onPress={() => { saveSearch(title); router.push({ pathname: '/product/[handle]', params: { handle: product.handle, ...(category !== 'all' ? { category: String(category) } : {}) } }); }} style={[styles.suggestionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Search size={15} color={colors.muted} /><Text numberOfLines={1} style={[styles.suggestionText, { textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{title}</Text>
               </Pressable>;
             })}
@@ -300,7 +300,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
             onEndReached={() => setShownCount((current) => Math.min(visible.length, current + 20))}
             onEndReachedThreshold={0.65}
             keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => <ProductCard product={item} />}
+            renderItem={({ item }) => <ProductCard product={item} categoryId={category === 'all' ? undefined : category} />}
           />
         ) : null}
       </View>

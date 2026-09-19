@@ -16,6 +16,14 @@ export type StoreCategory = {
   updatedAt?: string;
 };
 
+export type ProductVariantOption = {
+  templateValueId: number;
+  attributeId: number;
+  attributeName: string;
+  valueId: number;
+  value: string;
+};
+
 export type ProductVariant = {
   id: number;
   title: string;
@@ -31,6 +39,7 @@ export type ProductVariant = {
   option1?: string | null;
   option2?: string | null;
   option3?: string | null;
+  options?: ProductVariantOption[];
   featured_image?: ProductImage | null;
 };
 

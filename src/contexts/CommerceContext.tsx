@@ -60,6 +60,10 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
   const [deliveryEmirate, setDeliveryEmirateState] = useState('Dubai');
   const [hydrated, setHydrated] = useState(false);
   const toggleGuestFavorite = useCallback((id: number) => setFavorites(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]), []);
+  const recordRecentProduct = useCallback((productId: number) => setRecentProductIds((current) => {
+    const next = [productId, ...current.filter((id) => id !== productId)].slice(0, 8);
+    return current.length === next.length && current.every((id, index) => id === next[index]) ? current : next;
+  }), []);
   const { favorites, toggleFavorite, favoritesError, favoritesLoading, retryFavorites } = useAccountFavorites(guestFavorites, hydrated, toggleGuestFavorite);
   const [pendingGuestSync, setPendingGuestSync] = useState(false);
 
@@ -137,9 +141,10 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
     subtotal: cart.reduce((sum, item) => sum + Number(item.variant.price || 0) * item.quantity, 0),
     addToCart: (product, variant, quantity = 1) => {
       const key = `${product.id}:${variant.id}`;
+      const safeQuantity = Math.min(99, Math.max(1, Math.floor(quantity)));
       setCart((current) => {
         const existing = current.find((item) => item.key === key);
-        if (existing) return current.map((item) => item.key === key ? { ...item, variant, quantity: item.quantity + quantity } : item);
+        if (existing) return current.map((item) => item.key === key ? { ...item, variant, quantity: Math.min(99, item.quantity + safeQuantity) } : item);
         return [...current, {
           key,
           productId: product.id,
@@ -149,13 +154,13 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
           title_en: product.title_en,
           image: variant.featured_image?.src || productImage(product),
           variant,
-          quantity,
+          quantity: safeQuantity,
         }];
       });
     },
     setQuantity: (key, quantity) => setCart((current) => quantity <= 0
       ? current.filter((item) => item.key !== key)
-      : current.map((item) => item.key === key ? { ...item, quantity } : item)),
+      : current.map((item) => item.key === key ? { ...item, quantity: Math.min(99, Math.floor(quantity)) } : item)),
     removeFromCart: (key) => setCart((current) => current.filter((item) => item.key !== key)),
     clearCart: () => setCart([]),
     isFavorite: (productId) => favorites.includes(productId),
@@ -165,17 +170,14 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
       ? current.filter((id) => id !== productId)
       : current.length >= 3 ? current : [...current, productId]),
     clearCompare: () => setCompareIds([]),
-    recordRecentProduct: (productId) => setRecentProductIds((current) => {
-      const next = [productId, ...current.filter((id) => id !== productId)].slice(0, 8);
-      return current.length === next.length && current.every((id, index) => id === next[index]) ? current : next;
-    }),
+    recordRecentProduct,
     setProfile: (next) => setProfileState(next),
     clearRecentProducts: () => setRecentProductIds([]),
     saveAddress: (address) => setAddresses((current) => upsertAddress(current, { ...address, id: address.id || `address-${Date.now()}-${Math.random().toString(36).slice(2,8)}` })),
     setDefaultAddress: (id) => setAddresses((current) => current.some((item) => item.id === id) ? current.map((item) => ({ ...item, isDefault: item.id === id })) : current),
     removeAddress: (id) => setAddresses((current) => withoutAddress(current,id)),
     setDeliveryEmirate: (emirate) => setDeliveryEmirateState(emirate),
-  }), [addresses, cart, compareIds, deliveryEmirate, favorites, profile, recentProductIds, hydrated, toggleFavorite, favoritesError, favoritesLoading, retryFavorites]);
+  }), [addresses, cart, compareIds, deliveryEmirate, favorites, profile, recentProductIds, hydrated, toggleFavorite, favoritesError, favoritesLoading, retryFavorites, recordRecentProduct]);
 
   return <CommerceContext.Provider value={value}>{children}</CommerceContext.Provider>;
 }

@@ -17,7 +17,7 @@ function useCardMetrics() {
   return { titleHeight: 42 * scale, priceHeight: 42 * scale };
 }
 
-export function ProductCard({ product, wide = false, cardWidth }: { product: Product; wide?: boolean; cardWidth?: number }) {
+export function ProductCard({ product, wide = false, cardWidth, categoryId }: { product: Product; wide?: boolean; cardWidth?: number; categoryId?: number }) {
   const { addToCart, isFavorite, toggleFavorite, isCompared, toggleCompare } = useCommerce();
   const { language, isRTL, t } = useLanguage();
   const metrics = useCardMetrics();
@@ -46,7 +46,7 @@ export function ProductCard({ product, wide = false, cardWidth }: { product: Pro
   };
 
   return <View testID="product-card" style={[styles.card, shadow, wide ? styles.wide : styles.grid, cardWidth ? { width: cardWidth } : null]}>
-    <MotionPressable accessibilityRole="button" accessibilityLabel={title} style={styles.productTap} onPress={() => router.push({ pathname: '/product/[handle]', params: { handle: product.handle } })}>
+    <MotionPressable accessibilityRole="button" accessibilityLabel={title} style={styles.productTap} onPress={() => router.push({ pathname: '/product/[handle]', params: { handle: product.handle, ...(categoryId ? { category: String(categoryId) } : {}) } })}>
       <View style={styles.imageWrap}>
         {!imageLoaded && !imageFailed && uri ? <Skeleton style={StyleSheet.absoluteFill} /> : null}
         {uri && !imageFailed ? <Image accessibilityLabel={title} source={{ uri, cache: 'force-cache' }} style={styles.image} resizeMode="contain" onLoad={() => setImageLoaded(true)} onError={() => setImageFailed(true)} />

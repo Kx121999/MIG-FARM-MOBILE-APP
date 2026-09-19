@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Share, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Image, Pressable, ScrollView, Share, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
+  ImageOff,
   Minus,
   Plus,
   RotateCcw,
@@ -25,6 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, shadow } from '@/constants/theme';
 import { ProductCard } from '@/components/ProductCard';
 import { SectionTitle } from '@/components/SectionTitle';
+import { Skeleton } from '@/components/Skeleton';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
@@ -39,9 +41,10 @@ import {
 } from '@/services/catalog';
 import { Product, ProductVariant } from '@/types';
 import { useProducts } from '@/hooks/useProducts';
+import { productCategoryPath, relatedProducts, selectVariantOption, variantOptionGroups, variantSelection } from '@/services/productExperience';
 
 export default function ProductScreen() {
-  const { handle } = useLocalSearchParams<{ handle: string }>();
+  const { handle, category: categoryParam } = useLocalSearchParams<{ handle: string; category?: string }>();
   const { width } = useWindowDimensions();
   const { addToCart, isFavorite, toggleFavorite, isCompared, toggleCompare, recordRecentProduct } = useCommerce();
   const { language, isRTL, t } = useLanguage();
@@ -53,10 +56,22 @@ export default function ProductScreen() {
   const [error, setError] = useState(false);
   const [added, setAdded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
-  const { products: allProducts } = useProducts();
+  const { products: allProducts, categories } = useProducts();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wide = width >= 960;
-  const related = useMemo(() => product ? allProducts.filter((item) => item.id !== product.id && (item.product_type === product.product_type || item.vendor === product.vendor)).slice(0, 6) : [], [allProducts, product]);
+  const routeCategoryId = useMemo(() => {
+    const value = Number(categoryParam);
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }, [categoryParam]);
+  const categoryPath = useMemo(() => product ? productCategoryPath(product, categories, routeCategoryId) : [], [categories, product, routeCategoryId]);
+  const related = useMemo(() => product ? relatedProducts(product, allProducts, categories, routeCategoryId, 6) : [], [allProducts, categories, product, routeCategoryId]);
+  const optionGroups = useMemo(() => product ? variantOptionGroups(product.variants) : [], [product]);
+  const selectedOptions = useMemo(() => variantSelection(variant), [variant]);
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+    const images = [...product.images, variant?.featured_image].filter(Boolean);
+    return [...new Map(images.map((item) => [item!.src, item!])).values()];
+  }, [product, variant]);
 
   useEffect(() => {
     if (!handle) return;
@@ -90,14 +105,26 @@ export default function ProductScreen() {
   }, [language, product, productTitle]);
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /><Text style={styles.loadingText}>{t('loading')}</Text></View>;
+    return <ProductPageSkeleton label={t('loading')} />;
   }
 
-  if (error || !product || !variant) {
+  if (error || !product) {
     return (
       <View style={styles.center}>
         <View style={styles.errorIcon}><RotateCcw size={28} color={colors.primary} /></View>
-        <Text style={styles.error}>{t('chatError')}</Text>
+        <Text style={styles.error}>{language === 'ar' ? 'تعذر تحميل بيانات المنتج الحالية' : 'Could not load the current product details'}</Text>
+        <Pressable accessibilityRole="button" style={styles.backToStore} onPress={() => router.replace('/(tabs)/catalog')}>
+          <Text style={styles.backToStoreText}>{t('continueShopping')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!variant) {
+    return (
+      <View style={styles.center}>
+        <View style={styles.errorIcon}><ShoppingBag size={28} color={colors.primary} /></View>
+        <Text style={styles.error}>{language === 'ar' ? 'لا توجد خيارات بيع متاحة لهذا المنتج حاليًا' : 'No sale variants are currently available for this product'}</Text>
         <Pressable accessibilityRole="button" style={styles.backToStore} onPress={() => router.replace('/(tabs)/catalog')}>
           <Text style={styles.backToStoreText}>{t('continueShopping')}</Text>
         </Pressable>
@@ -107,7 +134,7 @@ export default function ProductScreen() {
 
   const available = variant.available === true;
   const currentImage = selectedImage || variant.featured_image?.src || productImage(product);
-  const currentImageMeta = product.images.find((item) => item.src === currentImage) || variant.featured_image || null;
+  const currentImageMeta = galleryImages.find((item) => item.src === currentImage) || variant.featured_image || null;
   const imageIsWide = Boolean(currentImageMeta?.width && currentImageMeta?.height && currentImageMeta.width / currentImageMeta.height > 1.25);
   const galleryHeight = wide ? 440 : Math.round(Math.min(348, Math.max(286, (width - 32) * (imageIsWide ? 0.74 : 0.88))));
   const favorite = isFavorite(product.id);
@@ -119,11 +146,24 @@ export default function ProductScreen() {
 
   const chooseVariant = (item: ProductVariant) => {
     setVariant(item);
-    if (item.featured_image?.src) {
-      setSelectedImage(item.featured_image.src);
-      setImageFailed(false);
-    }
+    setSelectedImage(item.featured_image?.src || productImage(product));
+    setImageFailed(false);
     Haptics.selectionAsync().catch(() => undefined);
+  };
+
+  const chooseOption = (attributeId: number, valueId: number) => {
+    const next = selectVariantOption(product.variants, variant, attributeId, valueId);
+    if (next) chooseVariant(next);
+  };
+
+  const handleImageError = () => {
+    const templateImage = productImage(product);
+    if (currentImage === variant.featured_image?.src && templateImage && templateImage !== currentImage) {
+      setSelectedImage(templateImage);
+      setImageFailed(false);
+      return;
+    }
+    setImageFailed(true);
   };
 
   const add = () => {
@@ -183,17 +223,17 @@ export default function ProductScreen() {
         <View style={[styles.page, wide && styles.pageWide, wide && { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View style={styles.galleryColumn}>
             <View style={[styles.imagePanel, { height: galleryHeight }, shadow]}>
-              {currentImage && !imageFailed ? <Image source={{ uri: currentImage, cache: 'force-cache' }} style={styles.image} resizeMode="contain" onError={() => setImageFailed(true)} /> : <Sprout size={64} color={colors.leaf} strokeWidth={1.4} />}
+              {currentImage && !imageFailed ? <Image accessibilityLabel={productTitle} source={{ uri: currentImage, cache: 'force-cache' }} style={styles.image} resizeMode="contain" onError={handleImageError} /> : <View style={styles.imageFallback}><ImageOff size={42} color={colors.textSubtle} strokeWidth={1.4} /><Text style={styles.imageFallbackText}>{language === 'ar' ? 'الصورة غير متاحة' : 'Image unavailable'}</Text></View>}
               <View style={styles.imageBadge}><ShieldCheck size={14} color={colors.primary} /><Text style={styles.imageBadgeText}>MIG FARM</Text></View>
             </View>
 
-            {!!product.images?.length && (
+            {!!galleryImages.length && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbs}>
-                {product.images.slice(0, 7).map((item) => {
+                {galleryImages.slice(0, 7).map((item) => {
                   const active = currentImage === item.src;
                   return (
-                    <Pressable key={item.id} accessibilityRole="button" onPress={() => { setSelectedImage(item.src); setImageFailed(false); }} style={[styles.thumbButton, active && styles.thumbButtonActive]}>
-                      <Image source={{ uri: item.src }} style={styles.thumb} resizeMode="contain" />
+                    <Pressable key={item.src} accessibilityRole="button" onPress={() => { setSelectedImage(item.src); setImageFailed(false); }} style={[styles.thumbButton, active && styles.thumbButtonActive]}>
+                      <Image source={{ uri: item.src, cache: 'force-cache' }} style={styles.thumb} resizeMode="contain" />
                     </Pressable>
                   );
                 })}
@@ -202,8 +242,23 @@ export default function ProductScreen() {
           </View>
 
           <View style={styles.detailsColumn}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.breadcrumb, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Pressable accessibilityRole="link" onPress={() => router.push('/(tabs)/catalog')}><Text style={styles.breadcrumbLink}>{language === 'ar' ? 'المتجر' : 'Store'}</Text></Pressable>
+              {categoryPath.map((item) => <React.Fragment key={item.id}>
+                <ForwardIcon size={12} color={colors.textSubtle} />
+                <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: '/(tabs)/catalog', params: { category: String(item.id) } })}>
+                  <Text numberOfLines={1} style={styles.breadcrumbLink}>{item.name}</Text>
+                </Pressable>
+              </React.Fragment>)}
+              <ForwardIcon size={12} color={colors.textSubtle} />
+              <Text numberOfLines={1} style={styles.breadcrumbCurrent}>{productTitle}</Text>
+            </ScrollView>
             <Text style={[styles.vendor, { textAlign: isRTL ? 'right' : 'left' }]}>{product.vendor || 'MIG FARM'}</Text>
             <Text numberOfLines={3} style={[styles.title, { textAlign: titleDirection === 'rtl' ? 'right' : 'left', writingDirection: titleDirection }]}>{productTitle}</Text>
+            <View style={[styles.variantMeta, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text numberOfLines={1} style={styles.selectedVariant}>{variant.title}</Text>
+              {variant.sku ? <Text numberOfLines={1} style={styles.sku}>SKU: {variant.sku}</Text> : null}
+            </View>
 
             <View style={[styles.priceRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <View style={[styles.priceCopy, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
@@ -218,21 +273,32 @@ export default function ProductScreen() {
 
             <View style={styles.serviceBand}>
               <ServiceBadge icon={Truck} text={language === 'ar' ? 'توصيل لكل الإمارات' : 'UAE delivery'} />
-              <ServiceBadge icon={ShieldCheck} text={language === 'ar' ? 'دفع آمن' : 'Secure payment'} />
+              <ServiceBadge icon={ShieldCheck} text={language === 'ar' ? 'بيانات المنتج مباشرة من المتجر' : 'Live store product details'} />
             </View>
 
-            {product.variants.length > 1 && (
+            {product.variants.length > 1 && optionGroups.length > 0 ? (
               <View style={styles.section}>
-                <Text style={[styles.label, { textAlign: isRTL ? 'right' : 'left' }]}>{t('chooseVariant')}</Text>
-                <View style={[styles.variants, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  {product.variants.map((item) => (
-                    <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ checked: variant.id === item.id }} onPress={() => chooseVariant(item)} style={[styles.variant, variant.id === item.id && styles.variantActive]}>
-                      <Text style={[styles.variantText, variant.id === item.id && styles.variantTextActive]}>{item.title}</Text>
-                    </Pressable>
-                  ))}
-                </View>
+                {optionGroups.map((group) => <View key={group.id} style={styles.optionGroup}>
+                  <Text style={[styles.label, { textAlign: isRTL ? 'right' : 'left' }]}>{group.name}</Text>
+                  <View style={[styles.variants, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    {group.values.map((value) => {
+                      const active = selectedOptions[group.id] === value.id;
+                      const resolves = Boolean(selectVariantOption(product.variants, variant, group.id, value.id));
+                      return <Pressable key={value.id} accessibilityRole="radio" accessibilityState={{ checked: active, disabled: !resolves }} disabled={!resolves} onPress={() => chooseOption(group.id, value.id)} style={[styles.variant, active && styles.variantActive, !resolves && styles.variantDisabled]}>
+                        <Text style={[styles.variantText, active && styles.variantTextActive]}>{value.label}</Text>
+                      </Pressable>;
+                    })}
+                  </View>
+                </View>)}
               </View>
-            )}
+            ) : product.variants.length > 1 ? <View style={styles.section}>
+              <Text style={[styles.label, { textAlign: isRTL ? 'right' : 'left' }]}>{t('chooseVariant')}</Text>
+              <View style={[styles.variants, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                {product.variants.map((item) => <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ checked: variant.id === item.id }} onPress={() => chooseVariant(item)} style={[styles.variant, variant.id === item.id && styles.variantActive]}>
+                  <Text style={[styles.variantText, variant.id === item.id && styles.variantTextActive]}>{item.title}</Text>
+                </Pressable>)}
+              </View>
+            </View> : null}
 
             <View style={[styles.qtyRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <View>
@@ -244,7 +310,7 @@ export default function ProductScreen() {
                   <Minus size={17} color={colors.primary} strokeWidth={2.5} />
                 </Pressable>
                 <Text style={styles.qty}>{quantity}</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Increase quantity" style={({ pressed }) => [styles.qtyButton, pressed && styles.pressed]} onPress={() => setQuantity(quantity + 1)}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Increase quantity" accessibilityState={{ disabled: quantity >= 99 }} disabled={quantity >= 99} style={({ pressed }) => [styles.qtyButton, quantity >= 99 && styles.qtyButtonDisabled, pressed && quantity < 99 && styles.pressed]} onPress={() => setQuantity(Math.min(99, quantity + 1))}>
                   <Plus size={17} color={colors.primary} strokeWidth={2.5} />
                 </Pressable>
               </View>
@@ -266,31 +332,30 @@ export default function ProductScreen() {
           </View>
         </View>
 
-        {!!descriptionBlocks.length && (
-          <View style={styles.descriptionBand}>
-            <View style={styles.descriptionInner}>
-              <Text style={[styles.descriptionTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('productDetails')}</Text>
-              <View style={styles.descriptionBlocks}>
-                {descriptionBlocks.map((block, index) => {
-                  const direction = textDirection(block.text, language);
-                  if (block.kind === 'heading') return <Text key={`${block.kind}-${index}`} style={[styles.descriptionHeading, { textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{block.text}</Text>;
-                  if (block.kind === 'item') return <View key={`${block.kind}-${index}`} style={[styles.descriptionItem, { direction, flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }]}><View style={styles.descriptionBullet} /><Text style={[styles.descriptionText, styles.descriptionItemText, { textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{block.text}</Text></View>;
-                  return <Text key={`${block.kind}-${index}`} style={[styles.descriptionText, { textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{block.text}</Text>;
-                })}
-              </View>
-            </View>
+        <View style={styles.descriptionBand}>
+          <View style={styles.descriptionInner}>
+            <Text style={[styles.descriptionTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('productDetails')}</Text>
+            {descriptionBlocks.length ? <View style={styles.descriptionBlocks}>
+              {descriptionBlocks.map((block, index) => {
+                const direction = textDirection(block.text, language);
+                if (block.kind === 'heading') return <Text key={`${block.kind}-${index}`} style={[styles.descriptionHeading, { textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{block.text}</Text>;
+                if (block.kind === 'item') return <View key={`${block.kind}-${index}`} style={[styles.descriptionItem, { direction, flexDirection: direction === 'rtl' ? 'row-reverse' : 'row' }]}><View style={styles.descriptionBullet} /><Text style={[styles.descriptionText, styles.descriptionItemText, { textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{block.text}</Text></View>;
+                return <Text key={`${block.kind}-${index}`} style={[styles.descriptionText, { textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{block.text}</Text>;
+              })}
+            </View> : <Text style={[styles.emptyDescription, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'لا يوجد وصف متاح لهذا المنتج حاليًا.' : 'No description is currently available for this product.'}</Text>}
           </View>
-        )}
-        {!!related.length && (
-          <View style={styles.relatedBand}>
-            <View style={styles.relatedInner}>
-              <SectionTitle title={language === 'ar' ? 'منتجات ممكن تعجبك' : 'You may also like'} action={language === 'ar' ? 'عرض الكل' : 'View all'} onPress={() => router.push('/(tabs)/catalog')} />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedList}>
-                {related.map((item) => <ProductCard key={item.id} product={item} wide />)}
-              </ScrollView>
-            </View>
+        </View>
+        <View style={styles.relatedBand}>
+          <View style={styles.relatedInner}>
+            <SectionTitle title={language === 'ar' ? 'منتجات مرتبطة' : 'Related products'} action={related.length ? (language === 'ar' ? 'عرض التصنيف' : 'View category') : undefined} onPress={related.length ? () => {
+              const selected = categoryPath.at(-1);
+              router.push(selected ? { pathname: '/(tabs)/catalog', params: { category: String(selected.id) } } : '/(tabs)/catalog');
+            } : undefined} />
+            {related.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedList}>
+              {related.map((item) => <ProductCard key={item.id} product={item} wide categoryId={categoryPath.at(-1)?.id} />)}
+            </ScrollView> : <View style={styles.emptyRelated}><Sprout size={22} color={colors.primary} /><Text style={[styles.emptyRelatedText, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'لا توجد منتجات مرتبطة داخل شجرة هذا التصنيف حاليًا.' : 'No related products are currently available in this category tree.'}</Text></View>}
           </View>
-        )}
+        </View>
       </ScrollView>
       {!wide ? (
         <View style={[styles.stickyPurchase, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}> 
@@ -306,6 +371,20 @@ export default function ProductScreen() {
       ) : null}
     </SafeAreaView>
   );
+}
+
+function ProductPageSkeleton({ label }: { label: string }) {
+  return <SafeAreaView style={styles.safe} edges={['top', 'bottom']} accessibilityLabel={label}>
+    <View style={styles.skeletonTop}><Skeleton style={styles.skeletonIcon} /><Skeleton style={styles.skeletonTitle} /><Skeleton style={styles.skeletonActions} /></View>
+    <ScrollView contentContainerStyle={styles.skeletonPage}>
+      <Skeleton style={styles.skeletonImage} />
+      <Skeleton style={styles.skeletonShort} />
+      <Skeleton style={styles.skeletonHeading} />
+      <Skeleton style={styles.skeletonPrice} />
+      <Skeleton style={styles.skeletonOptions} />
+      <Skeleton style={styles.skeletonButton} />
+    </ScrollView>
+  </SafeAreaView>;
 }
 
 function ServiceBadge({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
@@ -332,9 +411,22 @@ const styles = StyleSheet.create({
   contentMobile: { paddingBottom: 24 },
   page: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 16, gap: 20 },
   pageWide: { alignItems: 'flex-start', gap: 30, paddingTop: 24 },
+  skeletonTop: { minHeight: 62, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface },
+  skeletonIcon: { width: 40, height: 40, borderRadius: 20 },
+  skeletonTitle: { width: 120, height: 14 },
+  skeletonActions: { width: 120, height: 40, borderRadius: radius.md },
+  skeletonPage: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 16, gap: 16 },
+  skeletonImage: { width: '100%', aspectRatio: 1, maxHeight: 348, borderRadius: radius.lg },
+  skeletonShort: { width: '38%', height: 10 },
+  skeletonHeading: { width: '88%', height: 24 },
+  skeletonPrice: { width: '42%', height: 22 },
+  skeletonOptions: { width: '100%', height: 76, borderRadius: radius.md },
+  skeletonButton: { width: '100%', height: 52, borderRadius: radius.md },
   galleryColumn: { flex: 1, width: '100%', minWidth: 0 },
   imagePanel: { width: '100%', maxHeight: 460, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   image: { width: '97%', height: '97%' },
+  imageFallback: { alignItems: 'center', justifyContent: 'center', gap: 9 },
+  imageFallbackText: { color: colors.muted, fontSize: 11, fontWeight: '700' },
   imageBadge: { position: 'absolute', left: 12, bottom: 12, height: 30, paddingHorizontal: 9, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.96)', borderWidth: 1, borderColor: colors.border, flexDirection: 'row', gap: 5, alignItems: 'center' },
   imageBadgeText: { color: colors.primaryDark, fontSize: 9, fontWeight: '900' },
   thumbs: { paddingTop: 10, gap: 8 },
@@ -342,8 +434,14 @@ const styles = StyleSheet.create({
   thumbButtonActive: { borderColor: colors.primary, borderWidth: 2 },
   thumb: { width: '100%', height: '100%', borderRadius: radius.sm },
   detailsColumn: { flex: 1, width: '100%', minWidth: 0, paddingTop: 2 },
+  breadcrumb: { maxWidth: '100%', minHeight: 28, alignItems: 'center', gap: 5, paddingBottom: 5 },
+  breadcrumbLink: { maxWidth: 130, color: colors.primary, fontSize: 10, fontWeight: '800' },
+  breadcrumbCurrent: { maxWidth: 150, color: colors.textSubtle, fontSize: 10, fontWeight: '700' },
   vendor: { color: colors.primary, fontSize: 11, fontWeight: '900' },
   title: { color: colors.text, fontSize: 22, lineHeight: 30, fontWeight: '800', marginTop: 6 },
+  variantMeta: { minHeight: 24, alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  selectedVariant: { maxWidth: '65%', color: colors.muted, fontSize: 11, fontWeight: '700' },
+  sku: { color: colors.textSubtle, fontSize: 10, fontWeight: '700', writingDirection: 'ltr' },
   priceRow: { alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
   priceCopy: { gap: 2 },
   price: { color: colors.primary, fontSize: 23, fontWeight: '900' },
@@ -357,15 +455,18 @@ const styles = StyleSheet.create({
   serviceText: { color: colors.muted, fontSize: 11, fontWeight: '700' },
   section: { marginTop: 20 },
   label: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  optionGroup: { gap: 8, marginBottom: 14 },
   variants: { flexWrap: 'wrap', gap: 8, marginTop: 10 },
   variant: { paddingHorizontal: 13, minHeight: 40, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   variantActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  variantDisabled: { opacity: 0.38 },
   variantText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
   variantTextActive: { color: colors.primary, fontWeight: '900' },
   qtyRow: { marginTop: 20, alignItems: 'center', justifyContent: 'space-between' },
   qtyHint: { color: colors.textSubtle, fontSize: 10, marginTop: 3 },
   qtyControl: { flexDirection: 'row', alignItems: 'center', height: 42, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden' },
   qtyButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
+  qtyButtonDisabled: { opacity: 0.35 },
   qty: { width: 36, textAlign: 'center', color: colors.text, fontSize: 14, fontWeight: '900' },
   add: { height: 54, marginTop: 21, paddingHorizontal: 15, borderRadius: radius.md, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   added: { backgroundColor: colors.success },
@@ -381,12 +482,15 @@ const styles = StyleSheet.create({
   descriptionBlocks: { gap: 9 },
   descriptionHeading: { color: colors.text, fontSize: 15, lineHeight: 22, fontWeight: '900', marginTop: 5 },
   descriptionText: { color: colors.muted, fontSize: 13, lineHeight: 22 },
+  emptyDescription: { color: colors.textSubtle, fontSize: 12, lineHeight: 20 },
   descriptionItem: { alignItems: 'flex-start', gap: 9 },
   descriptionItemText: { flex: 1 },
   descriptionBullet: { width: 5, height: 5, borderRadius: 3, marginTop: 9, backgroundColor: colors.primary },
   relatedBand: { width: '100%', borderTopWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
   relatedInner: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 16 },
   relatedList: { paddingBottom: 8 },
+  emptyRelated: { minHeight: 76, borderRadius: radius.md, backgroundColor: colors.surface, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  emptyRelatedText: { flex: 1, color: colors.muted, fontSize: 11, lineHeight: 18 },
   stickyPurchase: { minHeight: 72, paddingHorizontal: 14, paddingVertical: 9, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', gap: 12 },
   stickyPriceCopy: { width: 96 },
   stickyPriceLabel: { color: colors.muted, fontSize: 9, fontWeight: '700' },

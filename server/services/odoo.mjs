@@ -75,6 +75,7 @@ const relationIds = (value) =>
     ? value.map(relationId).filter((id) => id !== null)
     : [];
 const cleanText = (value) => (typeof value === 'string' ? value.trim() : '');
+const relationName = (value) => Array.isArray(value) ? cleanText(value[1]) : '';
 const normalizedEmail = (value) => cleanText(value).toLowerCase();
 const normalizedPhone = (value) => {
   let digits = cleanText(value)
@@ -642,10 +643,10 @@ export function createOdooCatalog({
     const categoryIds = uniqueNumbers(templates.map((record) => relationId(record.categ_id)));
     const attributeIds = uniqueNumbers(
       variants.flatMap((record) =>
-        relationIds(
-          record.product_template_attribute_value_ids ||
-            record.product_template_variant_value_ids,
-        ),
+        [
+          ...relationIds(record.product_template_attribute_value_ids),
+          ...relationIds(record.product_template_variant_value_ids),
+        ],
       ),
     );
     const internalCategories = await namedRecords(
@@ -710,12 +711,21 @@ export function createOdooCatalog({
       if (!sourceVariants.length) continue;
       const mappedVariants = sourceVariants.map((record) => {
         const variantId = Number(record.id);
-        const attributeNames = relationIds(
-          record.product_template_attribute_value_ids ||
-            record.product_template_variant_value_ids,
-        )
-          .map((id) => cleanText(attributes.get(id)?.name))
+        const options = uniqueNumbers([
+          ...relationIds(record.product_template_attribute_value_ids),
+          ...relationIds(record.product_template_variant_value_ids),
+        ])
+          .map((templateValueId) => {
+            const option = attributes.get(templateValueId);
+            const attributeId = relationId(option?.attribute_id);
+            const attributeName = relationName(option?.attribute_id);
+            const valueId = relationId(option?.product_attribute_value_id) || templateValueId;
+            const value = relationName(option?.product_attribute_value_id) || cleanText(option?.name);
+            if (!attributeId || !attributeName || !valueId || !value) return null;
+            return { templateValueId, attributeId, attributeName, valueId, value };
+          })
           .filter(Boolean);
+        const attributeNames = options.map((option) => option.value);
         const variantName = attributeNames.join(' / ') ||
           cleanText(record.display_name || record.name) || 'Default';
         const currentPrice = number(record.lst_price) ??
@@ -738,10 +748,11 @@ export function createOdooCatalog({
           title_en: variantName,
           price: currentPrice === null ? '' : currentPrice.toFixed(2),
           compare_at_price: null,
-          sku: cleanText(record.default_code) || null,
+          sku: cleanText(record.default_code) || cleanText(template.default_code) || null,
           option1: attributeNames[0] || null,
           option2: attributeNames[1] || null,
           option3: attributeNames[2] || null,
+          options,
           featured_image: featuredImage,
           ...stock,
         };

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CategoryId, productMatchesCategory } from '@/constants/categories';
-import { Product, ProductImage, ProductVariant, StoreCategory } from '@/types';
+import { Product, ProductImage, ProductVariant, ProductVariantOption, StoreCategory } from '@/types';
 
 const env = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
 
@@ -50,6 +50,17 @@ function normalizeCategory(value: StoreCategory): StoreCategory | null {
   };
 }
 
+function normalizeVariantOption(value: ProductVariantOption): ProductVariantOption | null {
+  const templateValueId = Number(value?.templateValueId);
+  const attributeId = Number(value?.attributeId);
+  const valueId = Number(value?.valueId);
+  const attributeName = typeof value?.attributeName === 'string' ? value.attributeName.trim() : '';
+  const optionValue = typeof value?.value === 'string' ? value.value.trim() : '';
+  if (![templateValueId, attributeId, valueId].every((id) => Number.isSafeInteger(id) && id > 0)) return null;
+  if (!attributeName || !optionValue) return null;
+  return { templateValueId, attributeId, attributeName, valueId, value: optionValue };
+}
+
 function normalizeProduct(product: RawProduct): Product {
   return {
     id: product.id,
@@ -68,6 +79,9 @@ function normalizeProduct(product: RawProduct): Product {
     images: Array.isArray(product.images) ? product.images.map(normalizeImage) : [],
     variants: Array.isArray(product.variants) ? product.variants.map((variant) => ({
       ...variant,
+      options: Array.isArray(variant.options)
+        ? variant.options.map(normalizeVariantOption).filter((item): item is ProductVariantOption => Boolean(item))
+        : [],
       featured_image: variant.featured_image ? normalizeImage(variant.featured_image) : null,
     })) : [],
     categories: Array.isArray(product.categories)

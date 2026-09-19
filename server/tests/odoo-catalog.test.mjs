@@ -133,7 +133,7 @@ function fixtureState() {
     ],
     categories: [{ id: 5, name: 'Agriculture', complete_name: 'Farm / Agriculture' }],
     publicCategories: [{ id: 7, name: 'Seeds' }],
-    attributes: [{ id: 101, name: 'Packet', attribute_id: [9, 'Size'] }],
+    attributes: [{ id: 101, name: 'Packet', attribute_id: [9, 'Size'], product_attribute_value_id: [201, 'Packet'] }],
   };
 }
 
@@ -374,6 +374,14 @@ test('Odoo templates and variants normalize with visibility, prices, stock, cate
   assert.equal(seeds.variants[0].id, 11);
   assert.equal(seeds.variants[0].title, 'Packet');
   assert.equal(seeds.variants[0].price, '19.75');
+  assert.deepEqual(seeds.variants[0].options, [{
+    templateValueId: 101,
+    attributeId: 9,
+    attributeName: 'Size',
+    valueId: 201,
+    value: 'Packet',
+  }]);
+  assert.equal(seeds.variants[0].sku, 'SEED-1-P');
   assert.equal(seeds.variants[0].stock_state, 'in_stock');
   assert.equal(seeds.variants[0].available, true);
   assert.equal(first.products[1].handle, 'irrigation-tool-4');
@@ -389,6 +397,7 @@ test('Odoo templates and variants normalize with visibility, prices, stock, cate
   assert.ok(mock.calls.every((call) => !call.url.includes(ENV.ODOO_API_KEY)));
   assert.ok(mock.calls.every((call) => call.options.headers.Authorization === `bearer ${ENV.ODOO_API_KEY}`));
   assert.ok(mock.calls.every((call) => call.options.headers['User-Agent'] === 'MIG-FARM-APP'));
+  assert.equal(mock.calls.filter((call) => call.url.endsWith('/product.template.attribute.value/search_read')).length, 2);
 });
 
 test('runtime field discovery omits unavailable stock fields instead of fabricating availability', async () => {
@@ -440,8 +449,11 @@ test('catalog cache supports fresh hits, forced refresh, new products, and bound
     product_tmpl_id: [6, 'New Odoo Product'], lst_price: 15, free_qty: 1,
     product_template_attribute_value_ids: [], write_date: '2026-09-04 10:00:00',
   });
+  mock.state.variants.find((variant) => variant.id === 11).lst_price = 21.5;
   assert.equal((await catalog.list()).products.length, first.products.length);
-  assert.equal((await catalog.list({ force: true })).products.some((product) => product.id === 6), true);
+  const refreshed = await catalog.list({ force: true });
+  assert.equal(refreshed.products.some((product) => product.id === 6), true);
+  assert.equal(refreshed.products.find((product) => product.id === 1).variants[0].price, '21.50');
   clock += 60;
   mock.state.status = 503;
   const stale = await catalog.list({ force: true });
