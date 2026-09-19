@@ -119,6 +119,7 @@ export default function CheckoutScreen() {
     if (defaultAddress) {
       setAddress((current) => current.city || current.addressLine ? current : {
         ...current,
+        addressId: defaultAddress.id,
         emirate: defaultAddress.emirate,
         city: defaultAddress.city,
         addressLine: [defaultAddress.addressLine, defaultAddress.unit].filter(Boolean).join(', '),
@@ -172,6 +173,7 @@ export default function CheckoutScreen() {
     if (!saved) return;
     setSelectedAddress(id);
     setAddress({
+      addressId: saved.id,
       emirate: saved.emirate,
       city: saved.city,
       addressLine: [saved.addressLine, saved.unit].filter(Boolean).join(', '),
@@ -239,13 +241,13 @@ export default function CheckoutScreen() {
                   {addressError ? <Notice text={language === 'ar' ? 'تعذر تحميل العناوين. يمكنك إدخال العنوان يدويًا.' : 'Saved addresses could not be loaded. You can enter an address manually.'} /> : null}
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emirates}>
                     {emirates.map((item) => (
-                      <Pressable key={item.value} onPress={() => setAddress((current) => ({ ...current, emirate: item.value }))} style={[styles.emirate, address.emirate === item.value && styles.emirateActive]}>
+                      <Pressable key={item.value} onPress={() => setAddress((current) => ({ ...current, addressId: null, emirate: item.value }))} style={[styles.emirate, address.emirate === item.value && styles.emirateActive]}>
                         <Text style={[styles.emirateText, address.emirate === item.value && styles.emirateTextActive]}>{language === 'ar' ? item.ar : item.value}</Text>
                       </Pressable>
                     ))}
                   </ScrollView>
-                  <Field label={language === 'ar' ? 'المدينة أو المنطقة *' : 'City or area *'} value={address.city} onChangeText={(city) => setAddress((current) => ({ ...current, city }))} isRTL={isRTL} />
-                  <Field label={language === 'ar' ? 'العنوان بالتفصيل *' : 'Full address *'} value={address.addressLine} onChangeText={(addressLine) => setAddress((current) => ({ ...current, addressLine }))} isRTL={isRTL} multiline />
+                  <Field label={language === 'ar' ? 'المدينة أو المنطقة *' : 'City or area *'} value={address.city} onChangeText={(city) => setAddress((current) => ({ ...current, addressId: null, city }))} isRTL={isRTL} />
+                  <Field label={language === 'ar' ? 'العنوان بالتفصيل *' : 'Full address *'} value={address.addressLine} onChangeText={(addressLine) => setAddress((current) => ({ ...current, addressId: null, addressLine }))} isRTL={isRTL} multiline />
                   <Field label={language === 'ar' ? 'ملاحظات التوصيل' : 'Delivery notes'} value={address.notes} onChangeText={(notes) => setAddress((current) => ({ ...current, notes }))} isRTL={isRTL} multiline />
                 </View>
               </>

@@ -17,6 +17,7 @@ import type {
   UserAddress,
   UserProfile,
 } from '@/types/customer';
+import { Platform } from 'react-native';
 export { CustomerServiceError } from '@/services/apiClient';
 const publicPost = <T>(action: string, body: unknown) =>
   apiRequest<T>('/api/auth/' + action, { method: 'POST', body, auth: 'none' });
@@ -70,14 +71,29 @@ export const customerService = {
         body: draft,
       })
     ).user,
-  // The server currently reports avatar_storage_not_configured. Do not upload
-  // local photo bytes until a durable storage adapter is configured.
-  uploadAvatar: async (_image: AvatarSelection) =>
-    (
+  uploadAvatar: async (image: AvatarSelection) => {
+    const form = new FormData();
+    if (Platform.OS === 'web') {
+      const file = await fetch(image.uri).then((response) => response.blob());
+      form.append('file', file, 'avatar.jpg');
+    } else {
+      form.append(
+        'file',
+        {
+          uri: image.uri,
+          name: 'avatar.jpg',
+          type: image.mimeType,
+        } as unknown as Blob,
+      );
+    }
+    return (
       await apiRequest<{ user: UserProfile }>('/api/me/avatar', {
         method: 'POST',
+        body: form,
+        timeout: 30000,
       })
-    ).user,
+    ).user;
+  },
   removeAvatar: async () =>
     (
       await apiRequest<{ user: UserProfile }>('/api/me/avatar', {

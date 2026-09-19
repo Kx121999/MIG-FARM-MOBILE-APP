@@ -1,5 +1,5 @@
 import { createHmac, randomUUID, randomBytes } from 'node:crypto';
-import { fail, text, email, phone, pageResult } from '../lib/validation.mjs';
+import { fail, text, email, phone, pageResult, uuid } from '../lib/validation.mjs';
 import { hashToken } from '../auth/security.mjs';
 import { lockCustomer } from './customers.mjs';
 import { asCatalogService } from './odoo.mjs';
@@ -97,6 +97,7 @@ export function priceCheckout(body, products, deliveryValue = '0') {
   if (!customer.phone) throw fail(400, 'invalid_customer');
   const shipping = body.shippingAddress || {};
   const shippingAddress = {
+    addressId: shipping.addressId ? uuid(shipping.addressId) : null,
     emirate: text(shipping.emirate, 60, true),
     city: text(shipping.city, 100, true),
     addressLine: text(shipping.addressLine, 220, true),
@@ -233,11 +234,70 @@ export function createOrders(db, catalogInput, stripe, options = {}) {
           );
           validateUaeShippingAddress(priced.shippingAddress);
         }
+        let partnerId = null;
+        let deliveryPartnerId = null;
+        if (row.customer_id) {
+          let customer = (
+            await client.query(
+              'SELECT * FROM mig_farm.users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE',
+              [row.customer_id],
+            )
+          ).rows[0];
+          if (!customer) throw fail(401, 'unauthorized');
+          if (!customer.odoo_partner_id) {
+            const linked = await catalog.ensureCustomerPartner({
+              appUserId: customer.id,
+              name: customer.name,
+              email: customer.email,
+              phone: customer.phone,
+              emirate: customer.emirate,
+              language: customer.language,
+            });
+            customer = (
+              await client.query(
+                "UPDATE mig_farm.users SET odoo_partner_id=$2,odoo_sync_status='synced',odoo_sync_error=NULL,odoo_synced_at=now(),updated_at=now() WHERE id=$1 RETURNING *",
+                [customer.id, Number(linked.partnerId)],
+              )
+            ).rows[0];
+          }
+          partnerId = Number(customer.odoo_partner_id);
+          if (priced.shippingAddress.addressId) {
+            const saved = (
+              await client.query(
+                'SELECT * FROM mig_farm.user_addresses WHERE id=$1 AND user_id=$2 FOR UPDATE',
+                [priced.shippingAddress.addressId, customer.id],
+              )
+            ).rows[0];
+            if (!saved) throw fail(400, 'invalid_address');
+            if (!saved.odoo_partner_id) {
+              const linked = await catalog.upsertDeliveryAddress({
+                parentId: partnerId,
+                addressId: saved.id,
+                address: {
+                  label: saved.label,
+                  name: saved.name,
+                  phone: saved.phone,
+                  emirate: saved.emirate,
+                  city: saved.city,
+                  addressLine: saved.address_line,
+                  unit: saved.unit,
+                },
+              });
+              await client.query(
+                "UPDATE mig_farm.user_addresses SET odoo_partner_id=$3,odoo_sync_status='synced',odoo_sync_error=NULL,odoo_synced_at=now(),updated_at=now() WHERE id=$1 AND user_id=$2",
+                [saved.id, customer.id, Number(linked.partnerId)],
+              );
+              deliveryPartnerId = Number(linked.partnerId);
+            } else deliveryPartnerId = Number(saved.odoo_partner_id);
+          }
+        }
         const quote = await catalog.prepareQuotation({
           orderId: row.id,
           customer: priced.customer,
           shippingAddress: priced.shippingAddress,
           items: priced.items,
+          partnerId,
+          deliveryPartnerId,
         });
         const subtotal = money(quote.subtotal),
           tax = money(quote.tax),

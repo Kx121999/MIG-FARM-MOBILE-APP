@@ -21,7 +21,9 @@ export const profile = (row) => ({
 });
 export function createAuth(db, options = {}) {
   const emailAdapter = options.emailAdapter || emailDelivery,
-    avatar = options.avatar || avatarStorage;
+    avatar = options.avatar || avatarStorage,
+    customerMaster = options.customerMaster,
+    logger = options.logger === undefined ? console : options.logger;
   const accessTTL = Number(
     options.accessTTL || process.env.AUTH_ACCESS_TTL || 900,
   );
@@ -45,6 +47,7 @@ export function createAuth(db, options = {}) {
     user,
     family = randomUUID(),
     refreshDeadline = null,
+    businessProfile = null,
   ) {
     const accessToken = token(),
       refreshToken = token(),
@@ -63,7 +66,21 @@ export function createAuth(db, options = {}) {
         refreshExpiresAt,
       ],
     );
-    return { user: profile(user), accessToken, refreshToken, expiresAt };
+    return {
+      user: businessProfile
+        ? {
+            ...profile(user),
+            name: businessProfile.name,
+            email: businessProfile.email,
+            phone: businessProfile.phone,
+            emirate: businessProfile.emirate,
+            language: businessProfile.language,
+          }
+        : profile(user),
+      accessToken,
+      refreshToken,
+      expiresAt,
+    };
   }
   async function authenticate(request, optional = false) {
     const value = bearer(request);
@@ -87,6 +104,57 @@ export function createAuth(db, options = {}) {
     );
     if (result.rows[0].hits > limit) throw fail(429, 'rate_limited');
   }
+  const syncCode = (error) =>
+    typeof error?.code === 'string' && /^odoo_[a-z0-9_]{1,80}$/.test(error.code)
+      ? error.code
+      : 'odoo_sync_failed';
+  const customerPayload = (user) => ({
+    appUserId: user.id,
+    partnerId: user.odoo_partner_id ? Number(user.odoo_partner_id) : null,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    emirate: user.emirate,
+    language: user.language,
+  });
+  async function syncCustomer(user, throwOnFailure = false) {
+    if (!customerMaster?.ensureCustomerPartner) return null;
+    try {
+      const business = user.odoo_partner_id
+        ? await customerMaster.getCustomerProfile(Number(user.odoo_partner_id))
+        : await customerMaster.ensureCustomerPartner(customerPayload(user));
+      if (!Number.isSafeInteger(Number(business?.partnerId)))
+        throw fail(503, 'odoo_invalid_response');
+      const row = (
+        await db.query(
+          "UPDATE mig_farm.users SET odoo_partner_id=$2,odoo_sync_status='synced',odoo_sync_error=NULL,odoo_synced_at=now(),name=$3,email=$4,phone=$5,emirate=$6,language=$7,updated_at=now() WHERE id=$1 AND deleted_at IS NULL RETURNING *",
+          [
+            user.id,
+            Number(business.partnerId),
+            business.name,
+            business.email,
+            business.phone,
+            business.emirate,
+            business.language,
+          ],
+        )
+      ).rows[0];
+      return row ? { row, business } : null;
+    } catch (error) {
+      const code = syncCode(error);
+      await db.query(
+        "UPDATE mig_farm.users SET odoo_sync_status='failed',odoo_sync_error=$2,updated_at=now() WHERE id=$1 AND deleted_at IS NULL",
+        [user.id, code],
+      );
+      logger?.warn?.('Odoo customer sync failed', { code, userId: user.id });
+      if (throwOnFailure) throw fail(error?.statusCode || 503, code);
+      return null;
+    }
+  }
+  async function getProfile(user) {
+    const synced = await syncCustomer(user, false);
+    return synced ? profile(synced.row) : profile(user);
+  }
   async function register(body) {
     requireDb();
     const name = text(body.name, 120, true),
@@ -94,9 +162,10 @@ export function createAuth(db, options = {}) {
       number = phone(body.phone || ''),
       secret = await hashPassword(password(body.password));
     const language = body.language === 'ar' ? 'ar' : 'en';
+    let user;
     try {
-      return await db.transaction(async (client) => {
-        const user = (
+      user = await db.transaction(async (client) => {
+        const created = (
           await client.query(
             'INSERT INTO mig_farm.users(id,name,email,phone,password_hash,language) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',
             [randomUUID(), name, address, number, secret, language],
@@ -104,14 +173,19 @@ export function createAuth(db, options = {}) {
         ).rows[0];
         await client.query(
           'INSERT INTO mig_farm.notification_preferences(user_id) VALUES($1)',
-          [user.id],
+          [created.id],
         );
-        return issue(client, user);
+        return created;
       });
     } catch (error) {
       if (error.code === '23505') throw fail(409, 'registration_unavailable');
       throw error;
     }
+    const synced = await syncCustomer(user, false);
+    const current = synced?.row || user;
+    return db.transaction((client) =>
+      issue(client, current, randomUUID(), null, synced?.business || null),
+    );
   }
   async function login(body) {
     requireDb();
@@ -124,6 +198,7 @@ export function createAuth(db, options = {}) {
     ).rows[0];
     if (!(await verifyPassword(body.password, user?.password_hash)) || !user)
       throw fail(401, 'invalid_credentials');
+    const synced = await syncCustomer(user, false);
     return db.transaction(async (client) => {
       const current = (
         await client.query(
@@ -133,7 +208,7 @@ export function createAuth(db, options = {}) {
       ).rows[0];
       if (!current || current.password_hash !== user.password_hash)
         throw fail(401, 'invalid_credentials');
-      return issue(client, current);
+      return issue(client, current, randomUUID(), null, synced?.business || null);
     });
   }
   async function refresh(value) {
@@ -305,50 +380,100 @@ export function createAuth(db, options = {}) {
   async function updateProfile(user, body) {
     if (body.email !== undefined && email(body.email) !== user.email)
       throw fail(400, 'email_change_requires_verification');
+    const base = (await syncCustomer(user, false))?.row || user;
     const current = {
-      name: body.name === undefined ? user.name : text(body.name, 120, true),
-      phone: body.phone === undefined ? user.phone : phone(body.phone),
+      name: body.name === undefined ? base.name : text(body.name, 120, true),
+      phone: body.phone === undefined ? base.phone : phone(body.phone),
       emirate:
-        body.emirate === undefined ? user.emirate : text(body.emirate, 60),
-      language: body.language === undefined ? user.language : body.language,
+        body.emirate === undefined ? base.emirate : text(body.emirate, 60),
+      language: body.language === undefined ? base.language : body.language,
+      email: base.email,
     };
     if (!['ar', 'en'].includes(current.language))
       throw fail(400, 'invalid_input');
+    const linked = base.odoo_partner_id
+      ? { row: base }
+      : await syncCustomer(base, true);
+    const business = await customerMaster.updateCustomerPartner(
+      Number(linked.row.odoo_partner_id),
+      current,
+    ).catch(async (error) => {
+      const code = syncCode(error);
+      await db.query(
+        "UPDATE mig_farm.users SET odoo_sync_status='failed',odoo_sync_error=$2,updated_at=now() WHERE id=$1",
+        [user.id, code],
+      );
+      throw fail(error?.statusCode || 503, code);
+    });
     const row = (
       await db.query(
-        'UPDATE mig_farm.users SET name=$2,phone=$3,emirate=$4,language=$5,updated_at=now() WHERE id=$1 AND deleted_at IS NULL RETURNING *',
+        "UPDATE mig_farm.users SET name=$2,phone=$3,emirate=$4,language=$5,email=$6,odoo_sync_status='synced',odoo_sync_error=NULL,odoo_synced_at=now(),updated_at=now() WHERE id=$1 AND deleted_at IS NULL RETURNING *",
         [
           user.id,
-          current.name,
-          current.phone,
-          current.emirate,
-          current.language,
+          business.name,
+          business.phone,
+          business.emirate,
+          business.language,
+          business.email,
         ],
       )
     ).rows[0];
     if (!row) throw fail(401, 'unauthorized');
     return profile(row);
   }
+  async function uploadAvatar(user, file) {
+    if (!avatar.available) throw fail(503, 'avatar_storage_not_configured');
+    const uploaded = await avatar.upload({ userId: user.id, file });
+    let row;
+    try {
+      row = (
+        await db.query(
+          'UPDATE mig_farm.users SET avatar_url=$2,avatar_key=$3,avatar_updated_at=now(),updated_at=now() WHERE id=$1 AND deleted_at IS NULL RETURNING *',
+          [user.id, uploaded.url, uploaded.key],
+        )
+      ).rows[0];
+      if (!row) throw fail(401, 'unauthorized');
+    } catch (error) {
+      await avatar.remove({ key: uploaded.key }).catch(() => undefined);
+      throw error;
+    }
+    if (user.avatar_key && user.avatar_key !== uploaded.key)
+      await avatar.remove({ key: user.avatar_key }).catch(() => undefined);
+    if (row.odoo_partner_id && customerMaster?.syncCustomerAvatar)
+      await customerMaster
+        .syncCustomerAvatar(Number(row.odoo_partner_id), file)
+        .catch((error) => logger?.warn?.('Odoo avatar sync failed', {
+          code: syncCode(error),
+          userId: user.id,
+        }));
+    return profile(row);
+  }
   async function removeAvatar(user) {
-    if (user.avatar_url)
-      await avatar.remove({ userId: user.id, url: user.avatar_url });
+    if (user.avatar_key) await avatar.remove({ userId: user.id, key: user.avatar_key });
     const row = (
       await db.query(
-        'UPDATE mig_farm.users SET avatar_url=NULL,avatar_updated_at=now(),updated_at=now() WHERE id=$1 AND deleted_at IS NULL RETURNING *',
+        'UPDATE mig_farm.users SET avatar_url=NULL,avatar_key=NULL,avatar_updated_at=now(),updated_at=now() WHERE id=$1 AND deleted_at IS NULL RETURNING *',
         [user.id],
       )
     ).rows[0];
     if (!row) throw fail(401, 'unauthorized');
+    if (row.odoo_partner_id && customerMaster?.syncCustomerAvatar)
+      await customerMaster
+        .syncCustomerAvatar(Number(row.odoo_partner_id), null)
+        .catch((error) => logger?.warn?.('Odoo avatar removal sync failed', {
+          code: syncCode(error),
+          userId: user.id,
+        }));
     return profile(row);
   }
   async function deleteAccount(user, body) {
     if (!(await verifyPassword(body.password, user.password_hash)))
       throw fail(401, 'invalid_credentials');
-    if (user.avatar_url)
-      await avatar.remove({ userId: user.id, url: user.avatar_url });
+    if (user.avatar_key)
+      await avatar.remove({ userId: user.id, key: user.avatar_key });
     await db.transaction(async (client) => {
       const result = await client.query(
-        "UPDATE mig_farm.users SET name='Deleted customer',email=$2,phone='',password_hash=NULL,emirate='',avatar_url=NULL,avatar_updated_at=NULL,email_verified_at=NULL,phone_verified_at=NULL,deleted_at=now(),updated_at=now() WHERE id=$1 AND password_hash=$3 AND deleted_at IS NULL RETURNING id",
+        "UPDATE mig_farm.users SET name='Deleted customer',email=$2,phone='',password_hash=NULL,emirate='',avatar_url=NULL,avatar_key=NULL,avatar_updated_at=NULL,email_verified_at=NULL,phone_verified_at=NULL,deleted_at=now(),updated_at=now() WHERE id=$1 AND password_hash=$3 AND deleted_at IS NULL RETURNING id",
         [user.id, user.id + '@deleted.invalid', user.password_hash],
       );
       if (!result.rows.length) throw fail(401, 'unauthorized');
@@ -376,6 +501,7 @@ export function createAuth(db, options = {}) {
   }
   return {
     authenticate,
+    getProfile,
     rate,
     register,
     login,
@@ -387,6 +513,7 @@ export function createAuth(db, options = {}) {
     updateProfile,
     changePassword,
     deleteAccount,
+    uploadAvatar,
     removeAvatar,
     avatar,
   };

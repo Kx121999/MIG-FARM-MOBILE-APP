@@ -1,22 +1,35 @@
-MIG FARM ORDER BRIDGE CLIENT + ODOO WEBSITE CATEGORY SYNC PATCH
-Validation: typecheck PASS; tests 127/127 PASS; Expo config PASS
-No database migration. No stock writes. No production Odoo order. No payment activation.
+MIG FARM MOBILE - OFFICIAL CUSTOMER ACCOUNT + ODOO CUSTOMER MASTER V1
 
-Files:
+Manual review package only. No deployment, GitHub push, production order,
+payment, inventory mutation, or production database migration was performed.
+
+IMPORTANT MIGRATION STEP
+Review and manually execute this forward migration on Neon before deploying
+the corresponding backend code:
+
+server/db/migrations/010_odoo_customer_master.sql
+
+Changed source files included in this package:
 .env.example
+server/.env.example
+server/db/migrations/010_odoo_customer_master.sql
+server/auth/service.mjs
 server/services/odoo.mjs
+server/services/customers.mjs
+server/services/orders.mjs
 server/src/app.mjs
-src/types/index.ts
-src/constants/categories.ts
-src/services/catalog.ts
-src/hooks/useProducts.ts
-src/components/CategoryCard.tsx
-src/components/CategoryIcon.tsx
-app/(tabs)/index.tsx
-app/(tabs)/catalog.tsx
+src/services/apiClient.ts
+src/services/customer.ts
 src/services/orderPreparation.ts
 src/services/payments.ts
 app/checkout.tsx
-server/tests/odoo-website-categories.test.mjs
-scripts/storefront-category-client.test.mjs
-scripts/order-prepare-client.test.mjs
+app/profile.tsx
+app/(tabs)/account.tsx
+server/tests/customer-api.test.mjs
+server/tests/customer-odoo-master.test.mjs
+server/tests/odoo-order-bridge.test.mjs
+
+Validation:
+npm run typecheck: PASS
+npm test: 147 passed, 0 failed
+npx expo config --json: PASS

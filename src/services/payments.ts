@@ -21,6 +21,7 @@ export type { PreparedOrder } from '@/services/orderPreparation';
 
 export type CheckoutCustomer = { name: string; email: string; phone: string };
 export type ShippingAddress = {
+  addressId?: string | null;
   emirate: string;
   city: string;
   addressLine: string;

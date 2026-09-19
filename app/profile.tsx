@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Trash2, MapPin } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import {
   AccountPage,
   AccountField,
@@ -13,7 +13,6 @@ import {
 import { UserAvatar } from '@/components/account/UserAvatar';
 import { AppButton } from '@/components/AppButton';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { customerError } from '@/services/customer';
 import { selectAvatar } from '@/services/avatar';
@@ -23,11 +22,12 @@ import { ChoiceGroup } from '@/components/account/ChoiceGroup';
 
 export default function ProfileScreen() {
   const auth = useAuth();
-  const { profile, setProfile, hydrated } = useCommerce();
   const { language, isRTL: ar, setLanguage } = useLanguage();
   const [draft, setDraft] = useState<ProfileDraft>({
-    ...profile,
-    emirate: profile.emirate || 'Dubai',
+    name: auth.user?.name || '',
+    email: auth.user?.email || '',
+    phone: auth.user?.phone || '',
+    emirate: auth.user?.emirate || 'Dubai',
     language,
   });
   const [photo, setPhoto] = useState<AvatarSelection | null>(null),
@@ -38,11 +38,14 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!dirty)
       setDraft({
-        ...(auth.user || profile),
-        emirate: auth.user?.emirate || profile.emirate || 'Dubai',
+        name: auth.user?.name || '',
+        email: auth.user?.email || '',
+        phone: auth.user?.phone || '',
+        emirate: auth.user?.emirate || 'Dubai',
         language,
       });
-  }, [auth.user, profile, language, dirty]);
+  }, [auth.user, language, dirty]);
+  if (auth.ready && !auth.user) return <Redirect href="/auth/login" />;
   const update = (key: keyof ProfileDraft, value: string) => {
     setDirty(true);
     setDraft((current) => ({ ...current, [key]: value }));
@@ -86,18 +89,11 @@ export default function ProfileScreen() {
         email: draft.email.trim(),
         phone,
       };
-      if (auth.user) await auth.updateProfile(next);
-      else setProfile(next);
+      await auth.updateProfile(next);
       setLanguage(draft.language);
       setDirty(false);
       setMessage(
-        auth.user
-          ? ar
-            ? 'تم حفظ التغييرات'
-            : 'Changes saved'
-          : ar
-            ? 'تم حفظ بيانات التواصل على هذا الجهاز فقط.'
-            : 'Contact details saved on this device only.',
+        ar ? 'تم حفظ التغييرات' : 'Changes saved',
       );
     } catch (e) {
       setMessage(customerError(e, ar));
@@ -136,36 +132,17 @@ export default function ProfileScreen() {
       </View>
       {photo ? (
         <>
-          <Notice
-            text={
-              ar
-                ? 'معاينة فقط؛ الصورة لم تُرفع بعد.'
-                : 'Preview only; this photo has not been uploaded.'
-            }
-          />
           <AppButton
             disabled={busy}
             label={ar ? 'حفظ الصورة' : 'Save photo'}
             onPress={async () => {
               setBusy(true);
               try {
-                if (!auth.user) {
-                  setMessage(
-                    ar
-                      ? 'حفظ الصورة للحساب غير متاح حاليًا. المعاينة لن تُحفظ بشكل دائم.'
-                      : 'Account photo storage is not available yet. This preview is temporary.',
-                  );
-                  return;
-                }
                 await auth.uploadAvatar(photo);
                 setPhoto(null);
                 setMessage(ar ? 'تم تحديث الصورة' : 'Photo updated');
-              } catch {
-                setMessage(
-                  ar
-                    ? 'تعذر تحديث الصورة. حاول مرة أخرى.'
-                    : 'Unable to update the photo. Please try again.',
-                );
+              } catch (error) {
+                setMessage(customerError(error, ar));
               } finally {
                 setBusy(false);
               }
@@ -183,15 +160,6 @@ export default function ProfileScreen() {
           icon={Trash2}
           title={ar ? 'إزالة الصورة' : 'Remove photo'}
           onPress={() => setRemove(true)}
-        />
-      ) : null}
-      {!auth.user ? (
-        <Notice
-          text={
-            ar
-              ? 'بيانات التواصل هنا محفوظة على هذا الجهاز، وليست حسابًا مسجلاً.'
-              : 'These contact details are local to this device, not a registered account.'
-          }
         />
       ) : null}
       <AccountField
@@ -247,7 +215,7 @@ export default function ProfileScreen() {
               ? 'حفظ التغييرات'
               : 'Save changes'
         }
-        disabled={busy || !hydrated}
+        disabled={busy || !auth.ready}
         onPress={save}
       />
       <AccountRow

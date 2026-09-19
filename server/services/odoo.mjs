@@ -37,11 +37,13 @@ const FIELD_CANDIDATES = {
   ],
   'res.partner': [
     'id', 'name', 'phone', 'mobile', 'email', 'street', 'street2', 'city',
-    'country_id', 'active', 'type',
+    'country_id', 'active', 'type', 'parent_id', 'lang', 'customer_rank',
+    'ref', 'image_1920',
   ],
   'res.country': ['id', 'name', 'code'],
   'sale.order': [
-    'id', 'name', 'state', 'partner_id', 'client_order_ref', 'order_line',
+    'id', 'name', 'state', 'partner_id', 'partner_shipping_id',
+    'client_order_ref', 'order_line',
     'amount_untaxed', 'amount_tax', 'amount_total', 'currency_id',
   ],
   'sale.order.line': [
@@ -236,6 +238,7 @@ export function createOdooCatalog({
   const fieldCache = new Map();
   const fieldInflight = new Map();
   const imageCache = new Map();
+  const customerInflight = new Map();
 
   const ensureConfigured = () => {
     if (!config.configured) throw safeFailure('odoo_not_configured');
@@ -432,6 +435,174 @@ export function createOdooCatalog({
     return id;
   }
 
+  async function updateRecord(model, id, values) {
+    const result = await call(model, 'write', { ids: [id], vals: values });
+    if (result !== true && result !== 1) throw safeFailure('odoo_invalid_response');
+  }
+
+  const partnerReadFields = (fields) => fields.filter((field) => [
+    'id', 'name', 'phone', 'mobile', 'email', 'street', 'street2', 'city',
+    'country_id', 'active', 'type', 'parent_id', 'lang', 'customer_rank', 'ref',
+  ].includes(field));
+
+  function customerProfile(record) {
+    return {
+      partnerId: relationId(record.id),
+      name: cleanText(record.name),
+      email: normalizedEmail(record.email),
+      phone: cleanText(record.phone || record.mobile),
+      language: cleanText(record.lang).toLowerCase().startsWith('ar') ? 'ar' : 'en',
+      emirate: cleanText(record.street2),
+    };
+  }
+
+  async function findPartnerByReference(reference, fields) {
+    if (!reference || !fields.includes('ref')) return null;
+    const records = await limitedSearchRead(
+      'res.partner',
+      [['ref', '=', reference]],
+      partnerReadFields(fields),
+      2,
+    );
+    if (records.length > 1) throw safeFailure('odoo_partner_ambiguous');
+    return records[0] || null;
+  }
+
+  async function partnerValues(input, fields, reference, type = 'contact') {
+    const values = { name: cleanText(input.name) };
+    if (!values.name) throw safeFailure('odoo_invalid_customer');
+    if (fields.includes('email') && input.email)
+      values.email = normalizedEmail(input.email);
+    const phoneField = fields.includes('phone') ? 'phone' : fields.includes('mobile') ? 'mobile' : null;
+    if (phoneField && input.phone) values[phoneField] = cleanText(input.phone);
+    if (fields.includes('lang'))
+      values.lang = input.language === 'ar'
+        ? cleanText(env.ODOO_LANG_AR) || 'ar_001'
+        : cleanText(env.ODOO_LANG_EN) || 'en_US';
+    if (fields.includes('customer_rank') && type === 'contact') values.customer_rank = 1;
+    if (fields.includes('type')) values.type = type;
+    if (fields.includes('active')) values.active = true;
+    if (fields.includes('ref') && reference) values.ref = reference;
+    if (fields.includes('street') && input.addressLine) values.street = cleanText(input.addressLine);
+    if (fields.includes('street2')) {
+      const secondary = [input.unit, input.emirate].map(cleanText).filter(Boolean).join(' - ');
+      if (secondary) values.street2 = secondary;
+    }
+    if (fields.includes('city') && input.city) values.city = cleanText(input.city);
+    if (fields.includes('country_id')) {
+      const countryId = await uaeCountryId();
+      if (countryId) values.country_id = countryId;
+    }
+    return values;
+  }
+
+  async function readCustomerPartner(partnerId, fields = null) {
+    const id = Number(partnerId);
+    if (!Number.isSafeInteger(id) || id <= 0)
+      throw safeFailure('odoo_customer_link_invalid');
+    const available = fields || await fieldsFor('res.partner');
+    requiredFields('res.partner', available, ['id', 'name']);
+    const record = await readOne('res.partner', id, partnerReadFields(available));
+    if (available.includes('active') && record.active === false)
+      throw safeFailure('odoo_customer_inactive');
+    return record;
+  }
+
+  async function ensureCustomerPartner(input) {
+    const key = cleanText(input?.appUserId);
+    if (!key) throw safeFailure('odoo_invalid_customer');
+    if (customerInflight.has(key)) return customerInflight.get(key);
+    const operation = (async () => {
+      const fields = await fieldsFor('res.partner');
+      requiredFields('res.partner', fields, ['id', 'name']);
+      if (input.partnerId) {
+        const linked = await readCustomerPartner(input.partnerId, fields);
+        return customerProfile(linked);
+      }
+      const reference = `MIGAPP:${key}`.slice(0, 120);
+      const existing = await findPartnerByReference(reference, fields);
+      if (existing) return customerProfile(existing);
+      const values = await partnerValues(input, fields, reference);
+      let createdId;
+      try {
+        createdId = await createRecord('res.partner', values);
+      } catch (error) {
+        if (!['odoo_timeout', 'odoo_unavailable', 'odoo_rate_limited'].includes(errorCode(error)))
+          throw error;
+        const recovered = await findPartnerByReference(reference, fields).catch(() => null);
+        if (!recovered) throw error;
+        return customerProfile(recovered);
+      }
+      return customerProfile(await readCustomerPartner(createdId, fields));
+    })().finally(() => customerInflight.delete(key));
+    customerInflight.set(key, operation);
+    return operation;
+  }
+
+  async function getCustomerProfile(partnerId) {
+    return customerProfile(await readCustomerPartner(partnerId));
+  }
+
+  async function updateCustomerPartner(partnerId, input) {
+    const fields = await fieldsFor('res.partner');
+    await readCustomerPartner(partnerId, fields);
+    const current = await partnerValues(input, fields, null);
+    const values = Object.fromEntries(
+      Object.entries(current).filter(([field]) => !['customer_rank', 'type', 'active'].includes(field)),
+    );
+    await updateRecord('res.partner', Number(partnerId), values);
+    return getCustomerProfile(partnerId);
+  }
+
+  async function syncCustomerAvatar(partnerId, file) {
+    const fields = await fieldsFor('res.partner');
+    await readCustomerPartner(partnerId, fields);
+    if (!fields.includes('image_1920'))
+      return { supported: false };
+    const value = file?.buffer?.length ? file.buffer.toString('base64') : false;
+    await updateRecord('res.partner', Number(partnerId), { image_1920: value });
+    return { supported: true };
+  }
+
+  async function upsertDeliveryAddress({ parentId, addressId, partnerId, address }) {
+    const fields = await fieldsFor('res.partner');
+    requiredFields('res.partner', fields, ['id', 'name', 'parent_id', 'type']);
+    const parent = await readCustomerPartner(parentId, fields);
+    const reference = `MIGADDR:${cleanText(addressId)}`.slice(0, 120);
+    let record = partnerId
+      ? await readCustomerPartner(partnerId, fields)
+      : await findPartnerByReference(reference, fields);
+    if (record) {
+      if (relationId(record.parent_id) !== relationId(parent.id) || cleanText(record.type) !== 'delivery')
+        throw safeFailure('odoo_address_ownership_mismatch');
+    }
+    const values = await partnerValues(
+      {
+        ...address,
+        name: cleanText(address.name) || cleanText(address.label) || parent.name,
+      },
+      fields,
+      reference,
+      'delivery',
+    );
+    values.parent_id = relationId(parent.id);
+    if (record) {
+      await updateRecord('res.partner', relationId(record.id), values);
+      return { partnerId: relationId(record.id) };
+    }
+    return { partnerId: await createRecord('res.partner', values) };
+  }
+
+  async function deactivateDeliveryAddress({ parentId, partnerId }) {
+    const fields = await fieldsFor('res.partner');
+    requiredFields('res.partner', fields, ['id', 'parent_id', 'type', 'active']);
+    const record = await readCustomerPartner(partnerId, fields);
+    if (relationId(record.parent_id) !== Number(parentId) || cleanText(record.type) !== 'delivery')
+      throw safeFailure('odoo_address_ownership_mismatch');
+    await updateRecord('res.partner', Number(partnerId), { active: false });
+    return { ok: true };
+  }
+
   async function findExactPartner(customer, fields) {
     const outputFields = fields.filter((field) =>
       ['id', 'name', 'phone', 'mobile', 'email'].includes(field));
@@ -536,7 +707,14 @@ export function createOdooCatalog({
     return records[0] || null;
   }
 
-  async function prepareQuotation({ orderId, customer, shippingAddress, items }) {
+  async function prepareQuotation({
+    orderId,
+    customer,
+    shippingAddress,
+    items,
+    partnerId = null,
+    deliveryPartnerId = null,
+  }) {
     const saleFields = await fieldsFor('sale.order');
     const lineFields = await fieldsFor('sale.order.line');
     const productFields = await fieldsFor('product.product');
@@ -573,7 +751,9 @@ export function createOdooCatalog({
         throw safeFailure('odoo_variant_out_of_stock');
     }
 
-    const partner = await resolvePartner(customer, shippingAddress);
+    const partner = partnerId
+      ? { id: relationId((await readCustomerPartner(partnerId)).id), matchedBy: 'linked_app_user' }
+      : await resolvePartner(customer, shippingAddress);
     const values = {
       partner_id: partner.id,
       client_order_ref: orderId,
@@ -582,6 +762,14 @@ export function createOdooCatalog({
         product_uom_qty: Number(item.quantity),
       }]),
     };
+    if (deliveryPartnerId && saleFields.includes('partner_shipping_id')) {
+      const delivery = await readCustomerPartner(deliveryPartnerId);
+      if (
+        relationId(delivery.parent_id) !== partner.id ||
+        cleanText(delivery.type) !== 'delivery'
+      ) throw safeFailure('odoo_address_ownership_mismatch');
+      values.partner_shipping_id = relationId(delivery.id);
+    }
     try {
       const createdId = await createRecord('sale.order', values);
       return quotationResult(await readOne('sale.order', createdId, orderReadFields), partner);
@@ -1034,6 +1222,8 @@ export function createOdooCatalog({
   return {
     source: 'odoo', configured: config.configured, list, getByHandle,
     filterExistingProductIds, productImage, prepareQuotation, confirmQuotation,
+    ensureCustomerPartner, getCustomerProfile, updateCustomerPartner,
+    syncCustomerAvatar, upsertDeliveryAddress, deactivateDeliveryAddress,
     health,
   };
 }
@@ -1074,6 +1264,36 @@ export function createStaticCatalog(input = {}) {
     async confirmQuotation(payload) {
       if (typeof data?.confirmQuotation === 'function')
         return data.confirmQuotation(payload);
+      throw safeFailure('odoo_not_configured');
+    },
+    async ensureCustomerPartner(payload) {
+      if (typeof data?.ensureCustomerPartner === 'function')
+        return data.ensureCustomerPartner(payload);
+      throw safeFailure('odoo_not_configured');
+    },
+    async getCustomerProfile(partnerId) {
+      if (typeof data?.getCustomerProfile === 'function')
+        return data.getCustomerProfile(partnerId);
+      throw safeFailure('odoo_not_configured');
+    },
+    async updateCustomerPartner(partnerId, payload) {
+      if (typeof data?.updateCustomerPartner === 'function')
+        return data.updateCustomerPartner(partnerId, payload);
+      throw safeFailure('odoo_not_configured');
+    },
+    async syncCustomerAvatar(partnerId, file) {
+      if (typeof data?.syncCustomerAvatar === 'function')
+        return data.syncCustomerAvatar(partnerId, file);
+      return { supported: false };
+    },
+    async upsertDeliveryAddress(payload) {
+      if (typeof data?.upsertDeliveryAddress === 'function')
+        return data.upsertDeliveryAddress(payload);
+      throw safeFailure('odoo_not_configured');
+    },
+    async deactivateDeliveryAddress(payload) {
+      if (typeof data?.deactivateDeliveryAddress === 'function')
+        return data.deactivateDeliveryAddress(payload);
       throw safeFailure('odoo_not_configured');
     },
     async health() {

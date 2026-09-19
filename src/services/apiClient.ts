@@ -64,19 +64,25 @@ async function send<T>(
   if (options.signal?.aborted) abort();
   options.signal?.addEventListener('abort', abort);
   try {
+    const multipart =
+      typeof FormData !== 'undefined' && options.body instanceof FormData;
     const response = await fetch(`${API_ORIGIN}${path}`, {
       method: options.method ?? 'GET',
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
-        ...(options.body === undefined
+        ...(options.body === undefined || multipart
           ? {}
           : { 'Content-Type': 'application/json' }),
         ...options.headers,
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       body:
-        options.body === undefined ? undefined : JSON.stringify(options.body),
+        options.body === undefined
+          ? undefined
+          : multipart
+            ? (options.body as never)
+            : JSON.stringify(options.body),
     });
     const data = await response.json().catch(() => null);
     if (!response.ok)

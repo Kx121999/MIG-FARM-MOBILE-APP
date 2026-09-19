@@ -63,6 +63,8 @@ function mockOrderOdoo({ partners = [], timeoutAfterCreate = false } = {}) {
       state.partners.push(record);
       return Response.json([record.id]);
     }
+    if (method === 'read' && model === 'res.partner')
+      return Response.json(state.partners.filter((partner) => body.ids.includes(partner.id)));
     if (method === 'create' && model === 'sale.order') {
       const values = body.vals_list[0];
       const record = {
@@ -146,6 +148,23 @@ test('Odoo order bridge matches partners safely and creates draft variant lines'
     assert.equal(quote.partnerMatch, 'email');
   });
 
+  await t.test('an authenticated app customer uses the exact linked partner ID', async () => {
+    const mock = mockOrderOdoo({
+      partners: [{ id: 77, name: 'Linked customer', phone: '+971501234567', active: true }],
+    });
+    const quote = await createOdooCatalog({
+      env: ODOO_ENV,
+      fetchImpl: mock.fetchImpl,
+      logger: null,
+    }).prepareQuotation({ ...quotationPayload(), partnerId: 77 });
+    assert.equal(quote.partnerId, 77);
+    assert.equal(quote.partnerMatch, 'linked_app_user');
+    const create = mock.state.calls.find((call) => call.model === 'sale.order' && call.method === 'create');
+    assert.equal(create.body.vals_list[0].partner_id, 77);
+    assert.equal(mock.state.calls.some((call) => call.model === 'res.partner' && call.method === 'create'), false);
+    assert.equal(mock.state.calls.some((call) => call.model === 'res.partner' && call.method === 'search_read'), false);
+  });
+
   await t.test('a validated UAE partner is created when no exact match exists', async () => {
     const mock = mockOrderOdoo();
     const quote = await createOdooCatalog({
@@ -217,6 +236,115 @@ test('Odoo order bridge matches partners safely and creates draft variant lines'
     assert.equal(mock.state.calls.filter((call) => call.method === 'action_confirm').length, 1);
     assert.equal(mock.state.calls.some((call) => call.model === 'stock.quant'), false);
   });
+});
+
+test('Odoo customer master is reference-idempotent and address-safe', async () => {
+  const fields = {
+    'res.partner': [
+      'id', 'name', 'phone', 'mobile', 'email', 'street', 'street2', 'city',
+      'country_id', 'active', 'type', 'parent_id', 'lang', 'customer_rank',
+      'ref', 'image_1920',
+    ],
+    'res.country': ['id', 'name', 'code'],
+  };
+  const state = { partners: [], calls: [] };
+  const fetchImpl = async (url, options = {}) => {
+    const match = /\/json\/2\/([^/]+)\/([^/?]+)/.exec(String(url));
+    const model = decodeURIComponent(match?.[1] || '');
+    const method = decodeURIComponent(match?.[2] || '');
+    const body = JSON.parse(options.body || '{}');
+    state.calls.push({ model, method, body });
+    if (method === 'fields_get')
+      return Response.json(Object.fromEntries((fields[model] || []).map((field) => [field, { type: 'char' }])));
+    if (method === 'search_read' && model === 'res.country')
+      return Response.json([{ id: 1, name: 'United Arab Emirates', code: 'AE' }]);
+    if (method === 'search_read' && model === 'res.partner') {
+      const reference = body.domain?.find((term) => Array.isArray(term) && term[0] === 'ref')?.[2];
+      return Response.json(reference
+        ? state.partners.filter((partner) => partner.ref === reference)
+        : []);
+    }
+    if (method === 'create' && model === 'res.partner') {
+      const record = {
+        id: 200 + state.partners.length,
+        active: true,
+        parent_id: false,
+        ...body.vals_list[0],
+      };
+      state.partners.push(record);
+      return Response.json([record.id]);
+    }
+    if (method === 'read' && model === 'res.partner')
+      return Response.json(state.partners.filter((partner) => body.ids.includes(partner.id)));
+    if (method === 'write' && model === 'res.partner') {
+      for (const id of body.ids) Object.assign(state.partners.find((partner) => partner.id === id), body.vals);
+      return Response.json(true);
+    }
+    return new Response(JSON.stringify({ error: 'unexpected_mock_call' }), { status: 400 });
+  };
+  const catalog = createOdooCatalog({
+    env: ODOO_ENV,
+    fetchImpl,
+    logger: null,
+  });
+  const customer = {
+    appUserId: '4fbd6360-cc70-4b43-8a44-3609aa5aa8ed',
+    name: 'Customer Master',
+    email: 'master@example.test',
+    phone: '+971501234567',
+    emirate: 'Dubai',
+    language: 'ar',
+    password: 'must-never-be-forwarded',
+  };
+  const [first, concurrent] = await Promise.all([
+    catalog.ensureCustomerPartner(customer),
+    catalog.ensureCustomerPartner(customer),
+  ]);
+  assert.equal(first.partnerId, concurrent.partnerId);
+  assert.equal(state.partners.length, 1);
+  assert.equal(state.partners[0].ref, `MIGAPP:${customer.appUserId}`);
+  assert.equal(state.partners[0].lang, 'ar_001');
+  assert.equal(state.partners[0].customer_rank, 1);
+  assert.equal(JSON.stringify(state.calls).includes(customer.password), false);
+  const retry = await catalog.ensureCustomerPartner(customer);
+  assert.equal(retry.partnerId, first.partnerId);
+  assert.equal(state.partners.length, 1);
+
+  const updated = await catalog.updateCustomerPartner(first.partnerId, {
+    name: 'Updated Customer',
+    email: customer.email,
+    phone: '+971509999999',
+    emirate: 'Abu Dhabi',
+    language: 'en',
+  });
+  assert.equal(updated.partnerId, first.partnerId);
+  assert.equal(updated.name, 'Updated Customer');
+  assert.equal(state.partners[0].lang, 'en_US');
+
+  const address = {
+    label: 'Farm',
+    name: 'Updated Customer',
+    phone: '+971509999999',
+    emirate: 'Dubai',
+    city: 'Dubai',
+    addressLine: 'Farm Road',
+    unit: 'Gate 1',
+  };
+  const delivery = await catalog.upsertDeliveryAddress({
+    parentId: first.partnerId,
+    addressId: 'd91b73eb-89c2-4be7-8314-10f22cf8bf39',
+    address,
+  });
+  const repeated = await catalog.upsertDeliveryAddress({
+    parentId: first.partnerId,
+    addressId: 'd91b73eb-89c2-4be7-8314-10f22cf8bf39',
+    partnerId: delivery.partnerId,
+    address: { ...address, city: 'Jebel Ali' },
+  });
+  assert.equal(repeated.partnerId, delivery.partnerId);
+  assert.equal(state.partners.filter((partner) => partner.type === 'delivery').length, 1);
+  assert.equal(state.partners.find((partner) => partner.id === delivery.partnerId).parent_id, first.partnerId);
+  assert.equal(state.partners.find((partner) => partner.id === delivery.partnerId).city, 'Jebel Ali');
 });
 
 test('prepare order API persists Odoo totals and remains independent from Stripe', async (t) => {

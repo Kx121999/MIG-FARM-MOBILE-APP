@@ -107,8 +107,8 @@ export default function AccountScreen() {
           <AccountRow
             icon={UserRound}
             title={ar ? 'الملف الشخصي' : 'Personal profile'}
-            detail={!user ? (ar ? 'بيانات هذا الجهاز' : 'Details on this device') : undefined}
-            onPress={() => router.push('/profile')}
+            detail={!user ? (ar ? 'سجّل الدخول لإدارة حسابك' : 'Sign in to manage your account') : undefined}
+            onPress={() => router.push(user ? '/profile' : '/auth/login')}
           />
         </View>
 

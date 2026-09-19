@@ -35,6 +35,10 @@ export async function lockCustomer(client, id) {
 }
 export function createCustomers(db, catalogInput) {
   const catalog = asCatalogService(catalogInput);
+  const syncError = (error) =>
+    typeof error?.code === 'string' && /^odoo_[a-z0-9_]{1,80}$/.test(error.code)
+      ? error.code
+      : 'odoo_sync_failed';
   const addresses = async (user) =>
     (
       await db.query(
@@ -45,6 +49,7 @@ export function createCustomers(db, catalogInput) {
   async function saveAddress(user, value, id = null) {
     const next = address(value);
     if (id) uuid(id);
+    const addressId = id || randomUUID();
     await db.transaction(async (client) => {
       await lockCustomer(client, user.id);
       const existing = (
@@ -66,7 +71,7 @@ export function createCustomers(db, catalogInput) {
           [user.id],
         );
       const params = [
-        id || randomUUID(),
+        addressId,
         user.id,
         next.label,
         next.category,
@@ -90,10 +95,54 @@ export function createCustomers(db, catalogInput) {
           params,
         );
     });
+    const linked = (
+      await db.query(
+        'SELECT a.*,u.odoo_partner_id AS customer_partner_id FROM mig_farm.user_addresses a JOIN mig_farm.users u ON u.id=a.user_id WHERE a.id=$1 AND a.user_id=$2 AND u.deleted_at IS NULL',
+        [addressId, user.id],
+      )
+    ).rows[0];
+    if (linked?.customer_partner_id) {
+      try {
+        const synced = await catalog.upsertDeliveryAddress({
+          parentId: Number(linked.customer_partner_id),
+          addressId,
+          partnerId: linked.odoo_partner_id
+            ? Number(linked.odoo_partner_id)
+            : null,
+          address: addressDTO(linked),
+        });
+        await db.query(
+          "UPDATE mig_farm.user_addresses SET odoo_partner_id=$3,odoo_sync_status='synced',odoo_sync_error=NULL,odoo_synced_at=now(),updated_at=now() WHERE id=$1 AND user_id=$2",
+          [addressId, user.id, Number(synced.partnerId)],
+        );
+      } catch (error) {
+        await db.query(
+          "UPDATE mig_farm.user_addresses SET odoo_sync_status='failed',odoo_sync_error=$3,updated_at=now() WHERE id=$1 AND user_id=$2",
+          [addressId, user.id, syncError(error)],
+        );
+      }
+    }
     return addresses(user);
   }
   async function deleteAddress(user, id) {
     uuid(id);
+    const linked = (
+      await db.query(
+        'SELECT a.odoo_partner_id,u.odoo_partner_id AS customer_partner_id FROM mig_farm.user_addresses a JOIN mig_farm.users u ON u.id=a.user_id WHERE a.id=$1 AND a.user_id=$2 AND u.deleted_at IS NULL',
+        [id, user.id],
+      )
+    ).rows[0];
+    if (!linked) throw fail(404, 'not_found');
+    if (linked.odoo_partner_id && linked.customer_partner_id) {
+      try {
+        await catalog.deactivateDeliveryAddress({
+          parentId: Number(linked.customer_partner_id),
+          partnerId: Number(linked.odoo_partner_id),
+        });
+      } catch (error) {
+        throw fail(error?.statusCode || 503, syncError(error));
+      }
+    }
     await db.transaction(async (client) => {
       await lockCustomer(client, user.id);
       const result = await client.query(

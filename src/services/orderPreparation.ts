@@ -6,6 +6,7 @@ export type PrepareCartItem = {
 
 export type PrepareCustomer = { name: string; email: string; phone: string };
 export type PrepareShippingAddress = {
+  addressId?: string | null;
   emirate: string;
   city: string;
   addressLine: string;
@@ -82,6 +83,9 @@ export function prepareOrderBody(
       phone: customer.phone,
     },
     shippingAddress: {
+      ...(shippingAddress.addressId
+        ? { addressId: shippingAddress.addressId }
+        : {}),
       emirate: shippingAddress.emirate,
       city: shippingAddress.city,
       addressLine: shippingAddress.addressLine,

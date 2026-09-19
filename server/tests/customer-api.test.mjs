@@ -37,6 +37,10 @@ test('customer API foundation on PostgreSQL', async (t) => {
   ];
   const intents = new Map();
   const quotations = new Map();
+  const customerPartners = new Map();
+  const customerPartnerByUser = new Map();
+  const deliveryPartners = new Map();
+  let nextPartnerId = 1000;
   const webhookSecret = 'test-webhook-secret';
   const verify = stripeGateway({ STRIPE_WEBHOOK_SECRET: webhookSecret }).verify;
   const stripe = {
@@ -67,6 +71,44 @@ test('customer API foundation on PostgreSQL', async (t) => {
     db,
     catalog: {
       products,
+      async ensureCustomerPartner(payload) {
+        const existingId = customerPartnerByUser.get(payload.appUserId);
+        if (existingId) return customerPartners.get(existingId);
+        const partner = {
+          partnerId: nextPartnerId++,
+          name: payload.name,
+          email: payload.email,
+          phone: payload.phone,
+          emirate: payload.emirate || '',
+          language: payload.language,
+        };
+        customerPartnerByUser.set(payload.appUserId, partner.partnerId);
+        customerPartners.set(partner.partnerId, partner);
+        return partner;
+      },
+      async getCustomerProfile(partnerId) {
+        return customerPartners.get(Number(partnerId));
+      },
+      async updateCustomerPartner(partnerId, payload) {
+        const current = customerPartners.get(Number(partnerId));
+        const updated = { ...current, ...payload, partnerId: Number(partnerId) };
+        customerPartners.set(Number(partnerId), updated);
+        return updated;
+      },
+      async syncCustomerAvatar() {
+        return { supported: true };
+      },
+      async upsertDeliveryAddress(payload) {
+        const existing = deliveryPartners.get(payload.addressId);
+        if (existing) return { partnerId: existing };
+        const partnerId = nextPartnerId++;
+        deliveryPartners.set(payload.addressId, partnerId);
+        return { partnerId };
+      },
+      async deactivateDeliveryAddress({ partnerId }) {
+        assert.ok([...deliveryPartners.values()].includes(Number(partnerId)));
+        return { ok: true };
+      },
       async prepareQuotation(payload) {
         if (!quotations.has(payload.orderId))
           quotations.set(payload.orderId, {

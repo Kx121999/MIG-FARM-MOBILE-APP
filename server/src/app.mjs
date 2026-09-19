@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
-import { createAuth, profile } from '../auth/service.mjs';
+import { createAuth } from '../auth/service.mjs';
 import { createCustomers } from '../services/customers.mjs';
 import { createOrders } from '../services/orders.mjs';
 import { createFarmOS } from '../services/farms.mjs';
@@ -31,7 +31,7 @@ export function createApp({
       : catalog
         ? asCatalogService(catalog)
         : createOdooCatalog({ env }),
-    auth = createAuth(db, authOptions),
+    auth = createAuth(db, { ...authOptions, customerMaster: productCatalog }),
     customers = createCustomers(db, productCatalog),
     orders = createOrders(db, productCatalog, stripe, orderOptions),
     farmOS = createFarmOS(db),
@@ -563,11 +563,13 @@ export function createApp({
         return send(response, 200, await platform.mergeGuest(user, await jsonBody(request)));
       if (path === '/api/me') {
         if (method === 'GET')
-          return send(response, 200, { user: profile(user) });
-        if (method === 'PATCH')
+          return send(response, 200, { user: await auth.getProfile(user) });
+        if (method === 'PATCH') {
+          await auth.rate('profile:' + user.id, 60, 900);
           return send(response, 200, {
             user: await auth.updateProfile(user, await jsonBody(request)),
           });
+        }
         if (method === 'DELETE') {
           await auth.rate('delete:' + user.id, 5, 900);
           await auth.deleteAccount(user, await jsonBody(request));
@@ -576,8 +578,13 @@ export function createApp({
       }
       if (path === '/api/me/avatar') {
         if (method === 'POST') {
-          await auth.avatar.upload();
-          throw fail(503, 'avatar_storage_not_configured');
+          await auth.rate('avatar:' + user.id, 20, 3600);
+          if (!auth.avatar.available)
+            throw fail(503, 'avatar_storage_not_configured');
+          const input = await multipartBody(request);
+          return send(response, 200, {
+            user: await auth.uploadAvatar(user, input.file),
+          });
         }
         if (method === 'DELETE')
           return send(response, 200, { user: await auth.removeAvatar(user) });
