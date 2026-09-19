@@ -69,11 +69,55 @@ test('enabled mobile prepare sends the safe shape and maps authoritative respons
   });
   assert.equal(Object.prototype.hasOwnProperty.call(calls[0].options.body.items[0], 'price'), false);
   assert.equal(result.status, 'awaiting_payment');
+  assert.equal(result.currency, 'AED');
+  assert.equal(result.subtotal, 20);
   assert.equal(result.tax, 1);
+  assert.equal(result.delivery, 0);
+  assert.equal(result.total, 21);
   assert.equal(result.odoo.state, 'draft');
 
   const checkout = await readFile(new URL('../app/checkout.tsx', import.meta.url), 'utf8');
   const payments = await readFile(new URL('../src/services/payments.ts', import.meta.url), 'utf8');
   assert.match(checkout, /ORDER_PREPARE_ENABLED/);
   assert.doesNotMatch(`${checkout}\n${payments}`, /action_confirm|stock\.quant|qty_available\s*=|free_qty\s*=/);
+});
+
+test('parallel prepare taps share one request and malformed quantities never reach the API', async () => {
+  const module = await loadPreparationModule();
+  let requests = 0;
+  let release;
+  const response = new Promise((resolve) => { release = resolve; });
+  const prepare = module.createPrepareOrderClient({
+    enabled: true,
+    idempotencyKey: async () => 'parallel-idempotency-key-123456',
+    request: async () => {
+      requests += 1;
+      return response;
+    },
+  });
+  const first = prepare(cart, customer, shippingAddress);
+  const second = prepare(cart, customer, shippingAddress);
+  assert.equal(requests, 0);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(requests, 1);
+  release({
+    orderId: 'MIG-2',
+    orderToken: 'order-token-2',
+    status: 'awaiting_payment',
+    currency: 'AED',
+    subtotal: 20,
+    tax: 1,
+    delivery: 0,
+    total: 21,
+    odoo: { orderId: 502, orderName: 'S00502', state: 'draft' },
+  });
+  assert.deepEqual(await first, await second);
+  assert.equal(requests, 1);
+
+  for (const quantity of [0, -1, 1.5, 100]) {
+    assert.throws(
+      () => module.prepareOrderBody([{ productId: 11, variant: { id: 22 }, quantity }], customer, shippingAddress),
+      /invalid_cart_item/,
+    );
+  }
 });

@@ -6,6 +6,7 @@ import { upsertAddress, withoutAddress } from '@/utils/customer';
 import { useAccountFavorites } from '@/hooks/useAccountFavorites';
 import { useAuth } from '@/contexts/AuthContext';
 import { platformService } from '@/services/platform';
+import { clampCartQuantity, mergeCartLine } from '@/services/cart';
 
 const CART_KEY = 'mig_farm_cart_v1';
 const FAVORITES_KEY = 'mig_farm_favorites_v1';
@@ -140,27 +141,11 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
     cartCount: cart.reduce((sum, item) => sum + item.quantity, 0),
     subtotal: cart.reduce((sum, item) => sum + Number(item.variant.price || 0) * item.quantity, 0),
     addToCart: (product, variant, quantity = 1) => {
-      const key = `${product.id}:${variant.id}`;
-      const safeQuantity = Math.min(99, Math.max(1, Math.floor(quantity)));
-      setCart((current) => {
-        const existing = current.find((item) => item.key === key);
-        if (existing) return current.map((item) => item.key === key ? { ...item, variant, quantity: Math.min(99, item.quantity + safeQuantity) } : item);
-        return [...current, {
-          key,
-          productId: product.id,
-          handle: product.handle,
-          title: product.title,
-          title_ar: product.title_ar,
-          title_en: product.title_en,
-          image: variant.featured_image?.src || productImage(product),
-          variant,
-          quantity: safeQuantity,
-        }];
-      });
+      setCart((current) => mergeCartLine(current, product, variant, quantity, productImage(product)));
     },
-    setQuantity: (key, quantity) => setCart((current) => quantity <= 0
-      ? current.filter((item) => item.key !== key)
-      : current.map((item) => item.key === key ? { ...item, quantity: Math.min(99, Math.floor(quantity)) } : item)),
+    setQuantity: (key, quantity) => setCart((current) => current.map((item) => item.key === key
+      ? { ...item, quantity: clampCartQuantity(quantity) }
+      : item)),
     removeFromCart: (key) => setCart((current) => current.filter((item) => item.key !== key)),
     clearCart: () => setCart([]),
     isFavorite: (productId) => favorites.includes(productId),

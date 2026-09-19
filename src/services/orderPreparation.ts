@@ -62,6 +62,14 @@ export function prepareOrderBody(
   customer: PrepareCustomer,
   shippingAddress: PrepareShippingAddress,
 ): PrepareOrderBody {
+  if (!cart.length || cart.length > 100) throw new Error('cart_is_empty');
+  for (const item of cart) {
+    if (
+      !Number.isSafeInteger(item.productId) || item.productId <= 0 ||
+      !Number.isSafeInteger(item.variant.id) || item.variant.id <= 0 ||
+      !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99
+    ) throw new Error('invalid_cart_item');
+  }
   return {
     items: cart.map((item) => ({
       productId: item.productId,
@@ -118,6 +126,7 @@ export function mapPreparedOrder(value: unknown): PreparedOrder {
 }
 
 export function createPrepareOrderClient(dependencies: PrepareOrderDependencies) {
+  let inflight: Promise<PreparedOrder> | null = null;
   return async (
     cart: PrepareCartItem[],
     customer: PrepareCustomer,
@@ -125,16 +134,22 @@ export function createPrepareOrderClient(dependencies: PrepareOrderDependencies)
     signal?: AbortSignal,
   ) => {
     if (!dependencies.enabled) throw new OrderPrepareDisabledError();
-    const body = prepareOrderBody(cart, customer, shippingAddress);
-    const key = await dependencies.idempotencyKey(body);
-    const response = await dependencies.request('/api/orders/prepare', {
-      method: 'POST',
-      body,
-      auth: 'optional',
-      signal,
-      timeout: 30000,
-      headers: { 'Idempotency-Key': key },
+    if (inflight) return inflight;
+    inflight = (async () => {
+      const body = prepareOrderBody(cart, customer, shippingAddress);
+      const key = await dependencies.idempotencyKey(body);
+      const response = await dependencies.request('/api/orders/prepare', {
+        method: 'POST',
+        body,
+        auth: 'optional',
+        signal,
+        timeout: 30000,
+        headers: { 'Idempotency-Key': key },
+      });
+      return mapPreparedOrder(response);
+    })().finally(() => {
+      inflight = null;
     });
-    return mapPreparedOrder(response);
+    return inflight;
   };
 }

@@ -71,10 +71,11 @@ test('breadcrumbs and related products use only the live category ID tree', asyn
 });
 
 test('product browsing remains order, payment, stock-write and hardcoding safe', async () => {
-  const [screen, experience, commerce, env, odoo] = await Promise.all([
+  const [screen, experience, commerce, cart, env, odoo] = await Promise.all([
     readFile(new URL('../app/product/[handle].tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/services/productExperience.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/contexts/CommerceContext.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/services/cart.ts', import.meta.url), 'utf8'),
     readFile(new URL('../.env.example', import.meta.url), 'utf8'),
     readFile(new URL('../server/services/odoo.mjs', import.meta.url), 'utf8'),
   ]);
@@ -83,7 +84,8 @@ test('product browsing remains order, payment, stock-write and hardcoding safe',
   assert.match(screen, /Image unavailable/);
   assert.doesNotMatch(`${screen}\n${experience}`, /Pepper Seeds|250g|500g|product\.title\.includes|product\.description\.includes/);
   assert.doesNotMatch(screen, /\/api\/orders\/prepare|confirmPayment|PaymentIntent|action_confirm/);
-  assert.match(commerce, /const key = `\$\{product\.id\}:\$\{variant\.id\}`/);
+  assert.match(cart, /return `\$\{productId\}:\$\{variantId\}`/);
+  assert.match(commerce, /mergeCartLine\(current, product, variant/);
   assert.match(commerce, /variant,/);
   assert.match(env, /^EXPO_PUBLIC_ORDER_PREPARE_ENABLED=false$/m);
   assert.doesNotMatch(odoo, /stock\.quant|action_confirm|qty_available\s*=|free_qty\s*=/);

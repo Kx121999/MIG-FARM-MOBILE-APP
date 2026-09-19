@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlatList, ImageBackground, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, MessageCircle, Search, Sprout, Truck } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, MessageCircle, Search, Truck } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
 import { AppButton } from '@/components/AppButton';
@@ -21,8 +21,6 @@ import { HomeContentSection, platformService } from '@/services/platform';
 import { Product } from '@/types';
 import { useRetention } from '@/contexts/RetentionContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useFarm } from '@/contexts/FarmContext';
-import { useFarmIntelligence } from '@/hooks/useFarmIntelligence';
 
 const heroSource = require('../../assets/home-farm.webp');
 const HOME_CONTENT_CACHE = 'mig_farm_home_content_v1';
@@ -34,9 +32,6 @@ export default function HomeScreen() {
   const { recentProductIds } = useCommerce();
   const { personalization } = useRetention();
   const { user } = useAuth();
-  const { dashboard: farmDashboard } = useFarm();
-  const activeFarmId=farmDashboard?.farms[0]?.id;
-  const intelligence=useFarmIntelligence(activeFarmId,Boolean(user&&activeFarmId));
   const [remoteSections, setRemoteSections] = useState<HomeContentSection[]>([]);
   useEffect(() => {
     let active = true;
@@ -54,8 +49,9 @@ export default function HomeScreen() {
       active = false;
     };
   }, []);
-  const announcement = remoteSections.find((section) => section.kind === 'announcement');
-  const promos = remoteSections.filter((section) => section.kind === 'promo').slice(0, 2);
+  const visibleRemoteSections = remoteSections.filter((section) => !section.deepLink?.includes('/my-farm'));
+  const announcement = visibleRemoteSections.find((section) => section.kind === 'announcement');
+  const promos = visibleRemoteSections.filter((section) => section.kind === 'promo').slice(0, 2);
   const arrivals = useMemo(() => sortProducts(products, 'newest').slice(0, 6), [products]);
   const homeCategories = useMemo(() => rootStoreCategories(storeCategories), [storeCategories]);
   const categoryImages = useMemo(() => new Map(homeCategories.map((category) => {
@@ -104,14 +100,6 @@ export default function HomeScreen() {
             <Arrow size={16} color={colors.primary} />
           </MotionPressable>
         ) : null}
-        <MotionPressable accessibilityRole="button" accessibilityLabel={language === 'ar' ? 'فتح ذكاء المزرعة' : 'Open Farm Intelligence'} onPress={() => activeFarmId?router.push({pathname:'/my-farm/intelligence' as never,params:{farmId:activeFarmId}}):router.push('/(tabs)/my-farm' as never)}
-          style={[styles.myFarm, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View style={styles.myFarmIcon}><Sprout size={25} color={colors.surface} /></View>
-          <View style={styles.assistantCopy}>
-            <Text style={[styles.myFarmTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? (language === 'ar' ? 'ذكاء المزرعة' : 'Farm Intelligence') : (language === 'ar' ? 'ابدأ مزرعتك' : 'Start your farm')}</Text>
-            <Text style={[styles.myFarmBody, { textAlign: isRTL ? 'right' : 'left' }]}>{farmDashboard?.farms.length ? intelligence.data?(language==='ar'?`${intelligence.data.brief.riskCount} تنبيهات · ${intelligence.data.brief.anomalyCount} تغيرات في سجلاتك`:`${intelligence.data.brief.riskCount} alerts · ${intelligence.data.brief.anomalyCount} record changes`):(language==='ar'?'اعرف ما يحتاج انتباهك والخطوة التالية':'See what needs attention and what to do next') : (language === 'ar' ? 'أضف بيانات المزرعة وخطط لأول محصول' : 'Add farm details and plan your first crop')}</Text>
-          </View><Arrow size={20} color={colors.surface} />
-        </MotionPressable>
         <View style={styles.section}>
           <SectionTitle title={t('categories')} action={t('viewAll')} onPress={openStore} />
           <FlatList horizontal inverted={isRTL} data={homeCategories} keyExtractor={(item) => String(item.id)} showsHorizontalScrollIndicator={false}
@@ -176,10 +164,6 @@ const styles = StyleSheet.create({
   deliveryDivider: { width: 1, height: 16, backgroundColor: colors.borderStrong },
   announcement: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, paddingHorizontal: spacing.md, minHeight: 40, borderRadius: radius.md, backgroundColor: colors.primarySoft, alignItems: 'center', gap: spacing.sm },
   announcementText: { ...typography.caption, flex: 1, color: colors.primaryDark, fontWeight: '900' },
-  myFarm: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.primaryDark, alignItems: 'center', gap: spacing.md },
-  myFarmIcon: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
-  myFarmTitle: { ...typography.section, fontSize: 18, color: colors.surface },
-  myFarmBody: { ...typography.secondary, color: '#DCE9E0' },
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.xs },
   promoGrid: { paddingHorizontal: spacing.lg, marginTop: spacing.md, gap: spacing.sm },
   promoCard: { minHeight: 78, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface },

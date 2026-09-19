@@ -1,46 +1,100 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole, MapPin, ShieldCheck, UserRound } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  ClipboardCheck,
+  MapPin,
+  PackageCheck,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CheckoutPayment } from '@/components/payments/CheckoutPayment';
-import { colors, radius } from '@/constants/theme';
-import { useCommerce } from '@/contexts/CommerceContext';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { formatAED } from '@/services/catalog';
-import { CheckoutCustomer, CheckoutError, createCheckoutSession, completeCheckoutAttempt, ORDER_PREPARE_ENABLED, PaymentSession, prepareOrder, PreparedOrder, ShippingAddress } from '@/services/payments';
-import { useAuth } from '@/contexts/AuthContext';
-import { useCustomerAddresses } from '@/hooks/useCustomerAddresses';
 import { ChoiceGroup } from '@/components/account/ChoiceGroup';
 import { Notice } from '@/components/account/AccountUI';
+import { colors, radius } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCommerce } from '@/contexts/CommerceContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { useCustomerAddresses } from '@/hooks/useCustomerAddresses';
+import { formatAED, localizedProductTitle } from '@/services/catalog';
+import {
+  CheckoutCustomer,
+  CheckoutError,
+  ORDER_PREPARE_ENABLED,
+  prepareOrder,
+  PreparedOrder,
+  ShippingAddress,
+} from '@/services/payments';
+import type { CartItem } from '@/types';
 
-const ORDER_REFS_KEY = 'mig_farm_order_refs_v1';
 const emirates = [
   { value: 'Dubai', ar: 'دبي' },
   { value: 'Abu Dhabi', ar: 'أبوظبي' },
   { value: 'Sharjah', ar: 'الشارقة' },
   { value: 'Ajman', ar: 'عجمان' },
-  { value: 'Al Ain', ar: 'العين' },
-  { value: 'RAK', ar: 'رأس الخيمة' },
-  { value: 'Other UAE', ar: 'إمارة أخرى' },
+  { value: 'Umm Al Quwain', ar: 'أم القيوين' },
+  { value: 'Ras Al Khaimah', ar: 'رأس الخيمة' },
+  { value: 'Fujairah', ar: 'الفجيرة' },
 ];
 
+function money(value: number, currency: string, language: 'ar' | 'en') {
+  try {
+    return new Intl.NumberFormat(language === 'ar' ? 'ar-AE' : 'en-AE', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currency} ${value.toFixed(2)}`;
+  }
+}
+
+function checkoutError(code: string, language: 'ar' | 'en') {
+  const ar = language === 'ar';
+  if (code === 'order_prepare_disabled')
+    return ar ? 'تجهيز الطلب غير مفعّل في هذه النسخة.' : 'Order preparation is not enabled in this build.';
+  if (['invalid_cart_item', 'cart_is_empty', 'odoo_variant_unavailable', 'odoo_variant_out_of_stock'].includes(code))
+    return ar ? 'تغيّر أحد المنتجات أو خياراته. ارجع للسلة وراجع الطلب.' : 'A product or variant changed. Return to the cart and review your order.';
+  if (code === 'invalid_customer')
+    return ar ? 'راجع الاسم والبريد ورقم الهاتف.' : 'Check the name, email, and phone number.';
+  if (code === 'invalid_uae_shipping_address')
+    return ar ? 'اختر إمارة داخل الإمارات وأكمل العنوان.' : 'Choose a UAE emirate and complete the address.';
+  if (code === 'idempotency_conflict')
+    return ar ? 'تغيّرت بيانات المحاولة السابقة. ارجع للسلة ثم أعد المحاولة.' : 'The previous attempt details changed. Return to the cart and try again.';
+  if (code === 'network')
+    return ar ? 'تعذر الاتصال. الطلب لم يُدفع والسلة ما زالت محفوظة.' : 'Could not connect. Nothing was paid and your cart is still saved.';
+  if (code.startsWith('odoo_'))
+    return ar ? 'تعذر التحقق من Odoo الآن. السلة محفوظة ويمكنك المحاولة لاحقًا.' : 'Odoo verification is currently unavailable. Your cart is saved for retry.';
+  return ar ? 'تعذر تجهيز مراجعة الطلب. راجع البيانات وحاول مرة أخرى.' : 'Final review could not be prepared. Check the details and try again.';
+}
+
 export default function CheckoutScreen() {
-  const { cart, subtotal, clearCart, profile: guestProfile } = useCommerce();
+  const { cart, subtotal, profile: guestProfile } = useCommerce();
   const { user } = useAuth();
   const profile = user || guestProfile;
   const { addresses, error: addressError } = useCustomerAddresses();
-  const [selectedAddress, setSelectedAddress] = useState('');
   const { language, isRTL } = useLanguage();
+  const [selectedAddress, setSelectedAddress] = useState('');
   const [customer, setCustomer] = useState<CheckoutCustomer>({ name: '', email: '', phone: '' });
   const [address, setAddress] = useState<ShippingAddress>({ emirate: 'Dubai', city: '', addressLine: '', notes: '' });
-  const [session, setSession] = useState<PaymentSession | null>(null);
   const [preparedOrder, setPreparedOrder] = useState<PreparedOrder | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [completedOrder, setCompletedOrder] = useState('');
   const requestRef = useRef<AbortController | null>(null);
+  const preparingRef = useRef(false);
   const BackIcon = isRTL ? ArrowRight : ArrowLeft;
 
   useEffect(() => () => requestRef.current?.abort(), []);
@@ -52,121 +106,203 @@ export default function CheckoutScreen() {
       phone: current.phone || profile.phone,
     }));
     const defaultAddress = addresses.find((item) => item.isDefault);
-    if (defaultAddress) setAddress((current) => current.city || current.addressLine ? current : { ...current, emirate: defaultAddress.emirate, city: defaultAddress.city, addressLine: [defaultAddress.addressLine,defaultAddress.unit].filter(Boolean).join(', '), notes:defaultAddress.notes||'' });
-  }, [addresses, profile]);
+    if (defaultAddress) {
+      setAddress((current) => current.city || current.addressLine ? current : {
+        ...current,
+        emirate: defaultAddress.emirate,
+        city: defaultAddress.city,
+        addressLine: [defaultAddress.addressLine, defaultAddress.unit].filter(Boolean).join(', '),
+        notes: defaultAddress.notes || '',
+      });
+      setSelectedAddress((current) => current || defaultAddress.id);
+    }
+  }, [addresses, profile.email, profile.name, profile.phone]);
 
-  const valid = customer.name.trim() && customer.email.includes('@') && customer.phone.trim() && address.emirate && address.city.trim() && address.addressLine.trim();
+  const valid = Boolean(
+    customer.name.trim() &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim()) &&
+    customer.phone.trim() &&
+    address.emirate &&
+    address.city.trim() &&
+    address.addressLine.trim(),
+  );
 
-  const preparePayment = async () => {
-    if (!valid || busy) {
-      if (!valid) setError(language === 'ar' ? 'كمّل البيانات المطلوبة قبل الدفع.' : 'Complete the required details before payment.');
+  const prepareReview = async () => {
+    if (preparingRef.current || preparedOrder) return;
+    if (!ORDER_PREPARE_ENABLED) {
+      setError(checkoutError('order_prepare_disabled', language));
       return;
     }
+    if (!cart.length) {
+      setError(checkoutError('cart_is_empty', language));
+      return;
+    }
+    if (!valid) {
+      setError(language === 'ar' ? 'أكمل بيانات العميل وعنوان التوصيل المطلوبة.' : 'Complete the required customer and delivery details.');
+      return;
+    }
+    preparingRef.current = true;
     setBusy(true);
     setError('');
     requestRef.current?.abort();
     requestRef.current = new AbortController();
     try {
-      if (ORDER_PREPARE_ENABLED) {
-        setPreparedOrder(await prepareOrder(cart, customer, address, requestRef.current.signal));
-      } else {
-        setSession(await createCheckoutSession(cart, customer, address, requestRef.current.signal));
-      }
+      const result = await prepareOrder(cart, customer, address, requestRef.current.signal);
+      setPreparedOrder(result);
     } catch (reason) {
-      if (reason instanceof CheckoutError && reason.code === 'payment_provider_not_configured') {
-        setError(language === 'ar' ? 'خدمة الدفع غير متاحة حاليًا. حاول مرة أخرى لاحقًا.' : 'Payment is currently unavailable. Please try again later.');
-      } else {
-        setError(language === 'ar' ? 'تعذر تجهيز الدفع. راجع الاتصال وحاول مرة ثانية.' : 'Payment could not be prepared. Check the connection and try again.');
-      }
+      setError(checkoutError(reason instanceof CheckoutError ? reason.code : reason instanceof Error ? reason.message : 'unknown', language));
     } finally {
+      preparingRef.current = false;
       setBusy(false);
     }
   };
 
-  const paymentSucceeded = async () => {
-    if (!session) return;
-    setCompletedOrder(session.orderId);
-    clearCart();
-    void completeCheckoutAttempt();
-    try {
-      const stored = JSON.parse(await AsyncStorage.getItem(ORDER_REFS_KEY) || '[]');
-      await AsyncStorage.setItem(ORDER_REFS_KEY, JSON.stringify([{ id: session.orderId, token: session.orderToken, createdAt: Date.now() }, ...stored].slice(0, 30)));
-    } catch {
-      // A successful payment is not invalidated by local history persistence.
-    }
+  const chooseAddress = (id: string) => {
+    const saved = addresses.find((item) => item.id === id);
+    if (!saved) return;
+    setSelectedAddress(id);
+    setAddress({
+      emirate: saved.emirate,
+      city: saved.city,
+      addressLine: [saved.addressLine, saved.unit].filter(Boolean).join(', '),
+      notes: saved.notes || '',
+    });
+    setCustomer((current) => ({ ...current, name: saved.name || current.name, phone: saved.phone || current.phone }));
   };
 
-  if (completedOrder) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <View style={styles.success}>
-          <View style={styles.successIcon}><CheckCircle2 size={46} color={colors.success} strokeWidth={1.8} /></View>
-          <Text style={styles.successTitle}>{language === 'ar' ? 'تم استلام طلبك' : 'Your order is confirmed'}</Text>
-          <Text style={styles.successBody}>{language === 'ar' ? 'تم تأكيد الدفع وسنبدأ تجهيز الطلب للتوصيل.' : 'Payment is confirmed and your order will be prepared for delivery.'}</Text>
-          <View style={styles.orderRef}><Text style={styles.orderRefLabel}>{language === 'ar' ? 'رقم الطلب' : 'Order reference'}</Text><Text style={styles.orderRefValue}>{completedOrder}</Text></View>
-          <Pressable style={styles.homeButton} onPress={() => router.replace('/(tabs)')}><Text style={styles.homeButtonText}>{language === 'ar' ? 'العودة للرئيسية' : 'Back to home'}</Text></Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const priceChanged = Boolean(preparedOrder && Math.abs(preparedOrder.subtotal - subtotal) >= 0.01);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back" style={({ pressed }) => [styles.backButton, pressed && styles.pressed]} onPress={() => router.back()}><BackIcon size={21} color={colors.primaryDark} /></Pressable>
-        <Text style={styles.topBarTitle}>{language === 'ar' ? 'التوصيل والدفع' : 'Delivery and payment'}</Text>
-        <View style={styles.secureBadge}><LockKeyhole size={15} color={colors.success} /></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" style={({ pressed }) => [styles.backButton, pressed && styles.pressed]} onPress={() => router.back()}>
+          <BackIcon size={21} color={colors.primaryDark} />
+        </Pressable>
+        <Text style={styles.topBarTitle}>{language === 'ar' ? 'التوصيل ومراجعة الطلب' : 'Delivery and review'}</Text>
+        <View style={styles.secureBadge}><ClipboardCheck size={17} color={colors.success} /></View>
       </View>
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.page}>
-            <View style={styles.steps}><View style={styles.stepDone}><CheckCircle2 size={15} color={colors.success} /><Text style={styles.stepDoneText}>{language === 'ar' ? 'السلة' : 'Cart'}</Text></View><View style={styles.stepLine} /><View style={styles.stepActive}><MapPin size={15} color="#FFFFFF" /><Text style={styles.stepActiveText}>{language === 'ar' ? 'التوصيل' : 'Delivery'}</Text></View><View style={styles.stepLine} /><View style={styles.stepFuture}><LockKeyhole size={15} color={colors.textSubtle} /><Text style={styles.stepFutureText}>{language === 'ar' ? 'الدفع' : 'Payment'}</Text></View></View>
+            <CheckoutSteps language={language} prepared={Boolean(preparedOrder)} />
 
-            <View style={styles.section}>
-              <View style={[styles.sectionHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><UserRound size={19} color={colors.primary} /><Text style={styles.sectionTitle}>{language === 'ar' ? 'بيانات الاستلام' : 'Contact details'}</Text></View>
-              <Field label={language === 'ar' ? 'الاسم الكامل *' : 'Full name *'} value={customer.name} onChangeText={(name) => setCustomer((current) => ({ ...current, name }))} isRTL={isRTL} />
-              <Field label={language === 'ar' ? 'البريد الإلكتروني *' : 'Email *'} value={customer.email} onChangeText={(email) => setCustomer((current) => ({ ...current, email }))} isRTL={isRTL} keyboardType="email-address" autoCapitalize="none" />
-              <Field label={language === 'ar' ? 'رقم الهاتف *' : 'Phone number *'} value={customer.phone} onChangeText={(phone) => setCustomer((current) => ({ ...current, phone }))} isRTL={isRTL} keyboardType="phone-pad" />
-            </View>
+            {!preparedOrder ? (
+              <>
+                <View style={styles.section}>
+                  <View style={[styles.sectionHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <UserRound size={19} color={colors.primary} />
+                    <Text style={styles.sectionTitle}>{language === 'ar' ? 'بيانات الاستلام' : 'Contact details'}</Text>
+                  </View>
+                  <Field label={language === 'ar' ? 'الاسم الكامل *' : 'Full name *'} value={customer.name} onChangeText={(name) => setCustomer((current) => ({ ...current, name }))} isRTL={isRTL} />
+                  <Field label={language === 'ar' ? 'البريد الإلكتروني *' : 'Email *'} value={customer.email} onChangeText={(email) => setCustomer((current) => ({ ...current, email }))} isRTL={isRTL} keyboardType="email-address" autoCapitalize="none" />
+                  <Field label={language === 'ar' ? 'رقم الهاتف *' : 'Phone number *'} value={customer.phone} onChangeText={(phone) => setCustomer((current) => ({ ...current, phone }))} isRTL={isRTL} keyboardType="phone-pad" />
+                </View>
 
-            <View style={styles.section}>
-              <View style={[styles.sectionHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><MapPin size={19} color={colors.primary} /><Text style={styles.sectionTitle}>{language === 'ar' ? 'عنوان التوصيل' : 'Delivery address'}</Text></View>
-              {addresses.length && !session ? <ChoiceGroup label={language==='ar'?'العناوين المحفوظة':'Saved addresses'} value={selectedAddress} options={addresses.map(item=>({value:item.id,label:item.label}))} onChange={(id)=>{const saved=addresses.find(item=>item.id===id);if(!saved)return;setSelectedAddress(id);setAddress({emirate:saved.emirate,city:saved.city,addressLine:[saved.addressLine,saved.unit].filter(Boolean).join(', '),notes:saved.notes||''});setCustomer(current=>({...current,name:saved.name||current.name,phone:saved.phone||current.phone}));}}/> : null}
-              {addressError?<Notice text={language==='ar'?'تعذر تحميل العناوين. يمكنك إدخال العنوان يدويًا.':'Saved addresses could not be loaded. You can enter an address manually.'}/>:null}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emirates}>
-                {emirates.map((item) => <Pressable key={item.value} onPress={() => setAddress((current) => ({ ...current, emirate: item.value }))} style={[styles.emirate, address.emirate === item.value && styles.emirateActive]}><Text style={[styles.emirateText, address.emirate === item.value && styles.emirateTextActive]}>{language === 'ar' ? item.ar : item.value}</Text></Pressable>)}
-              </ScrollView>
-              <Field label={language === 'ar' ? 'المدينة أو المنطقة *' : 'City or area *'} value={address.city} onChangeText={(city) => setAddress((current) => ({ ...current, city }))} isRTL={isRTL} />
-              <Field label={language === 'ar' ? 'العنوان بالتفصيل *' : 'Full address *'} value={address.addressLine} onChangeText={(addressLine) => setAddress((current) => ({ ...current, addressLine }))} isRTL={isRTL} multiline />
-              <Field label={language === 'ar' ? 'ملاحظات التوصيل' : 'Delivery notes'} value={address.notes} onChangeText={(notes) => setAddress((current) => ({ ...current, notes }))} isRTL={isRTL} multiline />
-            </View>
+                <View style={styles.section}>
+                  <View style={[styles.sectionHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                    <MapPin size={19} color={colors.primary} />
+                    <Text style={styles.sectionTitle}>{language === 'ar' ? 'عنوان التوصيل' : 'Delivery address'}</Text>
+                  </View>
+                  {addresses.length ? <ChoiceGroup label={language === 'ar' ? 'العناوين المحفوظة' : 'Saved addresses'} value={selectedAddress} options={addresses.map((item) => ({ value: item.id, label: item.label }))} onChange={chooseAddress} /> : null}
+                  {addressError ? <Notice text={language === 'ar' ? 'تعذر تحميل العناوين. يمكنك إدخال العنوان يدويًا.' : 'Saved addresses could not be loaded. You can enter an address manually.'} /> : null}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emirates}>
+                    {emirates.map((item) => (
+                      <Pressable key={item.value} onPress={() => setAddress((current) => ({ ...current, emirate: item.value }))} style={[styles.emirate, address.emirate === item.value && styles.emirateActive]}>
+                        <Text style={[styles.emirateText, address.emirate === item.value && styles.emirateTextActive]}>{language === 'ar' ? item.ar : item.value}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                  <Field label={language === 'ar' ? 'المدينة أو المنطقة *' : 'City or area *'} value={address.city} onChangeText={(city) => setAddress((current) => ({ ...current, city }))} isRTL={isRTL} />
+                  <Field label={language === 'ar' ? 'العنوان بالتفصيل *' : 'Full address *'} value={address.addressLine} onChangeText={(addressLine) => setAddress((current) => ({ ...current, addressLine }))} isRTL={isRTL} multiline />
+                  <Field label={language === 'ar' ? 'ملاحظات التوصيل' : 'Delivery notes'} value={address.notes} onChangeText={(notes) => setAddress((current) => ({ ...current, notes }))} isRTL={isRTL} multiline />
+                </View>
+              </>
+            ) : (
+              <View style={styles.preparedNotice}>
+                <CheckCircle2 size={25} color={colors.success} />
+                <View style={styles.flex}>
+                  <Text style={[styles.preparedTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'المراجعة النهائية جاهزة' : 'Final review is ready'}</Text>
+                  <Text style={[styles.preparedBody, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? `مرجع عرض Odoo: ${preparedOrder.odoo.orderName}` : `Odoo quotation: ${preparedOrder.odoo.orderName}`}</Text>
+                </View>
+              </View>
+            )}
+
+            <CartReview cart={cart} language={language} isRTL={isRTL} />
 
             <View style={styles.summary}>
-              <Text style={[styles.summaryTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'ملخص الدفع' : 'Payment summary'}</Text>
-              <View style={[styles.totalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><Text style={styles.totalLabel}>{language === 'ar' ? `${cart.length} منتجات` : `${cart.length} products`}</Text><Text style={styles.total}>{formatAED(subtotal)}</Text></View>
-              {preparedOrder ? <><View style={[styles.totalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><Text style={styles.totalLabel}>{language === 'ar' ? 'الضريبة حسب Odoo' : 'Odoo tax'}</Text><Text style={styles.totalLabel}>{formatAED(preparedOrder.tax)}</Text></View><View style={[styles.totalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><Text style={styles.totalLabel}>{language === 'ar' ? 'الإجمالي المعتمد' : 'Authoritative total'}</Text><Text style={styles.total}>{formatAED(preparedOrder.total)}</Text></View></> : null}
-              <View style={[styles.secureRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><ShieldCheck size={15} color={colors.success} /><Text style={styles.secureText}>{language === 'ar' ? 'السعر النهائي يُراجع من خادم Mig Farm قبل الدفع' : 'The final amount is verified by the Mig Farm server'}</Text></View>
+              <View style={[styles.sectionHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <PackageCheck size={19} color={colors.primary} />
+                <Text style={styles.sectionTitle}>{preparedOrder ? (language === 'ar' ? 'إجماليات Odoo المعتمدة' : 'Authoritative Odoo totals') : (language === 'ar' ? 'ملخص تقديري' : 'Provisional summary')}</Text>
+              </View>
+              {preparedOrder ? (
+                <>
+                  <MoneyRow label={language === 'ar' ? 'المجموع الفرعي' : 'Subtotal'} value={money(preparedOrder.subtotal, preparedOrder.currency, language)} isRTL={isRTL} />
+                  <MoneyRow label={language === 'ar' ? 'الضريبة' : 'Tax'} value={money(preparedOrder.tax, preparedOrder.currency, language)} isRTL={isRTL} />
+                  <MoneyRow label={language === 'ar' ? 'التوصيل' : 'Delivery'} value={money(preparedOrder.delivery, preparedOrder.currency, language)} isRTL={isRTL} />
+                  <View style={styles.summaryDivider} />
+                  <MoneyRow label={language === 'ar' ? 'الإجمالي' : 'Total'} value={money(preparedOrder.total, preparedOrder.currency, language)} isRTL={isRTL} strong />
+                  {priceChanged ? <Text style={[styles.priceChanged, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'تم تحديث السعر حسب بيانات Odoo الحالية.' : 'Price updated from the current Odoo catalog.'}</Text> : null}
+                </>
+              ) : (
+                <>
+                  <MoneyRow label={language === 'ar' ? 'مجموع السلة المعروض' : 'Displayed cart subtotal'} value={formatAED(subtotal)} isRTL={isRTL} strong />
+                  <Text style={[styles.provisional, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'لا نحسب الضريبة داخل التطبيق. السعر والتوصيل والضريبة يؤكدها Odoo والخادم.' : 'The app does not calculate tax. Odoo and the server confirm price, delivery, and tax.'}</Text>
+                </>
+              )}
             </View>
 
-            {preparedOrder ? <View style={styles.preparedNotice}><Text style={[styles.preparedTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? `تم تجهيز مسودة الطلب ${preparedOrder.odoo.orderName}` : `Draft order ${preparedOrder.odoo.orderName} is prepared`}</Text><Text style={[styles.preparedBody, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'الدفع غير مفعّل في هذه المرحلة، لذلك احتفظنا بالسلة ولم نؤكد الشراء.' : 'Payment is not enabled in this phase. Your cart is kept and no purchase was confirmed.'}</Text></View> : null}
-
+            {!ORDER_PREPARE_ENABLED && !preparedOrder ? <Notice text={language === 'ar' ? 'تجهيز مسودة الطلب مغلق بأمان في هذه النسخة. لن يبدأ دفع أو إنشاء طلب عند الضغط.' : 'Draft preparation is safely disabled in this build. No payment or order will start.'} /> : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            {session && Platform.OS === 'web' ? <CheckoutPayment session={session} customer={customer} language={language} onSuccess={paymentSucceeded} onError={setError} /> : null}
           </View>
         </ScrollView>
-        {Platform.OS !== 'web' && session ? (
-          <View style={styles.stickyAction}><CheckoutPayment session={session} customer={customer} language={language} onSuccess={paymentSucceeded} onError={setError} /></View>
-        ) : !session && !preparedOrder ? (
-          <View style={styles.stickyAction}>
-            <Pressable accessibilityRole="button" disabled={busy || !cart.length} style={({ pressed }) => [styles.continueButton, (busy || !cart.length) && styles.disabled, pressed && styles.primaryPressed]} onPress={preparePayment}><Text style={styles.continueButtonText}>{busy ? (language === 'ar' ? 'جاري التجهيز…' : 'Preparing…') : ORDER_PREPARE_ENABLED ? (language === 'ar' ? 'تجهيز مسودة الطلب' : 'Prepare draft order') : (language === 'ar' ? 'المتابعة لبيانات البطاقة' : 'Continue to card details')}</Text></Pressable>
-          </View>
-        ) : preparedOrder ? (
-          <View style={styles.stickyAction}><View style={[styles.continueButton, styles.disabled]}><Text style={styles.continueButtonText}>{language === 'ar' ? 'الدفع سيتاح لاحقًا' : 'Payment will be enabled later'}</Text></View></View>
-        ) : null}
+
+        <View style={styles.stickyAction}>
+          {preparedOrder ? (
+            <View style={styles.stopPanel}>
+              <ShieldCheck size={17} color={colors.success} />
+              <Text style={styles.stopText}>{language === 'ar' ? 'توقّفنا قبل الدفع. السلة محفوظة ولم يتم تأكيد أو دفع الطلب.' : 'Stopped before payment. The cart is kept and nothing was confirmed or paid.'}</Text>
+            </View>
+          ) : (
+            <Pressable accessibilityRole="button" disabled={busy || !cart.length || !ORDER_PREPARE_ENABLED} style={({ pressed }) => [styles.continueButton, (busy || !cart.length || !ORDER_PREPARE_ENABLED) && styles.disabled, pressed && styles.primaryPressed]} onPress={prepareReview}>
+              <Text style={styles.continueButtonText}>{busy ? (language === 'ar' ? 'جاري التحقق مع Odoo…' : 'Verifying with Odoo…') : (language === 'ar' ? 'تجهيز المراجعة النهائية' : 'Prepare final review')}</Text>
+            </Pressable>
+          )}
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+function CheckoutSteps({ language, prepared }: { language: 'ar' | 'en'; prepared: boolean }) {
+  return <View style={styles.steps}>
+    <View style={styles.stepDone}><CheckCircle2 size={15} color={colors.success} /><Text style={styles.stepDoneText}>{language === 'ar' ? 'السلة' : 'Cart'}</Text></View>
+    <View style={styles.stepLine} />
+    <View style={prepared ? styles.stepDone : styles.stepActive}><MapPin size={15} color={prepared ? colors.success : '#FFFFFF'} /><Text style={prepared ? styles.stepDoneText : styles.stepActiveText}>{language === 'ar' ? 'التوصيل' : 'Delivery'}</Text></View>
+    <View style={styles.stepLine} />
+    <View style={prepared ? styles.stepActive : styles.stepFuture}><ClipboardCheck size={15} color={prepared ? '#FFFFFF' : colors.textSubtle} /><Text style={prepared ? styles.stepActiveText : styles.stepFutureText}>{language === 'ar' ? 'المراجعة' : 'Review'}</Text></View>
+  </View>;
+}
+
+function CartReview({ cart, language, isRTL }: { cart: CartItem[]; language: 'ar' | 'en'; isRTL: boolean }) {
+  return <View style={styles.section}>
+    <Text style={[styles.sectionTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'منتجات الطلب' : 'Order items'}</Text>
+    {cart.map((item) => {
+      const options = item.variant.options?.map((option) => `${option.attributeName}: ${option.value}`).join(' · ');
+      return <View key={item.key} style={[styles.cartLine, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View style={styles.cartImage}>{item.image ? <Image source={{ uri: item.image, cache: 'force-cache' }} resizeMode="contain" style={styles.image} /> : <PackageCheck size={22} color={colors.muted} />}</View>
+        <View style={styles.flex}>
+          <Text numberOfLines={2} style={[styles.cartTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{localizedProductTitle(item, language)}</Text>
+          {options || item.variant.title !== 'Default Title' ? <Text numberOfLines={2} style={[styles.cartVariant, { textAlign: isRTL ? 'right' : 'left' }]}>{options || item.variant.title}</Text> : null}
+          <Text style={[styles.cartMeta, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? `الكمية ${item.quantity} · سعر الوحدة ${formatAED(item.variant.price)}` : `Qty ${item.quantity} · Unit ${formatAED(item.variant.price)}`}</Text>
+        </View>
+      </View>;
+    })}
+  </View>;
+}
+
+function MoneyRow({ label, value, isRTL, strong = false }: { label: string; value: string; isRTL: boolean; strong?: boolean }) {
+  return <View style={[styles.totalRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}><Text style={strong ? styles.totalStrongLabel : styles.totalLabel}>{label}</Text><Text style={strong ? styles.total : styles.totalValue}>{value}</Text></View>;
 }
 
 function Field({ label, isRTL, ...props }: React.ComponentProps<typeof TextInput> & { label: string; isRTL: boolean }) {
@@ -202,30 +338,31 @@ const styles = StyleSheet.create({
   emirateActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   emirateText: { color: colors.text, fontSize: 10, fontWeight: '800' },
   emirateTextActive: { color: '#FFFFFF' },
+  cartLine: { alignItems: 'center', gap: 10, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  cartImage: { width: 52, height: 58, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  image: { width: '100%', height: '100%' },
+  cartTitle: { color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '900' },
+  cartVariant: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 2 },
+  cartMeta: { color: colors.primary, fontSize: 10, fontWeight: '800', marginTop: 4 },
   summary: { padding: 13, borderRadius: radius.md, backgroundColor: colors.primarySoft },
-  summaryTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
-  totalRow: { marginTop: 11, alignItems: 'center', justifyContent: 'space-between' },
+  totalRow: { marginTop: 10, alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   totalLabel: { color: colors.muted, fontSize: 11 },
-  total: { color: colors.primary, fontSize: 21, fontWeight: '900' },
-  secureRow: { marginTop: 10, alignItems: 'center', gap: 5 },
-  secureText: { color: colors.success, fontSize: 9, fontWeight: '800' },
-  preparedNotice: { padding: 13, borderRadius: radius.md, backgroundColor: colors.surface },
+  totalValue: { color: colors.text, fontSize: 12, fontWeight: '800', writingDirection: 'ltr' },
+  totalStrongLabel: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  total: { color: colors.primary, fontSize: 20, fontWeight: '900', writingDirection: 'ltr' },
+  summaryDivider: { height: 1, backgroundColor: colors.borderStrong, marginTop: 12 },
+  provisional: { color: colors.muted, fontSize: 10, lineHeight: 16, marginTop: 10 },
+  priceChanged: { color: colors.primaryDark, fontSize: 10, lineHeight: 16, fontWeight: '900', marginTop: 10 },
+  preparedNotice: { padding: 13, borderRadius: radius.md, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 10 },
   preparedTitle: { color: colors.primaryDark, fontSize: 13, fontWeight: '900' },
-  preparedBody: { color: colors.muted, fontSize: 11, lineHeight: 18, marginTop: 5 },
+  preparedBody: { color: colors.muted, fontSize: 11, lineHeight: 18, marginTop: 3 },
   error: { color: colors.danger, fontSize: 11, lineHeight: 18, fontWeight: '800', textAlign: 'center', paddingHorizontal: 8 },
   stickyAction: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   continueButton: { height: 50, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   continueButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
-  disabled: { opacity: 0.55 },
+  stopPanel: { minHeight: 50, paddingHorizontal: 12, borderRadius: radius.md, backgroundColor: colors.primarySoft, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  stopText: { flex: 1, color: colors.primaryDark, fontSize: 10, lineHeight: 16, fontWeight: '800', textAlign: 'center' },
+  disabled: { opacity: 0.5 },
   pressed: { opacity: 0.68 },
   primaryPressed: { opacity: 0.82 },
-  success: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center' },
-  successIcon: { width: 92, height: 92, borderRadius: 46, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  successTitle: { color: colors.text, fontSize: 23, fontWeight: '900', marginTop: 18 },
-  successBody: { color: colors.muted, fontSize: 13, lineHeight: 21, textAlign: 'center', maxWidth: 320, marginTop: 8 },
-  orderRef: { marginTop: 18, alignItems: 'center' },
-  orderRefLabel: { color: colors.muted, fontSize: 10 },
-  orderRefValue: { color: colors.primary, fontSize: 15, fontWeight: '900', marginTop: 4 },
-  homeButton: { height: 48, paddingHorizontal: 22, marginTop: 22, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  homeButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
 });

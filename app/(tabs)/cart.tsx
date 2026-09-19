@@ -7,7 +7,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  LockKeyhole,
+  ClipboardCheck,
   Minus,
   PackageCheck,
   Plus,
@@ -60,7 +60,11 @@ export default function CartScreen() {
             <Trash2 size={17} color={colors.danger} strokeWidth={2} />
           </Pressable>
         </View>
-        {item.variant.title !== 'Default Title' ? <Text style={[styles.variant, { textAlign: isRTL ? 'right' : 'left' }]}>{item.variant.title}</Text> : null}
+        {item.variant.options?.length ? (
+          <Text numberOfLines={2} style={[styles.variant, { textAlign: isRTL ? 'right' : 'left' }]}>
+            {item.variant.options.map((option) => `${option.attributeName}: ${option.value}`).join(' · ')}
+          </Text>
+        ) : item.variant.title !== 'Default Title' ? <Text style={[styles.variant, { textAlign: isRTL ? 'right' : 'left' }]}>{item.variant.title}</Text> : null}
         <Text style={[styles.unitPrice, { textAlign: isRTL ? 'right' : 'left' }]}>{formatAED(item.variant.price)} / {language === 'ar' ? 'قطعة' : 'item'}</Text>
         <View style={[styles.bottomRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View style={styles.qtyControl}>
@@ -121,8 +125,8 @@ export default function CartScreen() {
                   <Text style={styles.total}>{formatAED(subtotal)}</Text>
                 </View>
                 <View style={[styles.summaryLine, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                  <Text style={styles.summaryLineLabel}>{language === 'ar' ? 'الشحن والخصومات' : 'Shipping and discounts'}</Text>
-                  <Text style={styles.summaryLineValue}>{language === 'ar' ? 'عند الدفع' : 'At checkout'}</Text>
+                  <Text style={styles.summaryLineLabel}>{language === 'ar' ? 'السعر النهائي والشحن والضريبة' : 'Final price, shipping and tax'}</Text>
+                  <Text style={styles.summaryLineValue}>{language === 'ar' ? 'يؤكدها الخادم' : 'Server verified'}</Text>
                 </View>
                 <Pressable accessibilityRole="button" style={({ pressed }) => [styles.continueButton, pressed && styles.pressed]} onPress={() => router.push('/(tabs)/catalog')}>
                   <Text style={styles.continueText}>{language === 'ar' ? 'إضافة منتجات أخرى' : 'Add more products'}</Text>
@@ -139,12 +143,12 @@ export default function CartScreen() {
               </View>
               <View style={[styles.secureRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <ShieldCheck size={14} color={colors.success} strokeWidth={2.2} />
-                <Text style={styles.secureText}>{language === 'ar' ? 'دفع آمن ومشفّر' : 'Secure encrypted payment'}</Text>
+                <Text style={styles.secureText}>{language === 'ar' ? 'السعر المعروض تقديري' : 'Displayed price is provisional'}</Text>
               </View>
             </View>
             <Pressable accessibilityRole="button" style={({ pressed }) => [styles.checkout, pressed && styles.primaryPressed]} onPress={checkout}>
-              <LockKeyhole size={18} color="#FFFFFF" strokeWidth={2.2} />
-              <Text style={styles.checkoutText}>{t('checkout')}</Text>
+              <Truck size={18} color="#FFFFFF" strokeWidth={2.2} />
+              <Text style={styles.checkoutText}>{language === 'ar' ? 'متابعة بيانات التوصيل' : 'Continue to delivery'}</Text>
               <ForwardIcon size={17} color="#FFFFFF" strokeWidth={2.5} />
             </Pressable>
           </View>
@@ -162,7 +166,7 @@ function CheckoutSteps({ language }: { language: 'ar' | 'en' }) {
       <View style={styles.stepLine} />
       <View style={styles.step}><Truck size={16} color={colors.textSubtle} /><Text style={styles.stepText}>{language === 'ar' ? 'التوصيل' : 'Delivery'}</Text></View>
       <View style={styles.stepLine} />
-      <View style={styles.step}><LockKeyhole size={16} color={colors.textSubtle} /><Text style={styles.stepText}>{language === 'ar' ? 'الدفع' : 'Payment'}</Text></View>
+      <View style={styles.step}><ClipboardCheck size={16} color={colors.textSubtle} /><Text style={styles.stepText}>{language === 'ar' ? 'المراجعة' : 'Review'}</Text></View>
     </View>
   );
 }

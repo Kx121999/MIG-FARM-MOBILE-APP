@@ -1,6 +1,6 @@
 import React from 'react';
-import { Stack } from 'expo-router';
+import { Redirect } from 'expo-router';
 
 export default function MyFarmLayout(){
-  return <Stack screenOptions={{headerShown:false}}/>;
+  return <Redirect href="/(tabs)"/>;
 }
