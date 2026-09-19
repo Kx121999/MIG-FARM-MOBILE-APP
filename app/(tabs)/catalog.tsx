@@ -8,8 +8,9 @@ import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { ProductCard, ProductCardSkeleton } from '@/components/ProductCard';
 import { ScreenState } from '@/components/ScreenState';
-import { CategoryId, categoryDisplayName, categoryLineage, directChildCategories, orderedStoreCategories, productMatchesCategory, rootStoreCategories } from '@/constants/categories';
-import { colors, radius, sizes, typography } from '@/constants/theme';
+import { StorefrontHome } from '@/components/StorefrontHome';
+import { CategoryId, categoryDisplayName, categoryLineage, directChildCategories, orderedStoreCategories, productMatchesCategory, productsInCategoryTree, rootStoreCategories, storefrontHomeSections } from '@/constants/categories';
+import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useProducts } from '@/hooks/useProducts';
@@ -47,6 +48,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   const [shownCount, setShownCount] = useState(20);
   const categoryListRef = useRef<ScrollView>(null);
   const categories = useMemo(() => orderedStoreCategories(rawCategories), [rawCategories]);
+  const primarySections = useMemo(() => storefrontHomeSections(products, categories), [categories, products]);
   const selectedCategory = useMemo(() => category === 'all' ? null : categories.find((item) => item.id === category) || null, [categories, category]);
   const childCategories = useMemo(() => selectedCategory
     ? directChildCategories(categories, selectedCategory.id)
@@ -78,9 +80,13 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
     if (typeof params.query === 'string') setQuery(params.query);
   }, [categories, params.category, params.query]);
 
-  const categoryProducts = useMemo(() => category === 'all'
+  const directCategoryProducts = useMemo(() => category === 'all'
     ? products
     : products.filter((product) => productMatchesCategory(product, category)), [products, category]);
+  const categoryScopeProducts = useMemo(() => category === 'all'
+    ? products
+    : productsInCategoryTree(products, categories, category), [categories, products, category]);
+  const categoryProducts = query.trim() ? categoryScopeProducts : directCategoryProducts;
   const brands = useMemo(() => Array.from(new Set(categoryProducts.map((product) => product.vendor.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [categoryProducts]);
   const productTypes = useMemo(() => Array.from(new Set(categoryProducts.map((product) => product.product_type.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [categoryProducts]);
   const suggestions = useMemo(() => {
@@ -95,7 +101,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   }, [query, category, brand, productType, minPrice, maxPrice, onlyAvailable, sort]);
 
   const visible = useMemo(() => {
-    const filtered = filterProducts(products, query, category)
+    const filtered = filterProducts(categoryProducts, query, 'all')
       .filter((product) => !onlyAvailable || productAvailable(product))
       .filter((product) => brand === 'all' || product.vendor === brand)
       .filter((product) => productType === 'all' || product.product_type === productType)
@@ -103,7 +109,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
       .filter((product) => !maxPrice || productPriceNumber(product) <= Number(maxPrice));
     const favoritesOnly = params.favorites === '1' ? filtered.filter((product) => favorites.includes(product.id)) : filtered;
     return sortProducts(favoritesOnly, sort);
-  }, [products, query, category, params.favorites, favorites, onlyAvailable, sort, brand, productType, minPrice, maxPrice]);
+  }, [categoryProducts, query, params.favorites, favorites, onlyAvailable, sort, brand, productType, minPrice, maxPrice]);
 
   const saveSearch = (value: string) => {
     const clean = value.trim();
@@ -148,6 +154,48 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   };
   const BackIcon = isRTL ? ChevronRight : ChevronLeft;
   const TrailIcon = isRTL ? ChevronLeft : ChevronRight;
+  const hasActiveFilters = brand !== 'all' || productType !== 'all' || minPrice !== '' || maxPrice !== '' || onlyAvailable || sort !== 'popular';
+  const isStorefrontHome = !searchMode && category === 'all' && !query.trim() && params.favorites !== '1' && !hasActiveFilters;
+  const searchField = (
+    <View style={[styles.search, isStorefrontHome && styles.storefrontSearch, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <Search color={colors.primary} size={20} strokeWidth={2.2} />
+      <TextInput
+        accessibilityLabel={t('search')}
+        value={query}
+        onChangeText={setQuery}
+        placeholder={t('search')}
+        placeholderTextColor={colors.textSubtle}
+        style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
+        autoCorrect={false}
+        returnKeyType="search"
+        autoFocus={searchMode}
+        onSubmitEditing={() => saveSearch(query)}
+      />
+      {query ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={8} style={({ pressed }) => pressed && styles.pressed} onPress={() => setQuery('')}>
+          <X color={colors.muted} size={19} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+
+  if (isStorefrontHome) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <AppHeader compact />
+        <View style={styles.page}>
+          {searchField}
+          <StorefrontHome
+            sections={primarySections}
+            loading={loading}
+            error={error}
+            onRetry={reload}
+            onOpenCategory={selectCategory}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -160,26 +208,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
           </View>
         </View>
 
-        <View style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <Search color={colors.primary} size={20} strokeWidth={2.2} />
-          <TextInput
-            accessibilityLabel={t('search')}
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t('search')}
-            placeholderTextColor={colors.textSubtle}
-            style={[styles.input, { textAlign: isRTL ? 'right' : 'left' }]}
-            autoCorrect={false}
-            returnKeyType="search"
-            autoFocus={searchMode}
-            onSubmitEditing={() => saveSearch(query)}
-          />
-          {query ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={8} style={({ pressed }) => pressed && styles.pressed} onPress={() => setQuery('')}>
-              <X color={colors.muted} size={19} />
-            </Pressable>
-          ) : null}
-        </View>
+        {searchField}
 
         {searchMode && !query.trim() ? (
           <View style={styles.discoveryPanel}>
@@ -362,6 +391,7 @@ const styles = StyleSheet.create({
   title: { ...typography.page, color: colors.text },
   count: { color: colors.muted, fontSize: 12, marginTop: 3 },
   search: { height: sizes.input, marginHorizontal: 16, backgroundColor: colors.surfaceMuted, borderRadius: radius.md, alignItems: 'center', paddingHorizontal: 14, gap: 9 },
+  storefrontSearch: { marginTop: spacing.lg },
   input: { flex: 1, height: '100%', color: colors.text, fontSize: 14 },
   pressed: { opacity: 0.7 },
   controlRow: { minHeight: 38, marginHorizontal: 16, alignItems: 'center', justifyContent: 'space-between' },

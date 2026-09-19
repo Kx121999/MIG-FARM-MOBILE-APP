@@ -67,3 +67,49 @@ export function productMatchesCategory(product: Product, category: CategoryId) {
   if (category === 'all') return true;
   return (product.categories || []).some((assigned) => assigned.id === category);
 }
+
+export function categorySubtreeIds(categoryId: number, categories: StoreCategory[]) {
+  const children = categoryChildren(categories);
+  const ids = new Set<number>();
+  const pending = [categoryId];
+  while (pending.length) {
+    const current = pending.shift();
+    if (!current || ids.has(current)) continue;
+    ids.add(current);
+    pending.push(...(children.get(current) || []).map((category) => category.id));
+  }
+  return ids;
+}
+
+export function productsInCategoryTree(
+  products: Product[],
+  categories: StoreCategory[],
+  categoryId: number,
+) {
+  const ids = categorySubtreeIds(categoryId, categories);
+  return products.filter((product) =>
+    (product.categories || []).some((assigned) => ids.has(assigned.id)));
+}
+
+export type StorefrontSection = {
+  category: StoreCategory;
+  products: Product[];
+};
+
+export function storefrontHomeSections(
+  products: Product[],
+  categories: StoreCategory[],
+  previewLimit = 10,
+  sectionLimit = 4,
+) {
+  const safePreviewLimit = Math.max(1, Math.min(10, Math.floor(previewLimit)));
+  const safeSectionLimit = Math.max(1, Math.floor(sectionLimit));
+  return rootStoreCategories(categories)
+    .map((category): StorefrontSection => ({
+      category,
+      products: productsInCategoryTree(products, categories, category.id)
+        .slice(0, safePreviewLimit),
+    }))
+    .filter((section) => section.products.length > 0)
+    .slice(0, safeSectionLimit);
+}

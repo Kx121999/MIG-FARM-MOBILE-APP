@@ -16,7 +16,7 @@ if (Platform.OS !== 'web') {
 }
 let completedThisSession = false;
 export function AppEntry({ children }: { children: React.ReactNode }) {
-  const { ready: languageReady, language } = useLanguage();
+  const { ready: languageReady, language, setLanguage } = useLanguage();
   const [stage, setStage] = useState<'launch' | 'app'>('launch');
   const [completed, setCompleted] = useState<boolean | null>(null);
   const [assetsReady, setAssetsReady] = useState(false);
@@ -57,6 +57,7 @@ export function AppEntry({ children }: { children: React.ReactNode }) {
             language={language}
             ready={completed !== null}
             onComplete={enterApp}
+            onLanguageChange={setLanguage}
           />
         </View>
       ) : null}
