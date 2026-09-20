@@ -11,9 +11,23 @@ export type ProductImage = {
 export type StoreCategory = {
   id: number;
   name: string;
+  name_ar?: string | null;
+  name_en?: string | null;
   parentId: number | null;
   sequence?: number;
   updatedAt?: string;
+  image?: string | null;
+};
+
+export type ProductBrand = {
+  id: number | null;
+  name: string;
+  sourceField: string;
+};
+
+export type CategoryPath = {
+  categoryId: number;
+  lineage: Array<{ id: number; name: string }>;
 };
 
 export type ProductVariantOption = {
@@ -53,6 +67,7 @@ export type Product = {
   body_html_ar?: string | null;
   body_html_en?: string | null;
   vendor: string;
+  brand?: ProductBrand | null;
   product_type: string;
   product_type_ar?: string | null;
   product_type_en?: string | null;
@@ -60,6 +75,7 @@ export type Product = {
   images: ProductImage[];
   variants: ProductVariant[];
   categories: StoreCategory[];
+  category_paths?: CategoryPath[];
   available?: boolean;
   stock_state?: 'in_stock' | 'out_of_stock' | 'unknown';
   odoo_template_id?: number;

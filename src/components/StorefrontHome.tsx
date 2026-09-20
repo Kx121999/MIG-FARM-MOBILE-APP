@@ -7,6 +7,7 @@ import { SectionTitle } from '@/components/SectionTitle';
 import type { StorefrontSection } from '@/constants/categories';
 import { colors, spacing } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { localizedCategoryName } from '@/constants/categories';
 
 function SectionSkeleton() {
   return (
@@ -26,12 +27,14 @@ export function StorefrontHome({
   error,
   onRetry,
   onOpenCategory,
+  bottomPadding = 96,
 }: {
   sections: StorefrontSection[];
   loading: boolean;
   error: string | null;
   onRetry: () => void;
   onOpenCategory: (categoryId: number) => void;
+  bottomPadding?: number;
 }) {
   const { language, t } = useLanguage();
   if (loading) {
@@ -54,14 +57,14 @@ export function StorefrontHome({
   return (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
       {sections.map((section) => (
         <View key={section.category.id} style={styles.section}>
           <SectionTitle
-            title={section.category.name}
+            title={localizedCategoryName(section.category, language)}
             action={t('viewAll')}
             onPress={() => onOpenCategory(section.category.id)}
           />
@@ -74,7 +77,7 @@ export function StorefrontHome({
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxxl },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   section: { marginBottom: spacing.xl },
   skeletonTitle: { width: 150, height: 20, borderRadius: 4, backgroundColor: colors.surfaceMuted, marginBottom: spacing.md },
   skeletonRail: { flexDirection: 'row', gap: spacing.md, overflow: 'hidden' },

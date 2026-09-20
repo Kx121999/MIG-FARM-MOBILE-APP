@@ -22,6 +22,7 @@ const modelFields = {
     'id', 'name', 'active', 'sale_ok', 'list_price', 'description_sale',
     'categ_id', 'public_categ_ids', 'is_published', 'website_url',
     'default_code', 'create_date', 'write_date', 'image_512',
+    'product_brand_id',
   ],
   'product.product': [
     'id', 'name', 'display_name', 'active', 'sale_ok', 'product_tmpl_id',
@@ -53,6 +54,7 @@ function fixtureState() {
         default_code: 'SEED-1',
         create_date: '2026-01-01 10:00:00',
         write_date: '2026-09-01 10:00:00',
+        product_brand_id: [8, 'MIG FARM'],
       },
       {
         id: 2,
@@ -172,7 +174,15 @@ function mockOdoo(state = fixtureState()) {
     const templatesDomain = body.domain?.find((part) => Array.isArray(part) && part[0] === 'product_tmpl_id' && part[1] === 'in');
     if (templatesDomain)
       rows = rows.filter((row) => templatesDomain[2].includes(Array.isArray(row.product_tmpl_id) ? row.product_tmpl_id[0] : row.product_tmpl_id));
-    return Response.json(rows.slice(body.offset || 0, (body.offset || 0) + (body.limit || 200)));
+    rows = rows.slice(body.offset || 0, (body.offset || 0) + (body.limit || 200));
+    if (body.context?.lang === 'ar_001') {
+      rows = rows.map((row) => ({
+        ...row,
+        name: row.name ? `AR ${row.name}` : row.name,
+        description_sale: row.description_sale ? `AR ${row.description_sale}` : row.description_sale,
+      }));
+    }
+    return Response.json(rows);
   };
   return { state, calls, fetchImpl };
 }
@@ -300,12 +310,9 @@ test('catalog refresh is single-flight across concurrent callers', async () => {
     catalog.list({ force: true }),
   ]);
   assert.ok(results.every((result) => result.products.length === 3));
-  assert.equal(
-    mock.calls.filter((call) =>
-      call.url.endsWith('/product.template/search_read'),
-    ).length,
-    1,
-  );
+  const templateReads = mock.calls.filter((call) => call.url.endsWith('/product.template/search_read'));
+  assert.equal(templateReads.length, 3);
+  assert.equal(templateReads.filter((call) => !JSON.parse(call.options.body).context).length, 1);
   assert.equal(
     mock.calls.filter((call) =>
       call.url.endsWith('/product.template/fields_get'),
@@ -372,6 +379,10 @@ test('Odoo templates and variants normalize with visibility, prices, stock, cate
   assert.deepEqual(first.products.map((product) => product.id), [1, 4, 5]);
   const seeds = first.products[0];
   assert.equal(seeds.handle, 'premium-seeds');
+  assert.equal(seeds.vendor, 'MIG FARM');
+  assert.deepEqual(seeds.brand, { id: 8, name: 'MIG FARM', sourceField: 'product_brand_id' });
+  assert.equal(seeds.title_ar, 'AR Premium Seeds');
+  assert.equal(seeds.categories[0].name_ar, 'AR Seeds');
   assert.equal(seeds.product_type, 'Seeds');
   assert.equal(seeds.variants[0].id, 11);
   assert.equal(seeds.variants[0].title, 'Packet');

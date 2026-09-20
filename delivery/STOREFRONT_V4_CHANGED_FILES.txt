@@ -1,0 +1,16 @@
+app/(tabs)/catalog.tsx
+app/(tabs)/index.tsx
+app/product/[handle].tsx
+server/services/odoo.mjs
+server/src/app.mjs
+server/tests/odoo-catalog.test.mjs
+server/tests/odoo-website-categories.test.mjs
+scripts/storefront-category-client.test.mjs
+scripts/welcome-storefront-v3.test.mjs
+src/components/CategoryCard.tsx
+src/components/CategorySections.tsx
+src/components/ProductRail.tsx
+src/components/StorefrontHome.tsx
+src/constants/categories.ts
+src/services/catalog.ts
+src/types/index.ts

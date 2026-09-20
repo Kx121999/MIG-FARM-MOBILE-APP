@@ -2,6 +2,10 @@ import type { Product, StoreCategory } from '@/types';
 
 export type CategoryId = 'all' | number;
 
+// These are the four verified production product.public.category department IDs.
+// Names remain server-driven and may be renamed without changing storefront identity.
+export const STOREFRONT_DEPARTMENT_IDS = [1, 9, 10, 11] as const;
+
 const categoryOrder = (left: StoreCategory, right: StoreCategory) => {
   const leftSequence = Number.isFinite(left.sequence) ? Number(left.sequence) : Number.MAX_SAFE_INTEGER;
   const rightSequence = Number.isFinite(right.sequence) ? Number(right.sequence) : Number.MAX_SAFE_INTEGER;
@@ -23,6 +27,18 @@ const categoryChildren = (categories: StoreCategory[]) => {
 
 export function rootStoreCategories(categories: StoreCategory[]) {
   return categoryChildren(categories).get(null) || [];
+}
+
+export function storefrontDepartments(categories: StoreCategory[]) {
+  const byId = new Map(validStoreCategories(categories).map((category) => [category.id, category]));
+  return STOREFRONT_DEPARTMENT_IDS
+    .map((id) => byId.get(id))
+    .filter((category): category is StoreCategory => Boolean(category));
+}
+
+export function missingStorefrontDepartmentIds(categories: StoreCategory[]) {
+  const ids = new Set(validStoreCategories(categories).map((category) => category.id));
+  return STOREFRONT_DEPARTMENT_IDS.filter((id) => !ids.has(id));
 }
 
 export function directChildCategories(categories: StoreCategory[], parentId: number) {
@@ -58,9 +74,13 @@ export function orderedStoreCategories(categories: StoreCategory[]) {
   return output;
 }
 
-export function categoryDisplayName(category: StoreCategory, categories: StoreCategory[]) {
+export function localizedCategoryName(category: StoreCategory, language: 'ar' | 'en') {
+  return (language === 'ar' ? category.name_ar : category.name_en)?.trim() || category.name;
+}
+
+export function categoryDisplayName(category: StoreCategory, categories: StoreCategory[], language: 'ar' | 'en' = 'en') {
   const lineage = categoryLineage(category.id, categories);
-  return (lineage.length ? lineage : [category]).map((item) => item.name).join(' / ');
+  return (lineage.length ? lineage : [category]).map((item) => localizedCategoryName(item, language)).join(' / ');
 }
 
 export function productMatchesCategory(product: Product, category: CategoryId) {
@@ -94,22 +114,61 @@ export function productsInCategoryTree(
 export type StorefrontSection = {
   category: StoreCategory;
   products: Product[];
+  productCount: number;
+  kind?: 'department' | 'direct' | 'child';
 };
 
 export function storefrontHomeSections(
   products: Product[],
   categories: StoreCategory[],
   previewLimit = 10,
-  sectionLimit = 4,
 ) {
   const safePreviewLimit = Math.max(1, Math.min(10, Math.floor(previewLimit)));
-  const safeSectionLimit = Math.max(1, Math.floor(sectionLimit));
-  return rootStoreCategories(categories)
-    .map((category): StorefrontSection => ({
+  return storefrontDepartments(categories)
+    .map((category): StorefrontSection => {
+      const matching = productsInCategoryTree(products, categories, category.id);
+      return {
       category,
-      products: productsInCategoryTree(products, categories, category.id)
-        .slice(0, safePreviewLimit),
-    }))
-    .filter((section) => section.products.length > 0)
-    .slice(0, safeSectionLimit);
+      products: matching.slice(0, safePreviewLimit),
+      productCount: matching.length,
+      kind: 'department',
+    }; });
+}
+
+export function categoryPageSections(
+  products: Product[],
+  categories: StoreCategory[],
+  categoryId: number,
+  previewLimit = 10,
+) {
+  const selected = categories.find((category) => category.id === categoryId);
+  if (!selected) return [];
+  const safeLimit = Math.max(1, Math.min(10, Math.floor(previewLimit)));
+  const direct = products.filter((product) => productMatchesCategory(product, categoryId));
+  const sections: StorefrontSection[] = [];
+  if (direct.length) {
+    sections.push({ category: selected, products: direct.slice(0, safeLimit), productCount: direct.length, kind: 'direct' });
+  }
+  for (const child of directChildCategories(categories, categoryId)) {
+    const matching = productsInCategoryTree(products, categories, child.id);
+    sections.push({ category: child, products: matching.slice(0, safeLimit), productCount: matching.length, kind: 'child' });
+  }
+  return sections;
+}
+
+export function categoryAssignmentPaths(product: Product, categories: StoreCategory[]) {
+  return (product.categories || []).map((assigned) => ({
+    categoryId: assigned.id,
+    lineage: categoryLineage(assigned.id, categories).map(({ id, name }) => ({ id, name })),
+  }));
+}
+
+export function filterSeedsByTrustedBrand(products: Product[], brandId?: number | null) {
+  if (!Number.isSafeInteger(brandId) || Number(brandId) <= 0) {
+    return { configured: false as const, products: [] as Product[] };
+  }
+  return {
+    configured: true as const,
+    products: products.filter((product) => product.brand?.id === brandId),
+  };
 }

@@ -3,13 +3,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Check, ChevronLeft, ChevronRight, Clock3, GitCompareArrows, Search, SlidersHorizontal, X } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { ProductCard, ProductCardSkeleton } from '@/components/ProductCard';
 import { ScreenState } from '@/components/ScreenState';
 import { StorefrontHome } from '@/components/StorefrontHome';
-import { CategoryId, categoryDisplayName, categoryLineage, directChildCategories, orderedStoreCategories, productMatchesCategory, productsInCategoryTree, rootStoreCategories, storefrontHomeSections } from '@/constants/categories';
+import { CategorySections } from '@/components/CategorySections';
+import { CategoryId, categoryDisplayName, categoryLineage, categorySubtreeIds, directChildCategories, localizedCategoryName, orderedStoreCategories, productMatchesCategory, productsInCategoryTree, storefrontDepartments, storefrontHomeSections } from '@/constants/categories';
 import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -26,6 +27,7 @@ const categoryIdFromParam = (value?: string): CategoryId => {
 export default function CatalogScreen({ searchMode = false }: { searchMode?: boolean } = {}) {
   const params = useLocalSearchParams<{ category?: string; query?: string; favorites?: string }>();
   const { language, isRTL, t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const { favorites, compareIds } = useCommerce();
   const { products, categories: rawCategories, loading, error, reload } = useProducts();
   const [query, setQuery] = useState(params.query || '');
@@ -48,19 +50,31 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   const [shownCount, setShownCount] = useState(20);
   const categoryListRef = useRef<ScrollView>(null);
   const categories = useMemo(() => orderedStoreCategories(rawCategories), [rawCategories]);
-  const primarySections = useMemo(() => storefrontHomeSections(products, categories), [categories, products]);
-  const selectedCategory = useMemo(() => category === 'all' ? null : categories.find((item) => item.id === category) || null, [categories, category]);
+  const departments = useMemo(() => storefrontDepartments(categories), [categories]);
+  const storefrontCategoryIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const department of departments) {
+      for (const id of categorySubtreeIds(department.id, categories)) ids.add(id);
+    }
+    return ids;
+  }, [categories, departments]);
+  const storefrontProducts = useMemo(() => products.filter((product) =>
+    product.categories.some((assigned) => storefrontCategoryIds.has(assigned.id))), [products, storefrontCategoryIds]);
+  const primarySections = useMemo(() => storefrontHomeSections(storefrontProducts, categories), [categories, storefrontProducts]);
+  const selectedCategory = useMemo(() => category === 'all' || !storefrontCategoryIds.has(category)
+    ? null
+    : categories.find((item) => item.id === category) || null, [categories, category, storefrontCategoryIds]);
   const childCategories = useMemo(() => selectedCategory
     ? directChildCategories(categories, selectedCategory.id)
-    : rootStoreCategories(categories), [categories, selectedCategory]);
+    : departments, [categories, departments, selectedCategory]);
   const lineage = useMemo(() => selectedCategory ? categoryLineage(selectedCategory.id, categories) : [], [categories, selectedCategory]);
   const categoryItems = useMemo<Array<{ id: CategoryId; label: string }>>(() => [
     { id: 'all', label: language === 'ar' ? 'كل المنتجات' : 'All products' },
-    ...categories.map((item) => ({
+    ...categories.filter((item) => storefrontCategoryIds.has(item.id)).map((item) => ({
       id: item.id,
-      label: categoryDisplayName(item, categories),
+      label: categoryDisplayName(item, categories, language),
     })),
-  ], [categories, language]);
+  ], [categories, language, storefrontCategoryIds]);
 
   useEffect(() => {
     AsyncStorage.getItem(SEARCHES_KEY).then((stored) => {
@@ -72,21 +86,18 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
 
   useEffect(() => {
     const requested = categoryIdFromParam(params.category);
-    if (requested === 'all' || categories.some((item) => item.id === requested)) {
+    if (requested === 'all' || storefrontCategoryIds.has(requested)) {
       setCategory(requested);
     } else if (categories.length) {
       setCategory('all');
     }
     if (typeof params.query === 'string') setQuery(params.query);
-  }, [categories, params.category, params.query]);
+  }, [categories, params.category, params.query, storefrontCategoryIds]);
 
-  const directCategoryProducts = useMemo(() => category === 'all'
-    ? products
-    : products.filter((product) => productMatchesCategory(product, category)), [products, category]);
   const categoryScopeProducts = useMemo(() => category === 'all'
-    ? products
-    : productsInCategoryTree(products, categories, category), [categories, products, category]);
-  const categoryProducts = query.trim() ? categoryScopeProducts : directCategoryProducts;
+    ? storefrontProducts
+    : productsInCategoryTree(storefrontProducts, categories, category), [categories, storefrontProducts, category]);
+  const categoryProducts = categoryScopeProducts;
   const brands = useMemo(() => Array.from(new Set(categoryProducts.map((product) => product.vendor.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [categoryProducts]);
   const productTypes = useMemo(() => Array.from(new Set(categoryProducts.map((product) => product.product_type.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [categoryProducts]);
   const suggestions = useMemo(() => {
@@ -156,6 +167,8 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   const TrailIcon = isRTL ? ChevronLeft : ChevronRight;
   const hasActiveFilters = brand !== 'all' || productType !== 'all' || minPrice !== '' || maxPrice !== '' || onlyAvailable || sort !== 'popular';
   const isStorefrontHome = !searchMode && category === 'all' && !query.trim() && params.favorites !== '1' && !hasActiveFilters;
+  const showCategorySections = !searchMode && Boolean(selectedCategory && childCategories.length) && !query.trim() && params.favorites !== '1' && !hasActiveFilters;
+  const bottomPadding = Math.max(104, insets.bottom + 92);
   const searchField = (
     <View style={[styles.search, isStorefrontHome && styles.storefrontSearch, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
       <Search color={colors.primary} size={20} strokeWidth={2.2} />
@@ -191,6 +204,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
             error={error}
             onRetry={reload}
             onOpenCategory={selectCategory}
+            bottomPadding={bottomPadding}
           />
         </View>
       </SafeAreaView>
@@ -275,7 +289,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
               {lineage.map((item, index) => <React.Fragment key={item.id}>
                 <TrailIcon size={13} color={colors.textSubtle} />
                 <Pressable accessibilityRole="button" onPress={() => selectCategory(item.id)} style={styles.breadcrumbItem}>
-                  <Text numberOfLines={1} style={[styles.breadcrumbText, index === lineage.length - 1 && styles.breadcrumbCurrent]}>{item.name}</Text>
+                  <Text numberOfLines={1} style={[styles.breadcrumbText, index === lineage.length - 1 && styles.breadcrumbCurrent]}>{localizedCategoryName(item, language)}</Text>
                 </Pressable>
               </React.Fragment>)}
             </ScrollView>
@@ -291,12 +305,12 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
             {childCategories.map((item) => <Pressable
               key={item.id}
               accessibilityRole="button"
-              accessibilityLabel={item.name}
+              accessibilityLabel={localizedCategoryName(item, language)}
               onPress={() => selectCategory(item.id)}
               style={({ pressed }) => [styles.categoryPill, pressed && styles.pressed]}
             >
               <CategoryIcon id={item.id} size={15} boxSize={28} />
-              <Text numberOfLines={1} style={styles.categoryText}>{item.name}</Text>
+              <Text numberOfLines={1} style={styles.categoryText}>{localizedCategoryName(item, language)}</Text>
               <TrailIcon size={13} color={colors.muted} />
             </Pressable>)}
           </ScrollView> : null}
@@ -310,8 +324,14 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
           </Pressable>
         ) : null}
 
-        {loading ? <View accessibilityLabel={t('loading')} style={styles.skeletonGrid}>{Array.from({ length: 4 }).map((_, index) => <ProductCardSkeleton key={index} />)}</View> : error || !visible.length ? <ScrollView style={styles.productList} contentContainerStyle={{ flexGrow: 1 }}><ScreenState error={error} empty={!error && !visible.length} onRetry={reload}
-          emptyTitle={query ? (language === 'ar' ? 'لم نجد نتائج مطابقة' : 'No matching results') : selectedCategory && childCategories.length ? (language === 'ar' ? 'اختر تصنيفًا فرعيًا' : 'Choose a subcategory') : undefined}
+        {showCategorySections && selectedCategory ? <CategorySections
+          categoryId={selectedCategory.id}
+          products={storefrontProducts}
+          categories={categories}
+          bottomPadding={bottomPadding}
+          onOpenCategory={selectCategory}
+        /> : loading ? <View accessibilityLabel={t('loading')} style={styles.skeletonGrid}>{Array.from({ length: 4 }).map((_, index) => <ProductCardSkeleton key={index} />)}</View> : error || !visible.length ? <ScrollView style={styles.productList} contentContainerStyle={{ flexGrow: 1, paddingBottom: bottomPadding }}><ScreenState error={error} empty={!error && !visible.length} onRetry={reload}
+          emptyTitle={query ? (language === 'ar' ? 'لم نجد نتائج مطابقة' : 'No matching results') : (language === 'ar' ? 'لا توجد منتجات متاحة حالياً' : 'No products currently available')}
           emptyAction={query ? (language === 'ar' ? 'مسح البحث' : 'Clear search') : selectedCategory ? (language === 'ar' ? 'كل المنتجات' : 'All products') : t('resetFilters')}
           onEmptyAction={() => { if (query) setQuery(''); else if (selectedCategory) selectCategory('all'); else resetFilters(); }} /></ScrollView> : null}
         {!loading && !error && visible.length ? (
@@ -320,7 +340,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
             keyExtractor={(item) => String(item.id)}
             numColumns={2}
             columnWrapperStyle={[styles.productRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
-            contentContainerStyle={styles.products}
+            contentContainerStyle={[styles.products, { paddingBottom: bottomPadding }]}
             style={styles.productList}
             showsVerticalScrollIndicator={false}
             initialNumToRender={8}

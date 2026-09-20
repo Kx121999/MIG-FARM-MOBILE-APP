@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlatList, ImageBackground, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowLeft, ArrowRight, MessageCircle, Search, Truck } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/AppHeader';
 import { AppButton } from '@/components/AppButton';
 import { CategoryCard } from '@/components/CategoryCard';
@@ -11,12 +11,12 @@ import { ProductRail } from '@/components/ProductRail';
 import { ScreenState } from '@/components/ScreenState';
 import { SectionTitle } from '@/components/SectionTitle';
 import { MotionPressable } from '@/components/Motion';
-import { productMatchesCategory, rootStoreCategories } from '@/constants/categories';
+import { productMatchesCategory, storefrontDepartments } from '@/constants/categories';
 import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProducts } from '@/hooks/useProducts';
 import { useCommerce } from '@/contexts/CommerceContext';
-import { productImage, sortProducts } from '@/services/catalog';
+import { sortProducts } from '@/services/catalog';
 import { HomeContentSection, platformService } from '@/services/platform';
 import { Product } from '@/types';
 import { useRetention } from '@/contexts/RetentionContext';
@@ -27,6 +27,7 @@ const HOME_CONTENT_CACHE = 'mig_farm_home_content_v1';
 
 export default function HomeScreen() {
   const { language, isRTL, t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
   const { products, categories: storeCategories, loading, error, reload } = useProducts();
   const { recentProductIds } = useCommerce();
@@ -53,11 +54,10 @@ export default function HomeScreen() {
   const announcement = visibleRemoteSections.find((section) => section.kind === 'announcement');
   const promos = visibleRemoteSections.filter((section) => section.kind === 'promo').slice(0, 2);
   const arrivals = useMemo(() => sortProducts(products, 'newest').slice(0, 6), [products]);
-  const homeCategories = useMemo(() => rootStoreCategories(storeCategories), [storeCategories]);
+  const homeCategories = useMemo(() => storefrontDepartments(storeCategories), [storeCategories]);
   const categoryImages = useMemo(() => new Map(homeCategories.map((category) => {
-    const assignedProduct = products.find((product) => productMatchesCategory(product, category.id));
-    return [category.id, assignedProduct ? productImage(assignedProduct) : null];
-  })), [homeCategories, products]);
+    return [category.id, category.image || null];
+  })), [homeCategories]);
   const selected = useMemo(() => products.filter((product) => !arrivals.some((item) => item.id === product.id)).slice(0, 6), [products, arrivals]);
   const recent = useMemo(() => recentProductIds.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item)).slice(0, 4), [products, recentProductIds]);
   const personalized = useMemo(() => {
@@ -71,7 +71,7 @@ export default function HomeScreen() {
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <AppHeader />
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(96, insets.bottom + 88) }]}>
       <View style={styles.page}>
         {user ? <Text style={[styles.deliveryText,{textAlign:isRTL?'right':'left',paddingHorizontal:16,paddingTop:8}]}>{language==='ar'?`مرحباً، ${user.name.split(' ')[0]}`:`Hello, ${user.name.split(' ')[0]}`}</Text> : null}
         <MotionPressable accessibilityRole="button" accessibilityLabel={t('search')} style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={() => router.push('/(tabs)/search')}>
@@ -102,8 +102,8 @@ export default function HomeScreen() {
         ) : null}
         <View style={styles.section}>
           <SectionTitle title={t('categories')} action={t('viewAll')} onPress={openStore} />
-          <FlatList horizontal inverted={isRTL} data={homeCategories} keyExtractor={(item) => String(item.id)} showsHorizontalScrollIndicator={false}
-            style={styles.categoryRail} contentContainerStyle={styles.categories} initialNumToRender={4}
+          <FlatList horizontal data={homeCategories} keyExtractor={(item) => String(item.id)} showsHorizontalScrollIndicator={false}
+            style={styles.categoryRail} contentContainerStyle={[styles.categories, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} initialNumToRender={4}
             renderItem={({ item }) => <CategoryCard category={item} image={categoryImages.get(item.id)} onPress={() => openCategory(item.id)} />} />
         </View>
         <View style={styles.section}>
@@ -150,7 +150,7 @@ export default function HomeScreen() {
 }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
-  content: { backgroundColor: colors.background, paddingBottom: spacing.xl },
+  content: { backgroundColor: colors.background },
   page: { width: '100%', maxWidth: sizes.page, alignSelf: 'center' },
   search: { minHeight: sizes.input, marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.lg, paddingHorizontal: spacing.lg, backgroundColor: colors.surfaceMuted, borderRadius: 8, alignItems: 'center', gap: spacing.md },
   searchText: { ...typography.secondary, color: colors.muted, flex: 1 },
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   promoTitle: { ...typography.secondary, color: colors.text, fontWeight: '900' },
   promoBody: { ...typography.caption, color: colors.muted, marginTop: spacing.xs },
   categoryRail: { flexGrow: 0 },
-  categories: { gap: spacing.md },
+  categories: { gap: spacing.md, paddingStart: 2, paddingEnd: 2 },
   assistant: { marginHorizontal: spacing.lg, marginTop: spacing.xl, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.surface, alignItems: 'center', gap: spacing.md },
   assistantCopy: { flex: 1, gap: spacing.xs },
   assistantTitle: { ...typography.section, fontSize: 17, color: colors.text },

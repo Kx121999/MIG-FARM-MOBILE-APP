@@ -173,7 +173,7 @@ export function createApp({
           product ? { product } : { error: 'product_not_found' },
         );
       }
-      const odooImage = /^\/api\/odoo\/product-image\/(product\.template|product\.product)\/(\d+)$/.exec(path);
+      const odooImage = /^\/api\/odoo\/product-image\/(product\.template|product\.product|product\.public\.category)\/(\d+)$/.exec(path);
       if (method === 'GET' && odooImage) {
         const image = await productCatalog.productImage(
           odooImage[1],

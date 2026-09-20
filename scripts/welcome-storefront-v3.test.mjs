@@ -93,12 +93,14 @@ test('storefront stays single-fetch, ID-driven, brand-honest, and release-safe',
     readFile(new URL('../server/services/odoo.mjs', import.meta.url), 'utf8'),
   ]);
   assert.equal((catalog.match(/useProducts\(\)/g) || []).length, 1);
-  assert.match(catalog, /storefrontHomeSections\(products, categories\)/);
-  assert.match(catalog, /productsInCategoryTree\(products, categories, category\)/);
+  assert.match(catalog, /storefrontHomeSections\(storefrontProducts, categories\)/);
+  assert.match(catalog, /productsInCategoryTree\(storefrontProducts, categories, category\)/);
   assert.match(storefront, /onOpenCategory\(section\.category\.id\)/);
   assert.match(storefront, /categoryId=\{section\.category\.id\}/);
   assert.doesNotMatch(`${storefront}\n${categories}`, /fetch\(|product\.(?:title|vendor|description).*includes|vendor\s*===/);
-  assert.match(odoo, /vendor: 'MIG FARM'/);
+  assert.doesNotMatch(odoo, /vendor: 'MIG FARM'/);
+  assert.match(odoo, /vendor: brand\?\.name \|\| ''/);
+  assert.match(categories, /STOREFRONT_DEPARTMENT_IDS = \[1, 9, 10, 11\]/);
   assert.match(tabs, /name="my-farm" options=\{\{ href: null \}\}/);
   assert.doesNotMatch(`${catalog}\n${storefront}\n${categories}`, /stock\.quant|action_confirm|PaymentIntent|\/api\/orders/);
 });

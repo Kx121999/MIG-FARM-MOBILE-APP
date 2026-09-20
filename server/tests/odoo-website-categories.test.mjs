@@ -83,7 +83,10 @@ function websiteCategoryMock() {
     if (ids) records = records.filter((record) => ids.includes(record.id));
     const templateIds = body.domain?.find((term) => Array.isArray(term) && term[0] === 'product_tmpl_id' && term[1] === 'in')?.[2];
     if (templateIds) records = records.filter((record) => templateIds.includes(record.product_tmpl_id[0]));
-    return Response.json(records.slice(body.offset || 0, (body.offset || 0) + (body.limit || 200)));
+    records = records.slice(body.offset || 0, (body.offset || 0) + (body.limit || 200));
+    if (body.context?.lang === 'ar_001')
+      records = records.map((record) => ({ ...record, name: record.name ? `AR ${record.name}` : record.name }));
+    return Response.json(records);
   };
   return { categories, templates, calls, fetchImpl };
 }
@@ -117,6 +120,12 @@ test('Odoo website categories remain isolated, hierarchical and live', async () 
   assert.equal(first.categories.find((category) => category.id === 2).parentId, 1);
   assert.equal(first.categories.find((category) => category.id === 5).parentId, 2);
   assert.equal(first.categories.find((category) => category.id === 6).parentId, 5);
+  assert.equal(first.categories.find((category) => category.id === 1).name_ar, 'AR Seeds');
+  assert.equal(first.categories.find((category) => category.id === 1).name_en, 'Seeds');
+  assert.deepEqual(
+    first.products.find((product) => product.title === 'Cherry Tomato packet').category_paths[0].lineage.map((item) => item.id),
+    [1, 2, 5, 6],
+  );
 
   mock.categories[0].name = 'Seed Collection';
   mock.categories[0].write_date = '2026-09-02 00:00:00';
@@ -135,6 +144,7 @@ test('Odoo website categories remain isolated, hierarchical and live', async () 
 
   const categoryReads = mock.calls.filter((call) =>
     call.model === 'product.public.category' && call.method === 'search_read');
-  assert.equal(categoryReads.length, 2);
+  assert.equal(categoryReads.length, 6);
+  assert.equal(categoryReads.filter((call) => !call.body.context).length, 2);
   assert.ok(mock.calls.every((call) => ['fields_get', 'search_read'].includes(call.method)));
 });

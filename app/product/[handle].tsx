@@ -224,7 +224,7 @@ export default function ProductScreen() {
           <View style={styles.galleryColumn}>
             <View style={[styles.imagePanel, { height: galleryHeight }, shadow]}>
               {currentImage && !imageFailed ? <Image accessibilityLabel={productTitle} source={{ uri: currentImage, cache: 'force-cache' }} style={styles.image} resizeMode="contain" onError={handleImageError} /> : <View style={styles.imageFallback}><ImageOff size={42} color={colors.textSubtle} strokeWidth={1.4} /><Text style={styles.imageFallbackText}>{language === 'ar' ? 'الصورة غير متاحة' : 'Image unavailable'}</Text></View>}
-              <View style={styles.imageBadge}><ShieldCheck size={14} color={colors.primary} /><Text style={styles.imageBadgeText}>MIG FARM</Text></View>
+              {product.vendor ? <View style={styles.imageBadge}><ShieldCheck size={14} color={colors.primary} /><Text numberOfLines={1} style={styles.imageBadgeText}>{product.vendor}</Text></View> : null}
             </View>
 
             {!!galleryImages.length && (
@@ -253,7 +253,7 @@ export default function ProductScreen() {
               <ForwardIcon size={12} color={colors.textSubtle} />
               <Text numberOfLines={1} style={styles.breadcrumbCurrent}>{productTitle}</Text>
             </ScrollView>
-            <Text style={[styles.vendor, { textAlign: isRTL ? 'right' : 'left' }]}>{product.vendor || 'MIG FARM'}</Text>
+            {product.vendor ? <Text style={[styles.vendor, { textAlign: isRTL ? 'right' : 'left' }]}>{product.vendor}</Text> : null}
             <Text numberOfLines={3} style={[styles.title, { textAlign: titleDirection === 'rtl' ? 'right' : 'left', writingDirection: titleDirection }]}>{productTitle}</Text>
             <View style={[styles.variantMeta, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Text numberOfLines={1} style={styles.selectedVariant}>{variant.title}</Text>

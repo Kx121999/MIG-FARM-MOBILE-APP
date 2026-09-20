@@ -12,6 +12,9 @@ const MAX_RETRY_AFTER_MS = 60_000;
 const PAGE_SIZE = 200;
 const MAX_RECORDS = 10_000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const BRAND_FIELD_CANDIDATES = [
+  'product_brand_id', 'brand_id', 'manufacturer_id', 'manufacturer', 'x_brand_id',
+];
 
 const FIELD_CANDIDATES = {
   'product.template': [
@@ -19,7 +22,7 @@ const FIELD_CANDIDATES = {
     'description_sale', 'description', 'categ_id', 'public_categ_ids',
     'is_published', 'website_published', 'website_url', 'default_code',
     'create_date', 'write_date', 'image_1920', 'image_1024', 'image_512',
-    'image_256', 'image_128',
+    'image_256', 'image_128', ...BRAND_FIELD_CANDIDATES,
   ],
   'product.product': [
     'id', 'name', 'display_name', 'active', 'sale_ok', 'product_tmpl_id',
@@ -27,10 +30,12 @@ const FIELD_CANDIDATES = {
     'product_template_attribute_value_ids',
     'product_template_variant_value_ids', 'write_date', 'image_1920',
     'image_1024', 'image_512', 'image_256', 'image_128',
+    ...BRAND_FIELD_CANDIDATES,
   ],
   'product.category': ['id', 'name', 'complete_name', 'write_date'],
   'product.public.category': [
-    'id', 'name', 'parent_id', 'sequence', 'write_date',
+    'id', 'name', 'parent_id', 'sequence', 'write_date', 'image_1920',
+    'image_1024', 'image_512', 'image_256', 'image_128',
   ],
   'product.template.attribute.value': [
     'id', 'name', 'attribute_id', 'product_attribute_value_id',
@@ -105,6 +110,39 @@ const errorCode = (error) =>
   typeof error?.code === 'string' ? error.code : 'odoo_unavailable';
 const cacheAge = (cache, now) =>
   cache ? Math.max(0, now() - cache.loadedAt) : Number.POSITIVE_INFINITY;
+
+const localizedValue = (record, field, fallback = '') => {
+  const value = cleanText(record?.[field]);
+  return value && value !== cleanText(fallback) ? value : null;
+};
+
+const brandFromRecords = (records, fields) => {
+  for (const field of BRAND_FIELD_CANDIDATES) {
+    if (!fields.includes(field)) continue;
+    for (const record of records) {
+      const value = record?.[field];
+      const name = relationName(value) || cleanText(value);
+      if (!name) continue;
+      return { id: relationId(value), name, sourceField: field };
+    }
+  }
+  return null;
+};
+
+export function categoryAuditRecord(product, categories) {
+  const byId = new Map(categories.map((category) => [Number(category.id), category]));
+  return (product.categories || []).map((assigned) => {
+    const lineage = [];
+    const visited = new Set();
+    let current = byId.get(Number(assigned.id));
+    while (current && !visited.has(Number(current.id))) {
+      visited.add(Number(current.id));
+      lineage.unshift({ id: Number(current.id), name: cleanText(current.name) });
+      current = current.parentId ? byId.get(Number(current.parentId)) : null;
+    }
+    return { categoryId: Number(assigned.id), lineage };
+  });
+}
 
 export function odooConfiguration(env = process.env) {
   const rawBaseUrl = cleanText(env.ODOO_BASE_URL);
@@ -373,7 +411,7 @@ export function createOdooCatalog({
     return discovery;
   }
 
-  async function searchRead(model, domain, fields, order = 'id asc') {
+  async function searchRead(model, domain, fields, order = 'id asc', context) {
     const records = [];
     for (let offset = 0; offset < MAX_RECORDS; offset += PAGE_SIZE) {
       const page = await call(model, 'search_read', {
@@ -382,12 +420,35 @@ export function createOdooCatalog({
         limit: PAGE_SIZE,
         offset,
         order,
+        ...(context ? { context } : {}),
       });
       if (!Array.isArray(page)) throw safeFailure('odoo_invalid_response');
       records.push(...page);
       if (page.length < PAGE_SIZE) break;
     }
     return records.slice(0, MAX_RECORDS);
+  }
+
+  async function translatedRecords(model, ids, fields, lang) {
+    if (!ids.length || !fields.length) return new Map();
+    try {
+      const records = await searchRead(
+        model,
+        [['id', 'in', ids]],
+        ['id', ...fields.filter((field) => field !== 'id')],
+        'id asc',
+        { lang },
+      );
+      return new Map(records.map((record) => [Number(record.id), record]));
+    } catch (error) {
+      logger?.warn?.('Odoo catalog translation read failed', {
+        upstreamStatus: error?.upstreamStatus || null,
+        model,
+        method: 'search_read',
+        language: lang,
+      });
+      return new Map();
+    }
   }
 
   async function namedRecords(model, ids, fields) {
@@ -863,6 +924,14 @@ export function createOdooCatalog({
     const templates = (await searchRead('product.template', templateDomain, templatePayloadFields))
       .filter((record) => visibleTemplate(record, templateFields));
     const templateIds = templates.map((record) => Number(record.id));
+    const templateTranslationFields = ['name', 'description_sale']
+      .filter((field) => templateFields.includes(field));
+    const templateAr = await translatedRecords(
+      'product.template', templateIds, templateTranslationFields, 'ar_001',
+    );
+    const templateEn = await translatedRecords(
+      'product.template', templateIds, templateTranslationFields, 'en_US',
+    );
     const variants = templateIds.length
       ? (await searchRead(
           'product.product',
@@ -889,16 +958,22 @@ export function createOdooCatalog({
       categoryIds,
       categoryFields,
     );
-    const publicCategoryRecords = publicCategoryFields.length
+    const publicCategoryPayloadFields = publicCategoryFields
+      .filter((field) => !IMAGE_FIELDS.includes(field));
+    const publicCategoryRecords = publicCategoryPayloadFields.length
       ? await searchRead(
           'product.public.category',
           [],
-          publicCategoryFields,
+          publicCategoryPayloadFields,
           publicCategoryFields.includes('sequence') ? 'sequence asc,id asc' : 'id asc',
         )
       : [];
-    const publicCategories = new Map(
-      publicCategoryRecords.map((record) => [Number(record.id), record]),
+    const publicCategoryIds = publicCategoryRecords.map((record) => Number(record.id));
+    const publicCategoryAr = await translatedRecords(
+      'product.public.category', publicCategoryIds, ['name'], 'ar_001',
+    );
+    const publicCategoryEn = await translatedRecords(
+      'product.public.category', publicCategoryIds, ['name'], 'en_US',
     );
     const storefrontCategories = publicCategoryRecords
       .map((record) => {
@@ -906,10 +981,17 @@ export function createOdooCatalog({
         const name = cleanText(record.name);
         if (!id || !name) return null;
         const sequence = number(record.sequence);
+        const imageVersion = encodeURIComponent(cleanText(record.write_date) || '0');
+        const image = IMAGE_FIELDS.some((field) => publicCategoryFields.includes(field))
+          ? `/api/odoo/product-image/product.public.category/${id}?v=${imageVersion}`
+          : null;
         return {
           id,
           name,
+          name_ar: localizedValue(publicCategoryAr.get(id), 'name', name),
+          name_en: cleanText(publicCategoryEn.get(id)?.name) || name,
           parentId: relationId(record.parent_id),
+          image,
           ...(sequence === null ? {} : { sequence }),
           ...(isoOrUndefined(record.write_date)
             ? { updatedAt: isoOrUndefined(record.write_date) }
@@ -917,6 +999,9 @@ export function createOdooCatalog({
         };
       })
       .filter(Boolean);
+    const normalizedPublicCategories = new Map(
+      storefrontCategories.map((category) => [category.id, category]),
+    );
     const attributes = await namedRecords(
       'product.template.attribute.value',
       attributeIds,
@@ -942,6 +1027,8 @@ export function createOdooCatalog({
       const templateId = Number(template.id);
       if (!Number.isSafeInteger(templateId) || templateId <= 0) continue;
       const name = cleanText(template.name || template.display_name) || `Product ${templateId}`;
+      const translatedAr = templateAr.get(templateId);
+      const translatedEn = templateEn.get(templateId);
       const sourceVariants = variantsByTemplate.get(templateId) || [];
       if (!sourceVariants.length) continue;
       const mappedVariants = sourceVariants.map((record) => {
@@ -993,13 +1080,8 @@ export function createOdooCatalog({
         };
       });
       const assignedCategories = relationIds(template.public_categ_ids)
-        .map((id) => publicCategories.get(id))
+        .map((id) => normalizedPublicCategories.get(id))
         .filter(Boolean)
-        .map((record) => ({
-          id: Number(record.id),
-          name: cleanText(record.name),
-          parentId: relationId(record.parent_id),
-        }))
         .filter((category) => category.name);
       const internalCategoryId = relationId(template.categ_id);
       const internalCategoryRecord = internalCategories.get(internalCategoryId);
@@ -1025,21 +1107,31 @@ export function createOdooCatalog({
         : [];
       const updatedAt = isoOrUndefined(template.write_date);
       const publishedAt = isoOrUndefined(template.create_date) || updatedAt;
-      products.push({
+      const brand = brandFromRecords(
+        [template, ...sourceVariants],
+        [...new Set([...templateFields, ...variantFields])],
+      );
+      const product = {
         id: templateId,
         odoo_template_id: templateId,
         catalog_source: 'odoo',
         handle,
         title: name,
-        title_ar: null,
-        title_en: name,
+        title_ar: localizedValue(translatedAr, 'name', name),
+        title_en: cleanText(translatedEn?.name) || name,
         body_html: cleanText(template.description_sale || template.description),
-        body_html_ar: null,
-        body_html_en: cleanText(template.description_sale || template.description),
-        vendor: 'MIG FARM',
+        body_html_ar: localizedValue(
+          translatedAr,
+          'description_sale',
+          template.description_sale || template.description,
+        ),
+        body_html_en: cleanText(translatedEn?.description_sale) ||
+          cleanText(template.description_sale || template.description),
+        vendor: brand?.name || '',
+        brand,
         product_type: categoryName,
-        product_type_ar: null,
-        product_type_en: categoryName,
+        product_type_ar: assignedCategories[0]?.name_ar || null,
+        product_type_en: assignedCategories[0]?.name_en || categoryName,
         categories: assignedCategories,
         category: assignedCategories[0] || null,
         internal_category: internalCategoryId
@@ -1061,7 +1153,9 @@ export function createOdooCatalog({
             : {}),
         published_at: publishedAt,
         updated_at: updatedAt,
-      });
+      };
+      product.category_paths = categoryAuditRecord(product, storefrontCategories);
+      products.push(product);
     }
 
     const latestWrite = [
@@ -1076,6 +1170,11 @@ export function createOdooCatalog({
       categories: storefrontCategories,
       version: `odoo:${latestWrite}:${products.length}:${storefrontCategories.length}`,
       updatedAt: new Date(loadedAt).toISOString(),
+      metadata: {
+        brandFields: [...new Set([...templateFields, ...variantFields])]
+          .filter((field) => BRAND_FIELD_CANDIDATES.includes(field)),
+        translations: { arabic: 'ar_001', english: 'en_US' },
+      },
       loadedAt,
     };
   }
@@ -1158,7 +1257,7 @@ export function createOdooCatalog({
   }
 
   async function productImage(model, id, { version = '' } = {}) {
-    if (!['product.template', 'product.product'].includes(model))
+    if (!['product.template', 'product.product', 'product.public.category'].includes(model))
       throw fail(404, 'image_not_found');
     const numericId = Number(id);
     if (!Number.isSafeInteger(numericId) || numericId <= 0)

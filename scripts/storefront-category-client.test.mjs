@@ -17,11 +17,15 @@ async function loadTypeScriptModule(path) {
 test('mobile storefront filters exclusively by stable Odoo website category IDs', async () => {
   const {
     categoryDisplayName,
+    categoryPageSections,
     categoryLineage,
     directChildCategories,
     orderedStoreCategories,
     productMatchesCategory,
     rootStoreCategories,
+    storefrontDepartments,
+    filterSeedsByTrustedBrand,
+    localizedCategoryName,
   } = await loadTypeScriptModule('../src/constants/categories.ts');
   const categories = [
     { id: 1, name: 'Seeds', parentId: null, sequence: 2 },
@@ -78,6 +82,27 @@ test('mobile storefront filters exclusively by stable Odoo website category IDs'
   }));
   assert.equal(categoryLineage(115, deep).length, 16);
   assert.equal(categoryDisplayName(deep[15], deep).split(' / ').length, 16);
+
+  const productionRoots = [
+    { id: 50, name: 'Unrelated', parentId: null, sequence: 0 },
+    { id: 9, name: 'Nutrition', name_ar: 'التغذية', parentId: null, sequence: 8 },
+    { id: 11, name: 'Tools', parentId: null, sequence: 9 },
+    { id: 1, name: 'Seeds', parentId: null, sequence: 10 },
+    { id: 10, name: 'Irrigation', parentId: null, sequence: 11 },
+  ];
+  assert.deepEqual(storefrontDepartments(productionRoots).map((item) => item.id), [1, 9, 10, 11]);
+  assert.equal(localizedCategoryName(productionRoots[1], 'ar'), 'التغذية');
+  assert.equal(localizedCategoryName(productionRoots[1], 'en'), 'Nutrition');
+
+  const sections = categoryPageSections(products, categories, 1);
+  assert.equal(sections[0].kind, 'direct');
+  assert.deepEqual(sections.filter((section) => section.kind === 'child').map((section) => section.category.id), [2, 7]);
+  assert.deepEqual(sections.find((section) => section.category.id === 2).products.map((item) => item.title), ['Tomato packet', 'Shared', 'Deep product']);
+  assert.equal(sections.find((section) => section.category.id === 2).products.some((item) => item.title === 'Pepper packet'), false);
+
+  const seedProducts = [{ brand: { id: 8, name: 'MIG FARM', sourceField: 'product_brand_id' } }, { brand: { id: 9, name: 'AGRIMAX', sourceField: 'product_brand_id' } }];
+  assert.deepEqual(filterSeedsByTrustedBrand(seedProducts, null), { configured: false, products: [] });
+  assert.deepEqual(filterSeedsByTrustedBrand(seedProducts, 8).products, [seedProducts[0]]);
 });
 
 test('Home and Store consume the dynamic hierarchy without text classification', async () => {
@@ -86,10 +111,30 @@ test('Home and Store consume the dynamic hierarchy without text classification',
     readFile(new URL('../app/(tabs)/catalog.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/constants/categories.ts', import.meta.url), 'utf8'),
   ]);
-  assert.match(home, /rootStoreCategories\(storeCategories\)/);
+  assert.match(home, /storefrontDepartments\(storeCategories\)/);
   assert.doesNotMatch(home, /orderedStoreCategories\(storeCategories\)/);
   assert.match(catalog, /directChildCategories\(categories, selectedCategory\.id\)/);
-  assert.match(catalog, /rootStoreCategories\(categories\)/);
-  assert.match(catalog, /productMatchesCategory\(product, category\)/);
+  assert.match(catalog, /storefrontDepartments\(categories\)/);
+  assert.match(catalog, /productsInCategoryTree\(storefrontProducts, categories, category\)/);
+  assert.match(catalog, /CategorySections/);
   assert.doesNotMatch(helpers, /product\.(?:title|description)|categoryName\.includes/);
+  assert.doesNotMatch(helpers, /rootStoreCategories\(categories\)[\s\S]*slice\(0,\s*4\)/);
+});
+
+test('RTL rails, category fallbacks, and tab-safe content remain production-safe', async () => {
+  const [home, catalog, rail, card, product] = await Promise.all([
+    readFile(new URL('../app/(tabs)/index.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../app/(tabs)/catalog.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/ProductRail.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/CategoryCard.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../app/product/[handle].tsx', import.meta.url), 'utf8'),
+  ]);
+  assert.doesNotMatch(`${home}\n${rail}`, /inverted=\{isRTL\}/);
+  assert.match(home, /flexDirection: isRTL \? 'row-reverse' : 'row'/);
+  assert.match(rail, /paddingStart: 2, paddingEnd: 2/);
+  assert.match(home, /Math\.max\(96, insets\.bottom \+ 88\)/);
+  assert.match(catalog, /Math\.max\(104, insets\.bottom \+ 92\)/);
+  assert.match(card, /<CategoryIcon id=\{category\.id\}/);
+  assert.doesNotMatch(card, />MIG FARM<\/Text>/);
+  assert.doesNotMatch(product, /product\.vendor \|\| 'MIG FARM'/);
 });

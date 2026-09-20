@@ -15,9 +15,9 @@ export function ProductRail({ products, categoryId }: { products: Product[]; cat
   const railWidth = Math.min(width, sizes.page) - spacing.lg * 2;
   const cardWidth = Math.max(136, Math.min(180, (railWidth - spacing.md) / 2));
   const renderItem = useCallback(({ item }: { item: Product }) => <ProductCard product={item} wide cardWidth={cardWidth} categoryId={categoryId} />, [cardWidth, categoryId]);
-  return <FlatList horizontal inverted={isRTL} data={products} keyExtractor={(item) => String(item.id)} renderItem={renderItem}
+  return <FlatList horizontal data={products} keyExtractor={(item) => String(item.id)} renderItem={renderItem}
     showsHorizontalScrollIndicator={false} initialNumToRender={3} maxToRenderPerBatch={3} windowSize={3}
     ItemSeparatorComponent={RailSeparator} snapToInterval={cardWidth + spacing.md} decelerationRate="fast"
-    style={styles.list} contentContainerStyle={styles.content} />;
+    style={styles.list} contentContainerStyle={[styles.content, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} />;
 }
-const styles = StyleSheet.create({ list: { flexGrow: 0 }, content: { paddingBottom: 4 }, separator: { width: spacing.md } });
+const styles = StyleSheet.create({ list: { flexGrow: 0 }, content: { paddingBottom: 4, paddingStart: 2, paddingEnd: 2 }, separator: { width: spacing.md } });

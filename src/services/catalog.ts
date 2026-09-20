@@ -44,9 +44,12 @@ function normalizeCategory(value: StoreCategory): StoreCategory | null {
   return {
     id,
     name,
+    name_ar: typeof value.name_ar === 'string' ? value.name_ar.trim() || null : null,
+    name_en: typeof value.name_en === 'string' ? value.name_en.trim() || null : null,
     parentId: Number.isSafeInteger(parent) && parent > 0 ? parent : null,
     ...(Number.isFinite(sequence) ? { sequence } : {}),
     ...(typeof value.updatedAt === 'string' ? { updatedAt: value.updatedAt } : {}),
+    image: mediaUrl(value.image),
   };
 }
 
@@ -71,7 +74,8 @@ function normalizeProduct(product: RawProduct): Product {
     body_html: product.body_html || '',
     body_html_ar: product.body_html_ar || null,
     body_html_en: product.body_html_en || null,
-    vendor: product.vendor || 'MIG FARM',
+    vendor: product.vendor || '',
+    brand: product.brand || null,
     product_type: product.product_type || '',
     product_type_ar: product.product_type_ar || null,
     product_type_en: product.product_type_en || null,
@@ -87,6 +91,7 @@ function normalizeProduct(product: RawProduct): Product {
     categories: Array.isArray(product.categories)
       ? product.categories.map(normalizeCategory).filter((item): item is StoreCategory => Boolean(item))
       : [],
+    category_paths: Array.isArray(product.category_paths) ? product.category_paths : [],
     available: product.available,
     stock_state: product.stock_state,
     odoo_template_id: product.odoo_template_id,
