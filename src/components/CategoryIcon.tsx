@@ -1,11 +1,21 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Grid2X2, Layers3 } from 'lucide-react-native';
+import { Droplets, FlaskConical, Grid2X2, Layers3, Sprout, Wrench } from 'lucide-react-native';
 import { CategoryId } from '@/constants/categories';
 import { colors } from '@/constants/theme';
 
 export function CategoryIcon({ id, size = 20, boxSize = 42, inverse = false }: { id: CategoryId; size?: number; boxSize?: number; inverse?: boolean }) {
-  const Icon = id === 'all' ? Grid2X2 : Layers3;
+  const Icon = id === 'all'
+    ? Grid2X2
+    : id === 1
+      ? Sprout
+      : id === 9
+        ? FlaskConical
+        : id === 10
+          ? Droplets
+          : id === 11
+            ? Wrench
+            : Layers3;
   return (
     <View style={[styles.wrap, {
       width: boxSize,

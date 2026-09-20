@@ -55,8 +55,11 @@ export function ProductCard({ product, wide = false, cardWidth, categoryId }: { 
       <Text maxFontSizeMultiplier={1.6} numberOfLines={2} style={[styles.name, { height: metrics.titleHeight, textAlign: titleDirection === 'rtl' ? 'right' : 'left', writingDirection: titleDirection }]}>{title}</Text>
       <View style={[styles.priceArea, { height: metrics.priceHeight, alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
         <Text maxFontSizeMultiplier={1.6} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={styles.price}>{formatAED(variant?.price || productPrice(product))}</Text>
-        {discounted ? <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={styles.oldPrice}>{formatAED(variant.compare_at_price)}</Text>
-          : !available ? <Text numberOfLines={1} style={styles.unavailable}>{t('unavailable')}</Text> : null}
+        {discounted ? <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={styles.oldPrice}>{formatAED(variant.compare_at_price)}</Text> : null}
+      </View>
+      <View style={[styles.meta, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <Text numberOfLines={1} style={[styles.stock, available && styles.stockAvailable]}>{available ? t('available') : t('unavailable')}</Text>
+        {product.variants.length > 1 ? <Text numberOfLines={1} style={styles.variantCount}>{language === 'ar' ? `${product.variants.length} خيارات` : `${product.variants.length} options`}</Text> : null}
       </View>
     </MotionPressable>
     <MotionPressable accessibilityRole="button" accessibilityLabel={favorite ? (language === 'ar' ? 'إزالة من المفضلة' : 'Remove from favorites') : t('favorites')} accessibilityState={{ selected: favorite }}
@@ -98,7 +101,10 @@ const styles = StyleSheet.create({
   priceArea: { justifyContent: 'center', marginTop: spacing.xs },
   price: { fontSize: 16, lineHeight: 23, fontWeight: '700', letterSpacing: 0, color: colors.danger, writingDirection: 'ltr' },
   oldPrice: { ...typography.caption, color: colors.textSubtle, textDecorationLine: 'line-through', writingDirection: 'ltr' },
-  unavailable: { ...typography.caption, fontSize: 11, color: colors.muted },
+  meta: { minHeight: 22, alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs },
+  stock: { ...typography.caption, fontSize: 10, color: colors.muted, flexShrink: 1 },
+  stockAvailable: { color: colors.success },
+  variantCount: { ...typography.caption, fontSize: 10, color: colors.muted, flexShrink: 1 },
   actions: { minHeight: sizes.touch, alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm, gap: spacing.sm },
   compare: { width: sizes.touch, height: sizes.touch, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   compareActive: { backgroundColor: colors.primarySoft },

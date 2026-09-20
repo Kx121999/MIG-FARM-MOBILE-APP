@@ -8,6 +8,7 @@ import type { StorefrontSection } from '@/constants/categories';
 import { colors, spacing } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { localizedCategoryName } from '@/constants/categories';
+import { StoreDepartmentGrid } from '@/components/StoreDepartmentGrid';
 
 function SectionSkeleton() {
   return (
@@ -61,7 +62,11 @@ export function StorefrontHome({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      {sections.map((section) => (
+      <View style={styles.departments}>
+        <SectionTitle title={language === 'ar' ? 'أقسام المتجر' : 'Store departments'} />
+        <StoreDepartmentGrid sections={sections} onOpenCategory={onOpenCategory} />
+      </View>
+      {sections.filter((section) => section.products.length > 0).map((section) => (
         <View key={section.category.id} style={styles.section}>
           <SectionTitle
             title={localizedCategoryName(section.category, language)}
@@ -78,6 +83,7 @@ export function StorefrontHome({
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  departments: { marginBottom: spacing.xl },
   section: { marginBottom: spacing.xl },
   skeletonTitle: { width: 150, height: 20, borderRadius: 4, backgroundColor: colors.surfaceMuted, marginBottom: spacing.md },
   skeletonRail: { flexDirection: 'row', gap: spacing.md, overflow: 'hidden' },

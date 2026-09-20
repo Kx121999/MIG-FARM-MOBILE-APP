@@ -91,8 +91,8 @@ test('mobile storefront filters exclusively by stable Odoo website category IDs'
     { id: 10, name: 'Irrigation', parentId: null, sequence: 11 },
   ];
   assert.deepEqual(storefrontDepartments(productionRoots).map((item) => item.id), [1, 9, 10, 11]);
-  assert.equal(localizedCategoryName(productionRoots[1], 'ar'), 'التغذية');
-  assert.equal(localizedCategoryName(productionRoots[1], 'en'), 'Nutrition');
+  assert.equal(localizedCategoryName(productionRoots[1], 'ar'), 'الأسمدة وتغذية النباتات');
+  assert.equal(localizedCategoryName(productionRoots[1], 'en'), 'Fertilizers & Plant Nutrition');
 
   const sections = categoryPageSections(products, categories, 1);
   assert.equal(sections[0].kind, 'direct');
@@ -111,8 +111,8 @@ test('Home and Store consume the dynamic hierarchy without text classification',
     readFile(new URL('../app/(tabs)/catalog.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/constants/categories.ts', import.meta.url), 'utf8'),
   ]);
-  assert.match(home, /storefrontDepartments\(storeCategories\)/);
-  assert.doesNotMatch(home, /orderedStoreCategories\(storeCategories\)/);
+  assert.match(home, /storefrontHomeSections\(products, categories, 1\)/);
+  assert.doesNotMatch(home, /orderedStoreCategories\(categories\)/);
   assert.match(catalog, /directChildCategories\(categories, selectedCategory\.id\)/);
   assert.match(catalog, /storefrontDepartments\(categories\)/);
   assert.match(catalog, /productsInCategoryTree\(storefrontProducts, categories, category\)/);
@@ -132,7 +132,7 @@ test('RTL rails, category fallbacks, and tab-safe content remain production-safe
   assert.doesNotMatch(`${home}\n${rail}`, /inverted=\{isRTL\}/);
   assert.match(home, /flexDirection: isRTL \? 'row-reverse' : 'row'/);
   assert.match(rail, /paddingStart: 2, paddingEnd: 2/);
-  assert.match(home, /Math\.max\(96, insets\.bottom \+ 88\)/);
+  assert.match(home, /Math\.max\(104, insets\.bottom \+ 92\)/);
   assert.match(catalog, /Math\.max\(104, insets\.bottom \+ 92\)/);
   assert.match(card, /<CategoryIcon id=\{category\.id\}/);
   assert.doesNotMatch(card, />MIG FARM<\/Text>/);

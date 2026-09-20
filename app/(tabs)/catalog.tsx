@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Check, ChevronLeft, ChevronRight, Clock3, GitCompareArrows, Search, SlidersHorizontal, X } from 'lucide-react-native';
@@ -48,7 +48,6 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   const [draftOnlyAvailable, setDraftOnlyAvailable] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [shownCount, setShownCount] = useState(20);
-  const categoryListRef = useRef<ScrollView>(null);
   const categories = useMemo(() => orderedStoreCategories(rawCategories), [rawCategories]);
   const departments = useMemo(() => storefrontDepartments(categories), [categories]);
   const storefrontCategoryIds = useMemo(() => {
@@ -166,7 +165,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   const BackIcon = isRTL ? ChevronRight : ChevronLeft;
   const TrailIcon = isRTL ? ChevronLeft : ChevronRight;
   const hasActiveFilters = brand !== 'all' || productType !== 'all' || minPrice !== '' || maxPrice !== '' || onlyAvailable || sort !== 'popular';
-  const isStorefrontHome = !searchMode && category === 'all' && !query.trim() && params.favorites !== '1' && !hasActiveFilters;
+  const isStorefrontHome = !searchMode && category === 'all' && !query.trim() && params.favorites !== '1' && !hasActiveFilters && !filtersOpen;
   const showCategorySections = !searchMode && Boolean(selectedCategory && childCategories.length) && !query.trim() && params.favorites !== '1' && !hasActiveFilters;
   const bottomPadding = Math.max(104, insets.bottom + 92);
   const searchField = (
@@ -197,7 +196,20 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
       <SafeAreaView style={styles.safe} edges={['top']}>
         <AppHeader compact />
         <View style={styles.page}>
+          <View style={[styles.titleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View>
+              <Text style={[styles.title, { textAlign: isRTL ? 'right' : 'left' }]}>{t('store')}</Text>
+              <Text style={[styles.count, { textAlign: isRTL ? 'right' : 'left' }]}>{storefrontProducts.length} {language === 'ar' ? 'منتج' : 'products'}</Text>
+            </View>
+          </View>
           {searchField}
+          <View style={[styles.controlRow, styles.storefrontControls, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text style={[styles.resultHint, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'تصفح حسب القسم' : 'Browse by department'}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('filters')} onPress={openFilters} style={({ pressed }) => [styles.filterChip, pressed && styles.pressed]}>
+              <SlidersHorizontal size={15} color={colors.primary} />
+              <Text style={styles.filterChipText}>{t('filters')}</Text>
+            </Pressable>
+          </View>
           <StorefrontHome
             sections={primarySections}
             loading={loading}
@@ -217,7 +229,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
       <View style={styles.page}>
         <View style={[styles.titleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View>
-            <Text style={[styles.title, { textAlign: isRTL ? 'right' : 'left' }]}>{searchMode ? t('searchTab') : t('store')}</Text>
+            <Text numberOfLines={2} style={[styles.title, { textAlign: isRTL ? 'right' : 'left' }]}>{searchMode ? t('searchTab') : selectedCategory ? localizedCategoryName(selectedCategory, language) : t('store')}</Text>
             <Text style={[styles.count, { textAlign: isRTL ? 'right' : 'left' }]}>{visible.length} {language === 'ar' ? 'منتج' : 'products'}</Text>
           </View>
         </View>
@@ -295,11 +307,9 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
             </ScrollView>
           </View> : null}
           {childCategories.length ? <ScrollView
-            ref={categoryListRef}
             horizontal
             style={styles.categoryScroller}
             showsHorizontalScrollIndicator={false}
-            onContentSizeChange={() => isRTL && categoryListRef.current?.scrollToEnd({ animated: false })}
             contentContainerStyle={[styles.categoryList, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
           >
             {childCategories.map((item) => <Pressable
@@ -412,6 +422,7 @@ const styles = StyleSheet.create({
   count: { color: colors.muted, fontSize: 12, marginTop: 3 },
   search: { height: sizes.input, marginHorizontal: 16, backgroundColor: colors.surfaceMuted, borderRadius: radius.md, alignItems: 'center', paddingHorizontal: 14, gap: 9 },
   storefrontSearch: { marginTop: spacing.lg },
+  storefrontControls: { marginTop: spacing.sm },
   input: { flex: 1, height: '100%', color: colors.text, fontSize: 14 },
   pressed: { opacity: 0.7 },
   controlRow: { minHeight: 38, marginHorizontal: 16, alignItems: 'center', justifyContent: 'space-between' },
@@ -443,7 +454,7 @@ const styles = StyleSheet.create({
   breadcrumbText: { color: colors.muted, fontSize: 10, fontWeight: '700' },
   breadcrumbCurrent: { color: colors.primaryDark, fontWeight: '900' },
   categoryScroller: { flexGrow: 0, flexShrink: 0, height: 68 },
-  categoryList: { paddingHorizontal: 16, paddingVertical: 13, gap: 8 },
+  categoryList: { paddingStart: 16, paddingEnd: 16, paddingVertical: 13, gap: 8 },
   categoryPill: { height: 42, paddingHorizontal: 8, paddingEnd: 12, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   categoryPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   categoryText: { color: colors.text, fontSize: 11, fontWeight: '800' },

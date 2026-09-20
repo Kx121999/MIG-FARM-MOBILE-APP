@@ -41,7 +41,7 @@ export function CategorySections({
         <View key={`${section.kind}-${section.category.id}`} style={styles.section}>
           <SectionTitle
             title={section.kind === 'direct'
-              ? (language === 'ar' ? 'منتجات مختارة' : 'Featured products')
+              ? (language === 'ar' ? 'منتجات القسم المباشرة' : 'Other / Direct products')
               : localizedCategoryName(section.category, language)}
             action={section.kind === 'child' ? t('viewAll') : undefined}
             onPress={section.kind === 'child' ? () => onOpenCategory(section.category.id) : undefined}

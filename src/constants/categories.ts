@@ -6,6 +6,38 @@ export type CategoryId = 'all' | number;
 // Names remain server-driven and may be renamed without changing storefront identity.
 export const STOREFRONT_DEPARTMENT_IDS = [1, 9, 10, 11] as const;
 
+const STOREFRONT_DEPARTMENT_COPY: Record<number, {
+  ar: string;
+  en: string;
+  descriptionAr: string;
+  descriptionEn: string;
+}> = {
+  1: {
+    ar: 'البذور',
+    en: 'Seeds',
+    descriptionAr: 'بذور مختارة لمواسم ومحاصيل متنوعة',
+    descriptionEn: 'Seed collections for diverse crops and seasons',
+  },
+  9: {
+    ar: 'الأسمدة وتغذية النباتات',
+    en: 'Fertilizers & Plant Nutrition',
+    descriptionAr: 'حلول تغذية وعناية للنبات والتربة',
+    descriptionEn: 'Plant nutrition and soil care solutions',
+  },
+  10: {
+    ar: 'الري والزراعة المائية',
+    en: 'Irrigation & Hydroponics',
+    descriptionAr: 'مستلزمات ري وإدارة مياه أكثر كفاءة',
+    descriptionEn: 'Efficient irrigation and water management',
+  },
+  11: {
+    ar: 'الأدوات والمعدات',
+    en: 'Tools & Equipment',
+    descriptionAr: 'أدوات عملية للعمل اليومي في المزرعة',
+    descriptionEn: 'Practical tools for everyday farm work',
+  },
+};
+
 const categoryOrder = (left: StoreCategory, right: StoreCategory) => {
   const leftSequence = Number.isFinite(left.sequence) ? Number(left.sequence) : Number.MAX_SAFE_INTEGER;
   const rightSequence = Number.isFinite(right.sequence) ? Number(right.sequence) : Number.MAX_SAFE_INTEGER;
@@ -75,7 +107,15 @@ export function orderedStoreCategories(categories: StoreCategory[]) {
 }
 
 export function localizedCategoryName(category: StoreCategory, language: 'ar' | 'en') {
+  const department = STOREFRONT_DEPARTMENT_COPY[category.id];
+  if (department) return department[language];
   return (language === 'ar' ? category.name_ar : category.name_en)?.trim() || category.name;
+}
+
+export function storefrontDepartmentDescription(categoryId: number, language: 'ar' | 'en') {
+  const department = STOREFRONT_DEPARTMENT_COPY[categoryId];
+  if (!department) return '';
+  return language === 'ar' ? department.descriptionAr : department.descriptionEn;
 }
 
 export function categoryDisplayName(category: StoreCategory, categories: StoreCategory[], language: 'ar' | 'en' = 'en') {

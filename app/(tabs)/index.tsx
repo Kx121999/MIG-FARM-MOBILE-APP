@@ -1,26 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FlatList, ImageBackground, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ImageBackground, Linking, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, MessageCircle, Search, Truck } from 'lucide-react-native';
+import { MessageCircle, Search, Truck } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppHeader } from '@/components/AppHeader';
 import { AppButton } from '@/components/AppButton';
-import { CategoryCard } from '@/components/CategoryCard';
+import { AppHeader } from '@/components/AppHeader';
+import { MotionPressable } from '@/components/Motion';
 import { ProductRail } from '@/components/ProductRail';
 import { ScreenState } from '@/components/ScreenState';
 import { SectionTitle } from '@/components/SectionTitle';
-import { MotionPressable } from '@/components/Motion';
-import { productMatchesCategory, storefrontDepartments } from '@/constants/categories';
+import { StoreDepartmentGrid } from '@/components/StoreDepartmentGrid';
+import { storefrontHomeSections } from '@/constants/categories';
+import { COMPANY } from '@/constants/company';
 import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProducts } from '@/hooks/useProducts';
-import { useCommerce } from '@/contexts/CommerceContext';
-import { sortProducts } from '@/services/catalog';
 import { HomeContentSection, platformService } from '@/services/platform';
-import { Product } from '@/types';
-import { useRetention } from '@/contexts/RetentionContext';
-import { useAuth } from '@/contexts/AuthContext';
 
 const heroSource = require('../../assets/home-farm.webp');
 const HOME_CONTENT_CACHE = 'mig_farm_home_content_v1';
@@ -29,11 +25,9 @@ export default function HomeScreen() {
   const { language, isRTL, t } = useLanguage();
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
-  const { products, categories: storeCategories, loading, error, reload } = useProducts();
-  const { recentProductIds } = useCommerce();
-  const { personalization } = useRetention();
-  const { user } = useAuth();
+  const { products, categories, loading, error, reload } = useProducts();
   const [remoteSections, setRemoteSections] = useState<HomeContentSection[]>([]);
+
   useEffect(() => {
     let active = true;
     AsyncStorage.getItem(HOME_CONTENT_CACHE).then((stored) => {
@@ -46,133 +40,127 @@ export default function HomeScreen() {
       if (active) setRemoteSections(sections);
       AsyncStorage.setItem(HOME_CONTENT_CACHE, JSON.stringify(sections)).catch(() => undefined);
     }).catch(() => undefined);
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
-  const visibleRemoteSections = remoteSections.filter((section) => !section.deepLink?.includes('/my-farm'));
-  const announcement = visibleRemoteSections.find((section) => section.kind === 'announcement');
-  const promos = visibleRemoteSections.filter((section) => section.kind === 'promo').slice(0, 2);
-  const arrivals = useMemo(() => sortProducts(products, 'newest').slice(0, 6), [products]);
-  const homeCategories = useMemo(() => storefrontDepartments(storeCategories), [storeCategories]);
-  const categoryImages = useMemo(() => new Map(homeCategories.map((category) => {
-    return [category.id, category.image || null];
-  })), [homeCategories]);
-  const selected = useMemo(() => products.filter((product) => !arrivals.some((item) => item.id === product.id)).slice(0, 6), [products, arrivals]);
-  const recent = useMemo(() => recentProductIds.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item)).slice(0, 4), [products, recentProductIds]);
-  const personalized = useMemo(() => {
-    if (!personalization || !recent.length) return [];
-    const categoryId = recent[0].categories?.[0]?.id;
-    return categoryId ? products.filter(item => !recentProductIds.includes(item.id) && productMatchesCategory(item,categoryId)).slice(0,4) : [];
-  }, [personalization,recent,products,recentProductIds]);
-  const Arrow = isRTL ? ArrowLeft : ArrowRight;
-  const openCategory = (category: number) => router.push({ pathname: '/(tabs)/catalog', params: { category: String(category) } });
-  const openStore = () => router.push('/(tabs)/catalog');
 
-  return <SafeAreaView style={styles.safe} edges={['top']}>
-    <AppHeader />
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(96, insets.bottom + 88) }]}>
-      <View style={styles.page}>
-        {user ? <Text style={[styles.deliveryText,{textAlign:isRTL?'right':'left',paddingHorizontal:16,paddingTop:8}]}>{language==='ar'?`مرحباً، ${user.name.split(' ')[0]}`:`Hello, ${user.name.split(' ')[0]}`}</Text> : null}
-        <MotionPressable accessibilityRole="button" accessibilityLabel={t('search')} style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} onPress={() => router.push('/(tabs)/search')}>
-          <Search size={20} color={colors.muted} /><Text numberOfLines={1} style={[styles.searchText, { textAlign: isRTL ? 'right' : 'left' }]}>{t('search')}</Text>
-        </MotionPressable>
-        <ImageBackground source={heroSource} resizeMode="cover" style={[styles.hero, { height: 232 + 72 * (Math.min(1.6, Math.max(1, fontScale)) - 1) }]}>
-          <View style={[styles.heroContent, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-            <Text accessibilityRole="header" maxFontSizeMultiplier={1.4} style={styles.heroBrand}>MIG FARM</Text>
-            <Text maxFontSizeMultiplier={1.4} style={[styles.heroTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'كل احتياجات زراعتك\nفي مكان واحد' : 'Everything you need\nto grow, in one place'}</Text>
-            <AppButton label={t('shopNow')} onPress={openStore} secondary arrow style={styles.heroButton} />
-          </View>
-        </ImageBackground>
-        <View style={[styles.delivery, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <Truck size={17} color={colors.primary} /><Text style={styles.deliveryText}>{language === 'ar' ? 'توصيل داخل الإمارات' : 'Delivery across the UAE'}</Text>
-          <View style={styles.deliveryDivider} /><Text style={styles.deliveryText}>{language === 'ar' ? 'منتجات زراعية مختارة' : 'Selected growing essentials'}</Text>
-        </View>
-        {announcement ? (
+  const departmentSections = useMemo(
+    () => storefrontHomeSections(products, categories, 1),
+    [categories, products],
+  );
+  const featuredSection = useMemo(() => remoteSections.find((section) =>
+    section.kind === 'featured' &&
+    !section.deepLink?.includes('/my-farm') &&
+    section.productIds.length > 0), [remoteSections]);
+  const picks = useMemo(() => featuredSection
+    ? featuredSection.productIds
+      .map((id) => products.find((product) => product.id === id))
+      .filter((product): product is (typeof products)[number] => Boolean(product))
+    : [], [featuredSection, products]);
+
+  const openCategory = (category: number) => router.push({
+    pathname: '/(tabs)/catalog',
+    params: { category: String(category) },
+  });
+  const openStore = () => router.push('/(tabs)/catalog');
+  const openWhatsApp = () => Linking.openURL(COMPANY.whatsapp)
+    .catch(() => router.push('/support'));
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <AppHeader />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(104, insets.bottom + 92) }]}
+      >
+        <View style={styles.page}>
           <MotionPressable
             accessibilityRole="button"
-            onPress={() => announcement.deepLink ? router.push(announcement.deepLink as never) : undefined}
-            style={[styles.announcement, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            accessibilityLabel={t('search')}
+            style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            onPress={() => router.push('/(tabs)/search')}
           >
-            <Text numberOfLines={1} style={[styles.announcementText, { textAlign: isRTL ? 'right' : 'left' }]}>
-              {language === 'ar' ? announcement.titleAr || announcement.bodyAr : announcement.titleEn || announcement.bodyEn}
-            </Text>
-            <Arrow size={16} color={colors.primary} />
+            <Search size={20} color={colors.primary} />
+            <Text numberOfLines={1} style={[styles.searchText, { textAlign: isRTL ? 'right' : 'left' }]}>{t('search')}</Text>
           </MotionPressable>
-        ) : null}
-        <View style={styles.section}>
-          <SectionTitle title={t('categories')} action={t('viewAll')} onPress={openStore} />
-          <FlatList horizontal data={homeCategories} keyExtractor={(item) => String(item.id)} showsHorizontalScrollIndicator={false}
-            style={styles.categoryRail} contentContainerStyle={[styles.categories, { flexDirection: isRTL ? 'row-reverse' : 'row' }]} initialNumToRender={4}
-            renderItem={({ item }) => <CategoryCard category={item} image={categoryImages.get(item.id)} onPress={() => openCategory(item.id)} />} />
-        </View>
-        <View style={styles.section}>
-          <SectionTitle title={t('featured')} action={t('viewAll')} onPress={openStore} />
-          <ScreenState loading={loading && !arrivals.length} error={error} empty={!loading && !error && !arrivals.length} onRetry={reload} />
-          {arrivals.length ? <ProductRail products={arrivals} /> : null}
-        </View>
-        {promos.length ? (
-          <View style={styles.promoGrid}>
-            {promos.map((promo) => (
-              <MotionPressable
-                key={promo.id}
-                accessibilityRole="button"
-                onPress={() => promo.deepLink ? router.push(promo.deepLink as never) : undefined}
-                style={styles.promoCard}
-              >
-                <Text numberOfLines={1} style={[styles.promoTitle, { textAlign: isRTL ? 'right' : 'left' }]}>
-                  {language === 'ar' ? promo.titleAr : promo.titleEn}
-                </Text>
-                <Text numberOfLines={2} style={[styles.promoBody, { textAlign: isRTL ? 'right' : 'left' }]}>
-                  {language === 'ar' ? promo.bodyAr : promo.bodyEn}
-                </Text>
-              </MotionPressable>
-            ))}
+
+          <ImageBackground
+            source={heroSource}
+            resizeMode="cover"
+            style={[styles.hero, { height: 236 + 64 * (Math.min(1.5, Math.max(1, fontScale)) - 1) }]}
+            imageStyle={styles.heroImage}
+          >
+            <View style={[styles.heroContent, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+              <Text accessibilityRole="header" style={styles.heroBrand}>MIG FARM</Text>
+              <Text style={[styles.heroTitle, { textAlign: isRTL ? 'right' : 'left' }]}>
+                {language === 'ar' ? 'مستلزمات زراعية مختارة\nلمزرعة أكثر إنتاجًا' : 'Better farm essentials\nfor every growing season'}
+              </Text>
+              <AppButton label={t('shopNow')} onPress={openStore} secondary arrow style={styles.heroButton} />
+            </View>
+          </ImageBackground>
+
+          <View style={[styles.delivery, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Truck size={17} color={colors.primary} />
+            <Text style={styles.deliveryText}>{language === 'ar' ? 'توصيل لكل الإمارات' : 'Delivery across the UAE'}</Text>
+            <View style={styles.deliveryDivider} />
+            <Text style={styles.deliveryText}>{language === 'ar' ? 'كتالوج مباشر من Odoo' : 'Live Odoo catalog'}</Text>
           </View>
-        ) : null}
-        {selected.length ? <View style={styles.section}>
-          <SectionTitle title={personalized.length?(language==='ar'?'قد يعجبك':'You may like'):(language === 'ar' ? 'مختارات ميغ فارم' : 'MIG FARM selection')} action={t('viewAll')} onPress={openStore} />
-          <ProductRail products={personalized.length?personalized:selected} />
-        </View> : null}
-        <MotionPressable accessibilityRole="button" accessibilityLabel={language === 'ar' ? 'مساعد ميغ فارم' : 'MIG FARM assistant'} onPress={() => router.push('/(tabs)/assistant')}
-          style={[styles.assistant, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <MessageCircle size={24} color={colors.primary} strokeWidth={1.6} />
-          <View style={styles.assistantCopy}>
-            <Text style={[styles.assistantTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'مساعد ميغ فارم' : 'MIG FARM assistant'}</Text>
-            <Text style={[styles.assistantBody, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'اسأل عن المنتج أو الاستخدام المناسب' : 'Ask about products or how to use them'}</Text>
+
+          <View style={styles.section}>
+            <SectionTitle title={language === 'ar' ? 'أقسام المتجر' : 'Store departments'} />
+            <ScreenState loading={loading && !departmentSections.length} error={error} empty={!loading && !error && !departmentSections.length} onRetry={reload} />
+            {departmentSections.length ? <StoreDepartmentGrid sections={departmentSections} onOpenCategory={openCategory} /> : null}
           </View>
-          <Arrow size={20} color={colors.primary} />
-        </MotionPressable>
-        {recent.length ? <View style={styles.section}><SectionTitle title={t('recentlyViewed')} /><ProductRail products={recent} /></View> : null}
-      </View>
-    </ScrollView>
-  </SafeAreaView>;
+
+          {picks.length ? (
+            <View style={styles.section}>
+              <SectionTitle
+                title={language === 'ar' ? featuredSection?.titleAr || 'مختارات MIG FARM' : featuredSection?.titleEn || 'MIG FARM Picks'}
+                action={t('viewAll')}
+                onPress={featuredSection?.deepLink ? () => router.push(featuredSection.deepLink as never) : openStore}
+              />
+              <ProductRail products={picks} />
+            </View>
+          ) : null}
+
+          <MotionPressable
+            accessibilityRole="button"
+            accessibilityLabel={language === 'ar' ? 'تواصل مع MIG FARM عبر واتساب' : 'Contact MIG FARM on WhatsApp'}
+            onPress={openWhatsApp}
+            style={[styles.help, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+          >
+            <View style={styles.helpIcon}><MessageCircle size={24} color="#FFFFFF" /></View>
+            <View style={styles.helpCopy}>
+              <Text style={[styles.helpTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'تحتاج مساعدة زراعية؟' : 'Need agricultural help?'}</Text>
+              <Text style={[styles.helpBody, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'تواصل مع فريق MIG FARM عبر واتساب' : 'Talk to the MIG FARM team on WhatsApp'}</Text>
+            </View>
+            <Text style={styles.helpAction}>{language === 'ar' ? 'تواصل' : 'Chat'}</Text>
+          </MotionPressable>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
   content: { backgroundColor: colors.background },
   page: { width: '100%', maxWidth: sizes.page, alignSelf: 'center' },
-  search: { minHeight: sizes.input, marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.lg, paddingHorizontal: spacing.lg, backgroundColor: colors.surfaceMuted, borderRadius: 8, alignItems: 'center', gap: spacing.md },
+  search: { minHeight: sizes.input, marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.lg, paddingHorizontal: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.md, alignItems: 'center', gap: spacing.md },
   searchText: { ...typography.secondary, color: colors.muted, flex: 1 },
-  hero: { height: 232, marginHorizontal: spacing.lg, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.primaryDark },
-  heroContent: { flex: 1, padding: spacing.xl, backgroundColor: 'rgba(18, 30, 19, 0.32)', justifyContent: 'center' },
+  hero: { marginHorizontal: spacing.lg, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.primaryDark },
+  heroImage: { borderRadius: radius.md },
+  heroContent: { flex: 1, padding: spacing.xl, backgroundColor: 'rgba(12, 38, 26, 0.46)', justifyContent: 'center' },
   heroBrand: { ...typography.display, color: colors.surface, writingDirection: 'ltr' },
   heroTitle: { ...typography.section, color: colors.surface, marginTop: spacing.sm, marginBottom: spacing.lg },
   heroButton: { backgroundColor: colors.surface, minWidth: 136 },
   delivery: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   deliveryText: { ...typography.caption, color: colors.muted, flexShrink: 1, textAlign: 'center' },
   deliveryDivider: { width: 1, height: 16, backgroundColor: colors.borderStrong },
-  announcement: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, paddingHorizontal: spacing.md, minHeight: 40, borderRadius: radius.md, backgroundColor: colors.primarySoft, alignItems: 'center', gap: spacing.sm },
-  announcementText: { ...typography.caption, flex: 1, color: colors.primaryDark, fontWeight: '900' },
-  section: { paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.xs },
-  promoGrid: { paddingHorizontal: spacing.lg, marginTop: spacing.md, gap: spacing.sm },
-  promoCard: { minHeight: 78, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface },
-  promoTitle: { ...typography.secondary, color: colors.text, fontWeight: '900' },
-  promoBody: { ...typography.caption, color: colors.muted, marginTop: spacing.xs },
-  categoryRail: { flexGrow: 0 },
-  categories: { gap: spacing.md, paddingStart: 2, paddingEnd: 2 },
-  assistant: { marginHorizontal: spacing.lg, marginTop: spacing.xl, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.surface, alignItems: 'center', gap: spacing.md },
-  assistantCopy: { flex: 1, gap: spacing.xs },
-  assistantTitle: { ...typography.section, fontSize: 17, color: colors.text },
-  assistantBody: { ...typography.secondary, color: colors.muted },
+  section: { paddingHorizontal: spacing.lg, marginTop: spacing.lg },
+  help: { marginHorizontal: spacing.lg, marginTop: spacing.xl, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.primaryDark, alignItems: 'center', gap: spacing.md },
+  helpIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  helpCopy: { flex: 1 },
+  helpTitle: { ...typography.section, fontSize: 17, color: '#FFFFFF' },
+  helpBody: { ...typography.secondary, color: 'rgba(255,255,255,0.76)', marginTop: spacing.xs },
+  helpAction: { ...typography.button, color: colors.sun },
 });

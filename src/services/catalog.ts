@@ -7,7 +7,7 @@ const env = (globalThis as unknown as { process?: { env?: Record<string, string 
 export const API_ORIGIN = (env.EXPO_PUBLIC_API_URL || 'https://mig-farm-api.onrender.com').replace(/\/+$/, '');
 export const APP_ORIGIN = (env.EXPO_PUBLIC_APP_URL || API_ORIGIN).replace(/\/+$/, '');
 
-const PRODUCTS_CACHE_KEY = 'mig_farm_catalog_cache_v2';
+const PRODUCTS_CACHE_KEY = 'mig_farm_catalog_cache_v3';
 const CACHE_TTL_MS = 60 * 1000;
 
 type CatalogSnapshot = { products: Product[]; categories: StoreCategory[] };

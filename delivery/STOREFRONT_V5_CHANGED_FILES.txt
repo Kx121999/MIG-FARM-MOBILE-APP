@@ -1,0 +1,13 @@
+app/(tabs)/index.tsx
+app/(tabs)/catalog.tsx
+src/components/StoreDepartmentGrid.tsx
+src/components/StorefrontHome.tsx
+src/components/ProductCard.tsx
+src/components/CategorySections.tsx
+src/components/CategoryIcon.tsx
+src/constants/categories.ts
+src/services/catalog.ts
+scripts/storefront-category-client.test.mjs
+scripts/storefront-v5.test.mjs
+delivery/STOREFRONT_V5_ODOO_DATA_AUDIT.md
+delivery/STOREFRONT_V5_CHANGED_FILES.txt
