@@ -18,9 +18,10 @@ import {
   Truck,
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AppHeader } from '@/components/AppHeader';
 import { EmptyState } from '@/components/ScreenState';
-import { colors, radius, shadow } from '@/constants/theme';
+import { colors, glow, radius, shadow } from '@/constants/theme';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatAED, localizedProductTitle, textDirection } from '@/services/catalog';
@@ -87,18 +88,26 @@ export default function CartScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader compact />
       <View style={styles.page}>
-        <View style={[styles.header, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View>
+        <LinearGradient
+          colors={[colors.leaf, colors.primary, colors.primaryDark]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.header, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+        >
+          <View style={styles.headerIcon}>
+            <ShoppingBag size={22} color="#FFFFFF" strokeWidth={2.1} />
+          </View>
+          <View style={styles.flex}>
             <Text style={[styles.title, { textAlign: isRTL ? 'right' : 'left' }]}>{t('cart')}</Text>
             <Text style={[styles.subtitle, { textAlign: isRTL ? 'right' : 'left' }]}>{cartCount} {language === 'ar' ? 'قطعة' : cartCount === 1 ? 'item' : 'items'}</Text>
           </View>
           {!!cart.length && (
             <Pressable accessibilityRole="button" style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]} onPress={confirmClear}>
-              <Trash2 size={15} color={colors.danger} strokeWidth={2} />
+              <Trash2 size={15} color="#FFFFFF" strokeWidth={2} />
               <Text style={styles.clear}>{t('clearCart')}</Text>
             </Pressable>
           )}
-        </View>
+        </LinearGradient>
 
         {!cart.length ? (
           <View style={styles.empty}>
@@ -146,7 +155,13 @@ export default function CartScreen() {
                 <Text style={styles.secureText}>{language === 'ar' ? 'السعر المعروض تقديري' : 'Displayed price is provisional'}</Text>
               </View>
             </View>
-            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.checkout, pressed && styles.primaryPressed]} onPress={checkout}>
+            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.checkoutWrap, pressed && styles.primaryPressed]} onPress={checkout}>
+              <LinearGradient
+                style={StyleSheet.absoluteFill}
+                colors={[colors.leaf, colors.primary, colors.primaryDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
               <Truck size={18} color="#FFFFFF" strokeWidth={2.2} />
               <Text style={styles.checkoutText}>{language === 'ar' ? 'متابعة بيانات التوصيل' : 'Continue to delivery'}</Text>
               <ForwardIcon size={17} color="#FFFFFF" strokeWidth={2.5} />
@@ -174,11 +189,13 @@ function CheckoutSteps({ language }: { language: 'ar' | 'en' }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   page: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  header: { paddingHorizontal: 16, paddingTop: 15, paddingBottom: 11, alignItems: 'center', justifyContent: 'space-between' },
-  title: { color: colors.text, fontSize: 27, fontWeight: '900' },
-  subtitle: { color: colors.muted, fontSize: 12, marginTop: 3 },
-  clearButton: { minHeight: 36, paddingHorizontal: 10, borderRadius: radius.md, borderWidth: 1, borderColor: '#F0D4D1', backgroundColor: '#FFF7F6', flexDirection: 'row', alignItems: 'center', gap: 6 },
-  clear: { color: colors.danger, fontSize: 11, fontWeight: '900' },
+  header: { marginHorizontal: 16, marginTop: 12, marginBottom: 4, padding: 16, borderRadius: radius.xl, alignItems: 'center', gap: 12, ...glow },
+  flex: { flex: 1 },
+  headerIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  title: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
+  subtitle: { color: 'rgba(255,255,255,0.82)', fontSize: 12, marginTop: 3 },
+  clearButton: { minHeight: 36, paddingHorizontal: 10, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.18)', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  clear: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   list: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
   steps: { minHeight: 58, marginBottom: 4, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   stepActive: { height: 34, paddingHorizontal: 11, borderRadius: radius.pill, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -186,7 +203,7 @@ const styles = StyleSheet.create({
   step: { alignItems: 'center', gap: 3 },
   stepText: { color: colors.textSubtle, fontSize: 8, fontWeight: '800' },
   stepLine: { width: 28, height: 1, marginHorizontal: 6, backgroundColor: colors.borderStrong },
-  item: { backgroundColor: colors.surface, padding: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, gap: 11 },
+  item: { backgroundColor: colors.surface, padding: 10, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, gap: 11 },
   imageButton: { width: 92, height: 106, borderRadius: radius.md, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
   itemCopy: { flex: 1, minHeight: 106 },
@@ -215,7 +232,7 @@ const styles = StyleSheet.create({
   stickyTotalRow: { minHeight: 37, alignItems: 'center', justifyContent: 'space-between' },
   stickyLabel: { color: colors.muted, fontSize: 9, fontWeight: '700' },
   stickyTotal: { color: colors.primary, fontSize: 18, lineHeight: 22, fontWeight: '900', writingDirection: 'ltr' },
-  checkout: { height: 48, marginTop: 7, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  checkoutWrap: { height: 50, marginTop: 7, paddingHorizontal: 14, borderRadius: radius.xl, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...glow },
   checkoutText: { flex: 1, color: '#FFFFFF', fontSize: 13, fontWeight: '900', textAlign: 'center' },
   secureRow: { alignItems: 'center', justifyContent: 'center', gap: 5 },
   secureText: { color: colors.muted, fontSize: 9, fontWeight: '700', textAlign: 'center' },
