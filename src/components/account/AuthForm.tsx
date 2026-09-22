@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Eye, EyeOff, Mail, Phone, UserRound } from 'lucide-react-native';
+import { Eye, EyeOff, Mail, UserRound } from 'lucide-react-native';
 import { AccountPage, AccountField, AccountRow, Notice, ui } from './AccountUI';
 import { AppButton } from '@/components/AppButton';
 import { AppIconButton } from '@/components/AppIconButton';
@@ -10,7 +10,7 @@ import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { authService, customerError } from '@/services/customer';
-import { normalizePhone, validEmail } from '@/utils/customer';
+import { validEmail } from '@/utils/customer';
 import { googleIdToken, useGoogleSignIn } from '@/services/googleSignIn';
 import { colors, radius, shadow, spacing, typography } from '@/constants/theme';
 
@@ -34,10 +34,8 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
   const auth = useAuth();
   const [email, setEmail] = useState(''),
     [password, setPassword] = useState(''),
-    [name, setName] = useState(''),
-    [phone, setPhone] = useState('');
-  const [phoneMode, setPhoneMode] = useState(false),
-    [visible, setVisible] = useState(false),
+    [name, setName] = useState('');
+  const [visible, setVisible] = useState(false),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
   const [googleRequest, googleResponse, promptGoogle] = useGoogleSignIn();
@@ -68,15 +66,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
   const submit = async () => {
     if (busy) return;
     setMessage('');
-    if (phoneMode && !normalizePhone(phone)) {
-      setMessage(
-        ar
-          ? 'أدخل رقمًا صحيحًا مع رمز الدولة، مثل +971501234567.'
-          : 'Enter a valid number with country code, e.g. +971501234567.',
-      );
-      return;
-    }
-    if (!phoneMode && !validEmail(email)) {
+    if (!validEmail(email)) {
       setMessage(
         ar ? 'راجع البريد الإلكتروني.' : 'Enter a valid email address.',
       );
@@ -86,11 +76,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
       setMessage(ar ? 'أدخل الاسم.' : 'Enter your name.');
       return;
     }
-    if (
-      mode !== 'forgot' &&
-      !phoneMode &&
-      password.length < (mode === 'register' ? 10 : 1)
-    ) {
+    if (mode !== 'forgot' && password.length < (mode === 'register' ? 10 : 1)) {
       setMessage(
         ar
           ? 'أدخل كلمة مرور صالحة، 10 أحرف على الأقل للحساب الجديد.'
@@ -100,14 +86,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
     }
     setBusy(true);
     try {
-      if (phoneMode) {
-        await authService.requestPhoneCode(normalizePhone(phone)!);
-        setMessage(
-          ar
-            ? 'راجع رسالة التحقق على هاتفك.'
-            : 'Check your phone for a verification code.',
-        );
-      } else if (mode === 'forgot') {
+      if (mode === 'forgot') {
         await authService.forgotPassword(email.trim());
         setMessage(
           ar
@@ -163,29 +142,17 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
           maxLength={120}
         />
       ) : null}
-      {phoneMode ? (
-        <AccountField
-          label={ar ? 'رقم الهاتف' : 'Phone number'}
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          ltr
-          placeholder="+971"
-          maxLength={30}
-        />
-      ) : (
-        <AccountField
-          label={ar ? 'البريد الإلكتروني' : 'Email'}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          ltr
-          maxLength={254}
-        />
-      )}
-      {mode !== 'forgot' && !phoneMode ? (
+      <AccountField
+        label={ar ? 'البريد الإلكتروني' : 'Email'}
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoComplete="email"
+        ltr
+        maxLength={254}
+      />
+      {mode !== 'forgot' ? (
         <View style={{ gap: 8 }}>
           <AccountField
             label={ar ? 'كلمة المرور' : 'Password'}
@@ -224,20 +191,16 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
             ? ar
               ? 'جارٍ المتابعة...'
               : 'Please wait...'
-            : phoneMode
+            : mode === 'forgot'
               ? ar
-                ? 'إرسال رمز التحقق'
-                : 'Send verification code'
-              : mode === 'forgot'
-                ? ar
-                  ? 'إرسال رابط الاستعادة'
-                  : 'Send recovery link'
-                : title
+                ? 'إرسال رابط الاستعادة'
+                : 'Send recovery link'
+              : title
         }
         onPress={submit}
         disabled={busy}
       />
-      {mode !== 'forgot' && !phoneMode ? (
+      {mode !== 'forgot' ? (
         <>
           <Divider label={ar ? 'أو' : 'or'} />
           <GoogleSignInButton
@@ -251,22 +214,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
       ) : null}
       {mode === 'login' ? (
         <>
-          <AccountRow
-            icon={phoneMode ? Mail : Phone}
-            title={
-              phoneMode
-                ? ar
-                  ? 'الدخول بالبريد الإلكتروني'
-                  : 'Use email'
-                : ar
-                  ? 'الدخول برقم الهاتف'
-                  : 'Use phone number'
-            }
-            onPress={() => {
-              setPhoneMode(!phoneMode);
-              setMessage('');
-            }}
-          />
           <AccountRow
             icon={Mail}
             title={ar ? 'نسيت كلمة المرور؟' : 'Forgot password?'}

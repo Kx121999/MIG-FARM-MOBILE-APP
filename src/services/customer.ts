@@ -21,9 +21,6 @@ import { Platform } from 'react-native';
 export { CustomerServiceError } from '@/services/apiClient';
 const publicPost = <T>(action: string, body: unknown) =>
   apiRequest<T>('/api/auth/' + action, { method: 'POST', body, auth: 'none' });
-const unavailable = async (): Promise<never> => {
-  throw new CustomerServiceError('unavailable');
-};
 export const authService = {
   available: true,
   login: (email: string, password: string) =>
@@ -52,9 +49,6 @@ export const authService = {
   },
   deleteAccount: (password: string) =>
     apiRequest<void>('/api/me', { method: 'DELETE', body: { password } }),
-  requestPhoneCode: (_phone: string) => unavailable(),
-  verifyPhoneCode: (_phone: string, _code: string) => unavailable(),
-  socialSignIn: (_provider: 'apple' | 'google') => unavailable(),
 };
 type OrderDTO = Omit<CustomerOrder, 'number' | 'address'> & {
   id: string;
