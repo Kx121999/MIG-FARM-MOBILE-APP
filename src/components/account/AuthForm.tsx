@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Eye, EyeOff, Mail, UserRound } from 'lucide-react-native';
-import { AccountPage, AccountField, AccountRow, Notice, ui } from './AccountUI';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Mail, UserRound } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AccountField, AccountRow, Notice, ui } from './AccountUI';
 import { AppButton } from '@/components/AppButton';
 import { AppIconButton } from '@/components/AppIconButton';
 import { BrandLogo } from '@/components/BrandLogo';
 import { GoogleSignInButton } from '@/components/GoogleSignInButton';
+import { MotionPressable } from '@/components/Motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { authService, customerError } from '@/services/customer';
@@ -113,12 +116,29 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
       setPassword('');
     }
   };
+  const BackIcon = ar ? ArrowRight : ArrowLeft;
   return (
-    <AccountPage title={title}>
-      <View style={heroStyles.hero}>
-        <View style={heroStyles.logoBadge}>
-          <BrandLogo width={104} />
+    <SafeAreaView style={heroStyles.safe} edges={['top', 'bottom']}>
+      <LinearGradient
+        colors={[colors.leaf, colors.primary, colors.primaryDark]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={heroStyles.hero}
+      >
+        <View style={[heroStyles.heroTop, { flexDirection: ar ? 'row-reverse' : 'row' }]}>
+          <MotionPressable
+            accessibilityRole="button"
+            accessibilityLabel={ar ? 'رجوع' : 'Back'}
+            style={ui.glassIcon}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/account'))}
+          >
+            <BackIcon size={19} color="#FFFFFF" />
+          </MotionPressable>
         </View>
+        <View style={heroStyles.logoBadge}>
+          <BrandLogo width={96} />
+        </View>
+        <Text style={heroStyles.title}>{title}</Text>
         <Text style={heroStyles.subtitle}>
           {mode === 'register'
             ? ar
@@ -132,7 +152,13 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
                 ? 'أهلاً بعودتك'
                 : 'Welcome back'}
         </Text>
-      </View>
+      </LinearGradient>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={heroStyles.sheetContent}
+        style={heroStyles.sheet}
+      >
       {mode === 'register' ? (
         <AccountField
           label={ar ? 'الاسم' : 'Name'}
@@ -236,17 +262,24 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
           ? 'التصفح والشراء متاحان بدون إنشاء حساب.'
           : 'Browse and shop without creating an account.'}
       </Text>
-    </AccountPage>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 const heroStyles = StyleSheet.create({
-  hero: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
+  safe: { flex: 1, backgroundColor: colors.background },
+  hero: { alignItems: 'center', paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg, gap: spacing.sm },
+  heroTop: { width: '100%', minHeight: 44 },
   logoBadge: {
-    backgroundColor: colors.primarySoft,
+    backgroundColor: '#FFFFFF',
     borderRadius: radius.xl,
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
+    marginTop: spacing.xs,
     ...shadow,
   },
-  subtitle: { ...typography.body, color: colors.muted, textAlign: 'center' },
+  title: { ...typography.page, color: '#FFFFFF', marginTop: spacing.sm },
+  subtitle: { ...typography.body, color: 'rgba(255,255,255,0.82)', textAlign: 'center' },
+  sheet: { flex: 1, marginTop: -radius.xl, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, backgroundColor: colors.background },
+  sheetContent: { width: '100%', maxWidth: 680, alignSelf: 'center', padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.sm },
 });
