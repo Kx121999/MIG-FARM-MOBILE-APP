@@ -188,6 +188,8 @@ export function createApp({
         response.end(image.body);
         return;
       }
+      if (method === 'GET' && path === '/reset-password')
+        return servePasswordReset(response);
       if (method === 'GET' && path.startsWith('/media/')) {
         const file = resolve(
           mediaRoot,
@@ -695,6 +697,107 @@ export function createApp({
       });
     }
   });
+}
+const PASSWORD_RESET_HTML = `<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>إعادة تعيين كلمة المرور | MIG FARM</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #F7F8F6; color: #1F2A24; font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+    padding: 24px;
+  }
+  .card { width: 100%; max-width: 380px; background: #fff; border-radius: 12px; padding: 28px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  h1 { font-size: 20px; margin: 0 0 4px; color: #175C3B; }
+  p.sub { margin: 0 0 20px; font-size: 14px; color: #5B6961; }
+  label { display: block; font-size: 13px; margin: 14px 0 6px; }
+  input { width: 100%; padding: 12px; border: 1px solid #DDE3DE; border-radius: 8px; font-size: 15px; }
+  input:focus { outline: 2px solid #175C3B; border-color: #175C3B; }
+  button { width: 100%; margin-top: 20px; padding: 13px; border: none; border-radius: 8px; background: #175C3B; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .msg { margin-top: 14px; font-size: 13px; padding: 10px 12px; border-radius: 8px; }
+  .msg.error { background: #FBEAEA; color: #B43C3C; }
+  .msg.ok { background: #E9F3ED; color: #175C3B; }
+  .lang { text-align: left; margin-bottom: 12px; }
+  .lang button { all: unset; cursor: pointer; font-size: 12px; color: #5B6961; text-decoration: underline; width: auto; margin: 0; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="lang"><button type="button" id="langToggle">English</button></div>
+    <h1 id="title">إعادة تعيين كلمة المرور</h1>
+    <p class="sub" id="subtitle">MIG FARM | ميغ فارم</p>
+    <div id="app"></div>
+  </div>
+<script>
+(function () {
+  var ar = true;
+  var t = {
+    ar: { title: 'إعادة تعيين كلمة المرور', sub: 'MIG FARM | ميغ فارم', pw: 'كلمة المرور الجديدة', pw2: 'تأكيد كلمة المرور', submit: 'حفظ كلمة المرور', saving: 'جارٍ الحفظ...', noToken: 'افتح الرابط المرسل إلى بريدك الإلكتروني.', mismatch: 'راجع تطابق كلمتي المرور، 10 أحرف على الأقل.', done: 'تم تغيير كلمة المرور. افتح تطبيق ميغ فارم وسجّل الدخول من جديد.', invalid: 'الرابط غير صالح أو منتهي الصلاحية. اطلب رابطًا جديدًا من التطبيق.', generic: 'حدث خطأ، حاول مرة أخرى.', lang: 'English' },
+    en: { title: 'Reset password', sub: 'MIG FARM | ميغ فارم', pw: 'New password', pw2: 'Confirm password', submit: 'Save password', saving: 'Saving...', noToken: 'Open the recovery link sent to your email.', mismatch: 'Passwords must match and contain at least 10 characters.', done: 'Password changed. Open the MIG FARM app and sign in again.', invalid: 'This link is invalid or expired. Request a new one from the app.', generic: 'Something went wrong, please try again.', lang: 'العربية' },
+  };
+  var params = new URLSearchParams(location.hash.slice(1));
+  var token = params.get('token') || '';
+  if (token) history.replaceState(null, '', location.pathname);
+  var titleEl = document.getElementById('title'), subEl = document.getElementById('subtitle'), appEl = document.getElementById('app'), langBtn = document.getElementById('langToggle');
+  function render() {
+    var L = t[ar ? 'ar' : 'en'];
+    document.documentElement.lang = ar ? 'ar' : 'en';
+    document.documentElement.dir = ar ? 'rtl' : 'ltr';
+    titleEl.textContent = L.title;
+    subEl.textContent = L.sub;
+    langBtn.textContent = L.lang;
+    if (!token) {
+      appEl.innerHTML = '<div class="msg error">' + L.noToken + '</div>';
+      return;
+    }
+    appEl.innerHTML =
+      '<form id="f">' +
+      '<label>' + L.pw + '</label><input type="password" id="pw" autocomplete="new-password" minlength="10" maxlength="128" required>' +
+      '<label>' + L.pw2 + '</label><input type="password" id="pw2" autocomplete="new-password" minlength="10" maxlength="128" required>' +
+      '<button type="submit" id="btn">' + L.submit + '</button>' +
+      '<div id="out"></div>' +
+      '</form>';
+    document.getElementById('f').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var pw = document.getElementById('pw').value, pw2 = document.getElementById('pw2').value;
+      var out = document.getElementById('out'), btn = document.getElementById('btn');
+      if (pw.length < 10 || pw !== pw2) { out.innerHTML = '<div class="msg error">' + L.mismatch + '</div>'; return; }
+      btn.disabled = true; btn.textContent = L.saving;
+      fetch('/api/auth/reset-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token, password: pw }),
+      }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+          if (res.ok) { appEl.innerHTML = '<div class="msg ok">' + L.done + '</div>'; return; }
+          var code = res.data && res.data.error;
+          out.innerHTML = '<div class="msg error">' + (code === 'invalid_reset_token' ? L.invalid : L.generic) + '</div>';
+          btn.disabled = false; btn.textContent = L.submit;
+        })
+        .catch(function () {
+          out.innerHTML = '<div class="msg error">' + L.generic + '</div>';
+          btn.disabled = false; btn.textContent = L.submit;
+        });
+    });
+  }
+  langBtn.addEventListener('click', function () { ar = !ar; render(); });
+  render();
+})();
+</script>
+</body>
+</html>`;
+function servePasswordReset(response) {
+  response.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  response.end(PASSWORD_RESET_HTML);
 }
 async function serveAdmin(response, mediaRoot) {
   response.writeHead(200, {
