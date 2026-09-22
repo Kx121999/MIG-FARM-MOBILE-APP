@@ -11,6 +11,7 @@ import { CategoryIcon } from '@/components/CategoryIcon';
 import { MotionPressable } from '@/components/Motion';
 import { ProductRail } from '@/components/ProductRail';
 import { ScreenState } from '@/components/ScreenState';
+import { SeasonalGrowingTip } from '@/components/SeasonalGrowingTip';
 import { SectionTitle } from '@/components/SectionTitle';
 import { StoreDepartmentGrid } from '@/components/StoreDepartmentGrid';
 import { CategoryId, localizedCategoryName, storefrontHomeSections } from '@/constants/categories';
@@ -146,6 +147,8 @@ export default function HomeScreen() {
             <View style={styles.deliveryDivider} />
             <Text style={styles.deliveryText}>{language === 'ar' ? 'كتالوج مباشر من Odoo' : 'Live Odoo catalog'}</Text>
           </View>
+
+          <SeasonalGrowingTip />
 
           <View style={styles.section}>
             <SectionTitle title={language === 'ar' ? 'أقسام المتجر' : 'Store departments'} />
