@@ -7,23 +7,32 @@ import { MessageCircle, Search, Truck } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/AppButton';
 import { AppHeader } from '@/components/AppHeader';
+import { CategoryIcon } from '@/components/CategoryIcon';
 import { MotionPressable } from '@/components/Motion';
 import { ProductRail } from '@/components/ProductRail';
 import { ScreenState } from '@/components/ScreenState';
 import { SectionTitle } from '@/components/SectionTitle';
 import { StoreDepartmentGrid } from '@/components/StoreDepartmentGrid';
-import { storefrontHomeSections } from '@/constants/categories';
+import { CategoryId, localizedCategoryName, storefrontHomeSections } from '@/constants/categories';
 import { COMPANY } from '@/constants/company';
 import { colors, glow, radius, sizes, spacing, typography } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProducts } from '@/hooks/useProducts';
 import { HomeContentSection, platformService } from '@/services/platform';
+
+function timeGreeting(hour: number, ar: boolean) {
+  if (hour < 12) return ar ? 'صباح الخير' : 'Good morning';
+  if (hour < 17) return ar ? 'مساء الخير' : 'Good afternoon';
+  return ar ? 'مساء الخير' : 'Good evening';
+}
 
 const heroSource = require('../../assets/home-farm.webp');
 const HOME_CONTENT_CACHE = 'mig_farm_home_content_v1';
 
 export default function HomeScreen() {
   const { language, isRTL, t } = useLanguage();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
   const { products, categories, loading, error, reload } = useProducts();
@@ -65,6 +74,11 @@ export default function HomeScreen() {
   const openStore = () => router.push('/(tabs)/catalog');
   const openWhatsApp = () => Linking.openURL(COMPANY.whatsapp)
     .catch(() => router.push('/support'));
+  const quickCategories = useMemo<Array<{ id: CategoryId; label: string }>>(() => [
+    { id: 'all', label: language === 'ar' ? 'الكل' : 'All' },
+    ...departmentSections.map((section) => ({ id: section.category.id, label: localizedCategoryName(section.category, language) })),
+  ], [departmentSections, language]);
+  const greetingName = user?.name?.split(' ')[0];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -74,6 +88,11 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(104, insets.bottom + 92) }]}
       >
         <View style={styles.page}>
+          <Text style={[styles.greeting, { textAlign: isRTL ? 'right' : 'left' }]}>
+            {greetingName
+              ? `${timeGreeting(new Date().getHours(), language === 'ar')}، ${greetingName}`
+              : timeGreeting(new Date().getHours(), language === 'ar')}
+          </Text>
           <ImageBackground
             source={heroSource}
             resizeMode="cover"
@@ -105,6 +124,21 @@ export default function HomeScreen() {
               <Text numberOfLines={1} style={[styles.searchText, { textAlign: isRTL ? 'right' : 'left' }]}>{t('search')}</Text>
             </MotionPressable>
           </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.quickCategories, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            {quickCategories.map((item) => (
+              <MotionPressable
+                key={item.id}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                style={styles.quickCategoryItem}
+                onPress={() => (item.id === 'all' ? openStore() : openCategory(item.id))}
+              >
+                <CategoryIcon id={item.id} boxSize={54} size={24} />
+                <Text numberOfLines={1} style={styles.quickCategoryText}>{item.label}</Text>
+              </MotionPressable>
+            ))}
+          </ScrollView>
 
           <View style={[styles.delivery, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Truck size={17} color={colors.primary} />
@@ -156,6 +190,10 @@ const styles = StyleSheet.create({
   searchFloat: { marginHorizontal: spacing.lg, marginTop: -22, marginBottom: spacing.lg },
   search: { minHeight: sizes.input, paddingHorizontal: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.lg, alignItems: 'center', gap: spacing.md, ...glow },
   searchText: { ...typography.secondary, color: colors.muted, flex: 1 },
+  greeting: { ...typography.section, color: colors.text, paddingHorizontal: spacing.lg, marginTop: spacing.sm },
+  quickCategories: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  quickCategoryItem: { width: 64, alignItems: 'center', gap: spacing.xs },
+  quickCategoryText: { ...typography.caption, color: colors.text, fontWeight: '700', textAlign: 'center' },
   hero: { marginHorizontal: spacing.lg, marginTop: spacing.sm, overflow: 'hidden', borderRadius: radius.xl, backgroundColor: colors.primaryDark },
   heroImage: { borderRadius: radius.xl },
   heroContent: { flex: 1, padding: spacing.xl, justifyContent: 'center' },
@@ -166,7 +204,7 @@ const styles = StyleSheet.create({
   deliveryText: { ...typography.caption, color: colors.muted, flexShrink: 1, textAlign: 'center' },
   deliveryDivider: { width: 1, height: 16, backgroundColor: colors.borderStrong },
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.lg },
-  help: { marginHorizontal: spacing.lg, marginTop: spacing.xl, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.primaryDark, alignItems: 'center', gap: spacing.md },
+  help: { marginHorizontal: spacing.lg, marginTop: spacing.xl, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.primaryDark, alignItems: 'center', gap: spacing.md, ...glow },
   helpIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   helpCopy: { flex: 1 },
   helpTitle: { ...typography.section, fontSize: 17, color: '#FFFFFF' },

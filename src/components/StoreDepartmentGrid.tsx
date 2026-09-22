@@ -3,7 +3,7 @@ import { Image, ImageSourcePropType, StyleSheet, Text, useWindowDimensions, View
 import { ArrowLeft, ArrowRight } from 'lucide-react-native';
 import { MotionPressable } from '@/components/Motion';
 import { localizedCategoryName, storefrontDepartmentDescription, type StorefrontSection } from '@/constants/categories';
-import { colors, radius, shadow, sizes, spacing, typography } from '@/constants/theme';
+import { colors, glow, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export const STOREFRONT_DEPARTMENT_IMAGE_FILES = {
@@ -29,7 +29,7 @@ function DepartmentCard({ section, onPress }: { section: StorefrontSection; onPr
   const title = localizedCategoryName(section.category, language);
   const description = storefrontDepartmentDescription(section.category.id, language);
   return (
-    <MotionPressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={[styles.card, shadow]}>
+    <MotionPressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={[styles.card, glow]}>
       <View style={[styles.imageFrame, { height: imageSize }]}>
         <Image source={source} resizeMode="cover" style={[styles.image, { height: imageSize }]} />
         <View style={styles.topRow}>
@@ -65,7 +65,7 @@ export function StoreDepartmentGrid({ sections, onOpenCategory }: {
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: spacing.md, rowGap: spacing.md },
-  card: { width: '47.5%', borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.surface },
+  card: { width: '47.5%', borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.surface },
   imageFrame: { width: '100%', aspectRatio: 1, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
   image: { width: '100%' },
   topRow: { position: 'absolute', top: 0, right: 0, left: 0, minHeight: 38, padding: spacing.sm, alignItems: 'flex-end' },
