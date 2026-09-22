@@ -4,13 +4,14 @@ import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, Vi
 import { router, useLocalSearchParams } from 'expo-router';
 import { Check, ChevronLeft, ChevronRight, Clock3, GitCompareArrows, Search, SlidersHorizontal, X } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { ProductCard, ProductCardSkeleton } from '@/components/ProductCard';
 import { ScreenState } from '@/components/ScreenState';
 import { CategorySections } from '@/components/CategorySections';
 import { CategoryId, categoryDisplayName, categoryLineage, categorySubtreeIds, directChildCategories, localizedCategoryName, orderedStoreCategories, productMatchesCategory, productsInCategoryTree, storefrontDepartments } from '@/constants/categories';
-import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
+import { colors, glow, radius, shadow, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useProducts } from '@/hooks/useProducts';
@@ -192,14 +193,21 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader compact />
       <View style={styles.page}>
-        <View style={[styles.titleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View>
-            <Text numberOfLines={2} style={[styles.title, { textAlign: isRTL ? 'right' : 'left' }]}>{searchMode ? t('searchTab') : selectedCategory ? localizedCategoryName(selectedCategory, language) : t('store')}</Text>
-            <Text style={[styles.count, { textAlign: isRTL ? 'right' : 'left' }]}>{visible.length} {language === 'ar' ? 'منتج' : 'products'}</Text>
+        <LinearGradient
+          colors={[colors.leaf, colors.primary, colors.primaryDark]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroBand}
+        >
+          <View style={[styles.titleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <View>
+              <Text numberOfLines={2} style={[styles.title, { textAlign: isRTL ? 'right' : 'left' }]}>{searchMode ? t('searchTab') : selectedCategory ? localizedCategoryName(selectedCategory, language) : t('store')}</Text>
+              <Text style={[styles.count, { textAlign: isRTL ? 'right' : 'left' }]}>{visible.length} {language === 'ar' ? 'منتج' : 'products'}</Text>
+            </View>
           </View>
-        </View>
+        </LinearGradient>
 
-        {searchField}
+        <View style={styles.searchFloat}>{searchField}</View>
 
         {searchMode && !query.trim() ? (
           <View style={styles.discoveryPanel}>
@@ -382,10 +390,12 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   page: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  titleRow: { paddingHorizontal: 16, paddingTop: 15, paddingBottom: 12, justifyContent: 'space-between', alignItems: 'center' },
-  title: { ...typography.page, color: colors.text },
-  count: { color: colors.muted, fontSize: 12, marginTop: 3 },
-  search: { height: sizes.input, marginHorizontal: 16, backgroundColor: colors.surfaceMuted, borderRadius: radius.md, alignItems: 'center', paddingHorizontal: 14, gap: 9 },
+  heroBand: { paddingTop: 6, paddingBottom: 30, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
+  titleRow: { paddingHorizontal: 16, paddingTop: 9, paddingBottom: 4, justifyContent: 'space-between', alignItems: 'center' },
+  title: { ...typography.page, color: '#FFFFFF' },
+  count: { color: 'rgba(255,255,255,0.82)', fontSize: 12, marginTop: 3 },
+  searchFloat: { marginHorizontal: 16, marginTop: -22, marginBottom: 12 },
+  search: { height: sizes.input, backgroundColor: colors.surface, borderRadius: radius.lg, alignItems: 'center', paddingHorizontal: 14, gap: 9, ...glow },
   input: { flex: 1, height: '100%', color: colors.text, fontSize: 14 },
   pressed: { opacity: 0.7 },
   controlRow: { minHeight: 38, marginHorizontal: 16, alignItems: 'center', justifyContent: 'space-between' },
