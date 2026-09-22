@@ -262,7 +262,7 @@ export default function ProductScreen() {
           </LinearGradient>
         ) : null}
         <View style={[styles.page, wide && styles.pageWide, wide && { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View style={styles.galleryColumn}>
+          <View style={[styles.galleryColumn, wide && styles.galleryColumnWide]}>
             {wide ? (
               <View style={[styles.imagePanel, { height: galleryHeight }, shadow]}>
                 {imageContent}
@@ -283,7 +283,7 @@ export default function ProductScreen() {
             )}
           </View>
 
-          <View style={styles.detailsColumn}>
+          <View style={[styles.detailsColumn, wide && styles.detailsColumnWide]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.breadcrumb, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Pressable accessibilityRole="link" onPress={() => router.push('/(tabs)/catalog')}><Text style={styles.breadcrumbLink}>{language === 'ar' ? 'المتجر' : 'Store'}</Text></Pressable>
               {categoryPath.map((item) => <React.Fragment key={item.id}>
@@ -470,7 +470,8 @@ const styles = StyleSheet.create({
   skeletonPrice: { width: '42%', height: 22 },
   skeletonOptions: { width: '100%', height: 76, borderRadius: radius.md },
   skeletonButton: { width: '100%', height: 52, borderRadius: radius.md },
-  galleryColumn: { flex: 1, width: '100%', minWidth: 0 },
+  galleryColumn: { width: '100%', minWidth: 0 },
+  galleryColumnWide: { flex: 1 },
   imagePanel: { width: '100%', maxHeight: 460, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   image: { width: '97%', height: '97%' },
   imageFallback: { alignItems: 'center', justifyContent: 'center', gap: 9 },
@@ -481,7 +482,8 @@ const styles = StyleSheet.create({
   thumbButton: { width: 64, height: 64, borderRadius: radius.md, padding: 3, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   thumbButtonActive: { borderColor: colors.primary, borderWidth: 2 },
   thumb: { width: '100%', height: '100%', borderRadius: radius.sm },
-  detailsColumn: { flex: 1, width: '100%', minWidth: 0, paddingTop: 2 },
+  detailsColumn: { width: '100%', minWidth: 0, paddingTop: 2 },
+  detailsColumnWide: { flex: 1 },
   breadcrumb: { maxWidth: '100%', minHeight: 28, alignItems: 'center', gap: 5, paddingBottom: 5 },
   breadcrumbLink: { maxWidth: 130, color: colors.primary, fontSize: 10, fontWeight: '800' },
   breadcrumbCurrent: { maxWidth: 150, color: colors.textSubtle, fontSize: 10, fontWeight: '700' },
