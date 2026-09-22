@@ -14,7 +14,7 @@ import { SectionTitle } from '@/components/SectionTitle';
 import { StoreDepartmentGrid } from '@/components/StoreDepartmentGrid';
 import { storefrontHomeSections } from '@/constants/categories';
 import { COMPANY } from '@/constants/company';
-import { colors, radius, sizes, spacing, typography } from '@/constants/theme';
+import { colors, glow, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProducts } from '@/hooks/useProducts';
 import { HomeContentSection, platformService } from '@/services/platform';
@@ -74,16 +74,6 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(104, insets.bottom + 92) }]}
       >
         <View style={styles.page}>
-          <MotionPressable
-            accessibilityRole="button"
-            accessibilityLabel={t('search')}
-            style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
-            onPress={() => router.push('/(tabs)/search')}
-          >
-            <Search size={20} color={colors.primary} />
-            <Text numberOfLines={1} style={[styles.searchText, { textAlign: isRTL ? 'right' : 'left' }]}>{t('search')}</Text>
-          </MotionPressable>
-
           <ImageBackground
             source={heroSource}
             resizeMode="cover"
@@ -103,6 +93,18 @@ export default function HomeScreen() {
               <AppButton label={t('shopNow')} onPress={openStore} secondary arrow style={styles.heroButton} />
             </View>
           </ImageBackground>
+
+          <View style={styles.searchFloat}>
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel={t('search')}
+              style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+              onPress={() => router.push('/(tabs)/search')}
+            >
+              <Search size={20} color={colors.primary} />
+              <Text numberOfLines={1} style={[styles.searchText, { textAlign: isRTL ? 'right' : 'left' }]}>{t('search')}</Text>
+            </MotionPressable>
+          </View>
 
           <View style={[styles.delivery, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Truck size={17} color={colors.primary} />
@@ -151,9 +153,10 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
   content: { backgroundColor: colors.background },
   page: { width: '100%', maxWidth: sizes.page, alignSelf: 'center' },
-  search: { minHeight: sizes.input, marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.lg, paddingHorizontal: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.md, alignItems: 'center', gap: spacing.md },
+  searchFloat: { marginHorizontal: spacing.lg, marginTop: -22, marginBottom: spacing.lg },
+  search: { minHeight: sizes.input, paddingHorizontal: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.lg, alignItems: 'center', gap: spacing.md, ...glow },
   searchText: { ...typography.secondary, color: colors.muted, flex: 1 },
-  hero: { marginHorizontal: spacing.lg, overflow: 'hidden', borderRadius: radius.xl, backgroundColor: colors.primaryDark },
+  hero: { marginHorizontal: spacing.lg, marginTop: spacing.sm, overflow: 'hidden', borderRadius: radius.xl, backgroundColor: colors.primaryDark },
   heroImage: { borderRadius: radius.xl },
   heroContent: { flex: 1, padding: spacing.xl, justifyContent: 'center' },
   heroBrand: { ...typography.display, color: colors.surface, writingDirection: 'ltr' },
