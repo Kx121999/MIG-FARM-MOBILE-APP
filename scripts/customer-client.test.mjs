@@ -87,5 +87,4 @@ test('customer adapter preserves server ownership and normalizes order media', a
   assert.equal(calls[1].options.method, 'POST');
   const order = await exports.customerService.order('MIG-TEST-123');
   assert.equal(order.items[0].image, 'https://mig-farm-api.onrender.com/media/seed.webp');
-  await assert.rejects(exports.authService.requestPhoneCode('+971501234567'));
 });

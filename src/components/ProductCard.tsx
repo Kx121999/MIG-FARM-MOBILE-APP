@@ -93,7 +93,7 @@ export function ProductCardSkeleton({ wide = false }: { wide?: boolean }) {
   </View>;
 }
 const styles = StyleSheet.create({
-  card: { minWidth: 0, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm, overflow: 'hidden' },
+  card: { minWidth: 0, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.sm, overflow: 'hidden' },
   grid: { width: '48.4%', marginBottom: spacing.md },
   wide: { width: 180 },
   productTap: { minWidth: 0 },

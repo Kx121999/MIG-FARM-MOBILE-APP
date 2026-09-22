@@ -32,7 +32,7 @@ export function CategoryCard({ category, onPress, image }: { category: StoreCate
 }
 
 const styles = StyleSheet.create({
-  card: { width: 136, padding: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, overflow: 'hidden' },
+  card: { width: 136, padding: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden' },
   imageArea: { height: 112, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, marginBottom: spacing.sm, overflow: 'hidden', borderRadius: radius.sm },
   image: { width: '100%', height: '100%' },
   label: { ...typography.product, color: colors.text },

@@ -23,7 +23,7 @@ export const colors = {
   overlay: 'rgba(20, 29, 23, 0.38)',
 };
 
-export const radius = { sm: 4, md: 8, lg: 8, xl: 8, pill: 999 };
+export const radius = { sm: 4, md: 8, lg: 12, xl: 18, pill: 999 };
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 };
 export const sizes = { touch: 44, button: 48, input: 48, icon: 22, badge: 20, page: 760 };
 export const motion = { press: 160, enter: 220, intro: 850 };
@@ -40,6 +40,6 @@ export const typography = {
 } satisfies Record<string, TextStyle>;
 
 export const shadow = Platform.select({
-  web: { boxShadow: '0 2px 8px rgba(24, 35, 28, 0.035)' },
-  default: { shadowColor: colors.shadow, shadowOpacity: 0.035, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  web: { boxShadow: '0 4px 12px rgba(24, 35, 28, 0.08)' },
+  default: { shadowColor: colors.shadow, shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
 }) ?? {};
