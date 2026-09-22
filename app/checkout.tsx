@@ -25,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChoiceGroup } from '@/components/account/ChoiceGroup';
 import { Notice } from '@/components/account/AccountUI';
 import { CheckoutPayment } from '@/components/payments/CheckoutPayment';
+import { DeliveryMethod, DeliveryMethodMap } from '@/components/DeliveryMethodMap';
 import { colors, radius } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -98,6 +99,7 @@ export default function CheckoutScreen() {
   const [selectedAddress, setSelectedAddress] = useState('');
   const [customer, setCustomer] = useState<CheckoutCustomer>({ name: '', email: '', phone: '' });
   const [address, setAddress] = useState<ShippingAddress>({ emirate: 'Dubai', city: '', addressLine: '', notes: '' });
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('delivery');
   const [preparedOrder, setPreparedOrder] = useState<PreparedOrder | null>(null);
   const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
@@ -239,6 +241,7 @@ export default function CheckoutScreen() {
                   </View>
                   {addresses.length ? <ChoiceGroup label={language === 'ar' ? 'العناوين المحفوظة' : 'Saved addresses'} value={selectedAddress} options={addresses.map((item) => ({ value: item.id, label: item.label }))} onChange={chooseAddress} /> : null}
                   {addressError ? <Notice text={language === 'ar' ? 'تعذر تحميل العناوين. يمكنك إدخال العنوان يدويًا.' : 'Saved addresses could not be loaded. You can enter an address manually.'} /> : null}
+                  <DeliveryMethodMap emirate={address.emirate} method={deliveryMethod} onChangeMethod={setDeliveryMethod} />
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emirates}>
                     {emirates.map((item) => (
                       <Pressable key={item.value} onPress={() => setAddress((current) => ({ ...current, addressId: null, emirate: item.value }))} style={[styles.emirate, address.emirate === item.value && styles.emirateActive]}>
