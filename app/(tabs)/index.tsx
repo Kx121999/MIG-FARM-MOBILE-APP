@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MessageCircle, Search, Truck } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActiveOrderCard } from '@/components/ActiveOrderCard';
 import { AppButton } from '@/components/AppButton';
 import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
@@ -18,6 +19,7 @@ import { CategoryId, localizedCategoryName, storefrontHomeSections } from '@/con
 import { COMPANY } from '@/constants/company';
 import { colors, glow, radius, sizes, spacing, typography } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProducts } from '@/hooks/useProducts';
 import { HomeContentSection, platformService } from '@/services/platform';
@@ -37,6 +39,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
   const { products, categories, loading, error, reload } = useProducts();
+  const { recentProductIds } = useCommerce();
   const [remoteSections, setRemoteSections] = useState<HomeContentSection[]>([]);
 
   useEffect(() => {
@@ -67,6 +70,14 @@ export default function HomeScreen() {
       .map((id) => products.find((product) => product.id === id))
       .filter((product): product is (typeof products)[number] => Boolean(product))
     : [], [featuredSection, products]);
+  const recentlyViewed = useMemo(() => recentProductIds
+    .map((id) => products.find((product) => product.id === id))
+    .filter((product): product is (typeof products)[number] => Boolean(product))
+    .slice(0, 10), [recentProductIds, products]);
+  const newArrivals = useMemo(() => [...products]
+    .filter((product) => Boolean(product.published_at))
+    .sort((a, b) => new Date(b.published_at as string).getTime() - new Date(a.published_at as string).getTime())
+    .slice(0, 10), [products]);
 
   const openCategory = (category: number) => router.push({
     pathname: '/(tabs)/catalog',
@@ -94,6 +105,7 @@ export default function HomeScreen() {
               ? `${timeGreeting(new Date().getHours(), language === 'ar')}، ${greetingName}`
               : timeGreeting(new Date().getHours(), language === 'ar')}
           </Text>
+          <ActiveOrderCard />
           <ImageBackground
             source={heroSource}
             resizeMode="cover"
@@ -164,6 +176,24 @@ export default function HomeScreen() {
                 onPress={featuredSection?.deepLink ? () => router.push(featuredSection.deepLink as never) : openStore}
               />
               <ProductRail products={picks} />
+            </View>
+          ) : null}
+
+          {recentlyViewed.length ? (
+            <View style={styles.section}>
+              <SectionTitle
+                title={language === 'ar' ? 'شوهد مؤخراً' : 'Recently viewed'}
+                action={t('viewAll')}
+                onPress={() => router.push('/recently-viewed')}
+              />
+              <ProductRail products={recentlyViewed} />
+            </View>
+          ) : null}
+
+          {newArrivals.length ? (
+            <View style={styles.section}>
+              <SectionTitle title={language === 'ar' ? 'وصل حديثًا' : 'New arrivals'} action={t('viewAll')} onPress={openStore} />
+              <ProductRail products={newArrivals} />
             </View>
           ) : null}
 
