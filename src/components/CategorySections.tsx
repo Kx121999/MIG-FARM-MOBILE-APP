@@ -1,9 +1,10 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { CategoryCard } from '@/components/CategoryCard';
 import { ProductRail } from '@/components/ProductRail';
 import { ScreenState } from '@/components/ScreenState';
 import { SectionTitle } from '@/components/SectionTitle';
-import { categoryPageSections, localizedCategoryName } from '@/constants/categories';
+import { categoryPageSections } from '@/constants/categories';
 import { spacing } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { Product, StoreCategory } from '@/types';
@@ -21,7 +22,7 @@ export function CategorySections({
   bottomPadding: number;
   onOpenCategory: (categoryId: number) => void;
 }) {
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const sections = categoryPageSections(products, categories, categoryId);
   if (!sections.length) {
     return (
@@ -31,20 +32,30 @@ export function CategorySections({
       />
     );
   }
+  const childSections = sections.filter((section) => section.kind === 'child');
+  const directSections = sections.filter((section) => section.kind === 'direct');
   return (
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
       showsVerticalScrollIndicator={false}
     >
-      {sections.map((section) => (
+      {childSections.length ? (
+        <View style={styles.grid}>
+          {childSections.map((section) => (
+            <CategoryCard
+              key={`${section.kind}-${section.category.id}`}
+              category={section.category}
+              image={section.category.image}
+              onPress={() => onOpenCategory(section.category.id)}
+            />
+          ))}
+        </View>
+      ) : null}
+      {directSections.map((section) => (
         <View key={`${section.kind}-${section.category.id}`} style={styles.section}>
           <SectionTitle
-            title={section.kind === 'direct'
-              ? (language === 'ar' ? 'منتجات القسم المباشرة' : 'Other / Direct products')
-              : localizedCategoryName(section.category, language)}
-            action={section.kind === 'child' ? t('viewAll') : undefined}
-            onPress={section.kind === 'child' ? () => onOpenCategory(section.category.id) : undefined}
+            title={language === 'ar' ? 'منتجات القسم المباشرة' : 'Other / Direct products'}
           />
           <ProductRail products={section.products} categoryId={section.category.id} />
         </View>
@@ -56,5 +67,6 @@ export function CategorySections({
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginBottom: spacing.xl },
   section: { marginBottom: spacing.xl, overflow: 'visible' },
 });
