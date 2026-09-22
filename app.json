@@ -46,6 +46,13 @@
         { "configureAndroidBackup": true, "faceIDPermission": false }
       ],
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon-mig-farm.png",
+          "color": "#175C3B"
+        }
+      ],
+      [
         "@stripe/stripe-react-native",
         {
           "merchantIdentifier": "merchant.com.migfarm.app",

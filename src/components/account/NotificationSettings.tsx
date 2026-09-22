@@ -69,8 +69,8 @@ export function NotificationSettings() {
       <Notice
         text={
           ar
-            ? 'العروض والمنتجات الجديدة اختيارية. إشعارات الهاتف الفورية غير مفعلة حاليًا.'
-            : 'Offers and new-product alerts are optional. Push notifications are not active yet.'
+            ? 'العروض والمنتجات الجديدة اختيارية. لو سمحت بإذن الإشعارات على جهازك، هيوصلك تحديث الطلب مباشرة.'
+            : 'Offers and new-product alerts are optional. If you allow notifications on this device, order updates will reach you directly.'
         }
       />
       {message ? <Notice text={message} /> : null}

@@ -15,6 +15,8 @@ import {
 import { sessionStore } from '@/services/sessionStore';
 import { apiSession, refreshSession, validSession } from '@/services/apiClient';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { platformService } from '@/services/platform';
+import { registerForPushToken, currentDeviceId } from '@/services/pushNotifications';
 import type {
   AuthSession,
   AvatarSelection,
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const session = useRef<AuthSession | null>(null);
   const generation = useRef(0);
+  const pushToken = useRef<string | null>(null);
   const accept = useCallback(
     async (next: AuthSession, expected = generation.current) => {
       if (!validSession(next))
@@ -95,8 +98,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubscribe();
     };
   }, [accept]);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const token = await registerForPushToken();
+      if (!token || cancelled) return;
+      pushToken.current = token;
+      try {
+        await platformService.savePushToken(token, language, currentDeviceId());
+      } catch {
+        // best-effort; in-app notification inbox still works without this
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, language]);
   const logout = async () => {
     const token = session.current?.refreshToken;
+    if (pushToken.current) {
+      try {
+        await platformService.removePushToken(pushToken.current);
+      } catch {
+        // best-effort
+      }
+      pushToken.current = null;
+    }
     generation.current++;
     session.current = null;
     setUser(null);

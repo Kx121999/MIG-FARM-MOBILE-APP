@@ -131,6 +131,27 @@ export function createPlatform(db, catalogInput) {
     return { ok: true };
   }
 
+  async function sendPush(userId, { titleAr, titleEn, bodyAr, bodyEn, data }) {
+    if (!pushDelivery.available) return;
+    const tokens = (await db.query(
+      'SELECT token_value,locale FROM mig_farm.push_tokens WHERE user_id=$1 AND enabled=true',
+      [userId],
+    )).rows;
+    if (!tokens.length) return;
+    const messages = tokens.map((row) => ({
+      to: row.token_value,
+      title: row.locale === 'ar' ? titleAr : titleEn,
+      body: row.locale === 'ar' ? bodyAr : bodyEn,
+      data: data || {},
+      sound: 'default',
+    }));
+    try {
+      await pushDelivery.send(messages);
+    } catch {
+      // best-effort; in-app notification is already recorded
+    }
+  }
+
   async function mergeGuest(user, body) {
     const clientUpdatedAt = body.clientUpdatedAt ? new Date(body.clientUpdatedAt) : new Date();
     if (Number.isNaN(clientUpdatedAt.getTime())) throw fail(400, 'invalid_input');
@@ -340,6 +361,7 @@ export function createPlatform(db, catalogInput) {
     role(user);
     const status = ['new','processing','ready','shipped','delivered','cancelled'].includes(body.deliveryStatus) ? body.deliveryStatus : null;
     if (!status) throw fail(400, 'invalid_input');
+    let pushPayload = null;
     const row = await db.transaction(async (client) => {
       const current = (await client.query(
         'SELECT * FROM mig_farm.orders WHERE id=$1 FOR UPDATE',
@@ -379,10 +401,19 @@ export function createPlatform(db, catalogInput) {
               }),
             ],
           );
+          pushPayload = {
+            userId: updated.customer_id,
+            titleAr: labels[status][0],
+            titleEn: labels[status][1],
+            bodyAr: `رقم الطلب ${updated.id}`,
+            bodyEn: `Order ${updated.id}`,
+            data: { type: 'order', orderId: updated.id, deliveryStatus: status },
+          };
         }
       }
       return updated;
     });
+    if (pushPayload) await sendPush(pushPayload.userId, pushPayload);
     return { order: orderDTO(row) };
   }
 
