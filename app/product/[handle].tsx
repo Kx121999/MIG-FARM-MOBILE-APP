@@ -23,7 +23,8 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radius, shadow } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, glow, radius, shadow } from '@/constants/theme';
 import { ProductCard } from '@/components/ProductCard';
 import { SectionTitle } from '@/components/SectionTitle';
 import { Skeleton } from '@/components/Skeleton';
@@ -197,35 +198,76 @@ export default function ProductScreen() {
     url: `${APP_ORIGIN}/product/${product.handle}`,
   }).catch(() => undefined);
 
+  const imageContent = (
+    <>
+      {currentImage && !imageFailed ? <Image accessibilityLabel={productTitle} source={{ uri: currentImage, cache: 'force-cache' }} style={styles.image} resizeMode="contain" onError={handleImageError} /> : <View style={styles.imageFallback}><ImageOff size={42} color={colors.textSubtle} strokeWidth={1.4} /><Text style={styles.imageFallbackText}>{language === 'ar' ? 'الصورة غير متاحة' : 'Image unavailable'}</Text></View>}
+      {product.vendor ? <View style={styles.imageBadge}><ShieldCheck size={14} color={colors.primary} /><Text numberOfLines={1} style={styles.imageBadgeText}>{product.vendor}</Text></View> : null}
+    </>
+  );
+  const glassRow = (
+    <View style={[styles.heroTopRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Back" style={({ pressed }) => [styles.glassIcon, pressed && styles.pressed]} onPress={() => router.back()}>
+        <BackIcon size={21} color="#FFFFFF" strokeWidth={2.3} />
+      </Pressable>
+      <View style={[styles.heroTopActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Share product" style={({ pressed }) => [styles.glassIcon, pressed && styles.pressed]} onPress={shareProduct}>
+          <Share2 size={19} color="#FFFFFF" strokeWidth={2.1} />
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Favorite" style={({ pressed }) => [styles.glassIcon, favorite && styles.glassIconActive, pressed && styles.pressed]} onPress={() => toggleFavorite(product.id)}>
+          <Heart size={20} color={favorite ? colors.sun : '#FFFFFF'} fill={favorite ? colors.sun : 'transparent'} strokeWidth={2.1} />
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('compare')} style={({ pressed }) => [styles.glassIcon, compared && styles.glassIconActive, pressed && styles.pressed]} onPress={() => toggleCompare(product.id)}>
+          <GitCompareArrows size={19} color="#FFFFFF" strokeWidth={2.1} />
+        </Pressable>
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <View style={styles.topBar}>
-        <View style={styles.topBarInner}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Back" style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]} onPress={() => router.back()}>
-            <BackIcon size={21} color={colors.primaryDark} strokeWidth={2.3} />
-          </Pressable>
-          <Text numberOfLines={1} style={styles.topBarTitle}>{t('productDetails')}</Text>
-          <View style={styles.topBarActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Share product" style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]} onPress={shareProduct}>
-              <Share2 size={19} color={colors.primaryDark} strokeWidth={2.1} />
+      {wide ? (
+        <View style={styles.topBar}>
+          <View style={styles.topBarInner}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Back" style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]} onPress={() => router.back()}>
+              <BackIcon size={21} color={colors.primaryDark} strokeWidth={2.3} />
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Favorite" style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]} onPress={() => toggleFavorite(product.id)}>
-              <Heart size={20} color={favorite ? colors.orange : colors.primaryDark} fill={favorite ? colors.orange : 'transparent'} strokeWidth={2.1} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('compare')} style={({ pressed }) => [styles.iconButton, compared && styles.compareButtonActive, pressed && styles.pressed]} onPress={() => toggleCompare(product.id)}>
-              <GitCompareArrows size={19} color={compared ? '#FFFFFF' : colors.primaryDark} strokeWidth={2.1} />
-            </Pressable>
+            <Text numberOfLines={1} style={styles.topBarTitle}>{t('productDetails')}</Text>
+            <View style={styles.topBarActions}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Share product" style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]} onPress={shareProduct}>
+                <Share2 size={19} color={colors.primaryDark} strokeWidth={2.1} />
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Favorite" style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]} onPress={() => toggleFavorite(product.id)}>
+                <Heart size={20} color={favorite ? colors.orange : colors.primaryDark} fill={favorite ? colors.orange : 'transparent'} strokeWidth={2.1} />
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={t('compare')} style={({ pressed }) => [styles.iconButton, compared && styles.compareButtonActive, pressed && styles.pressed]} onPress={() => toggleCompare(product.id)}>
+                <GitCompareArrows size={19} color={compared ? '#FFFFFF' : colors.primaryDark} strokeWidth={2.1} />
+              </Pressable>
+            </View>
           </View>
         </View>
-      </View>
+      ) : null}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, !wide && styles.contentMobile]}>
+        {!wide ? (
+          <LinearGradient
+            colors={[colors.leaf, colors.primary, colors.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroBand}
+          >
+            <SafeAreaView edges={['top']}>{glassRow}</SafeAreaView>
+            <View style={[styles.imagePanel, styles.heroImagePanel, { height: galleryHeight }, glow]}>
+              {imageContent}
+            </View>
+          </LinearGradient>
+        ) : null}
         <View style={[styles.page, wide && styles.pageWide, wide && { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View style={styles.galleryColumn}>
-            <View style={[styles.imagePanel, { height: galleryHeight }, shadow]}>
-              {currentImage && !imageFailed ? <Image accessibilityLabel={productTitle} source={{ uri: currentImage, cache: 'force-cache' }} style={styles.image} resizeMode="contain" onError={handleImageError} /> : <View style={styles.imageFallback}><ImageOff size={42} color={colors.textSubtle} strokeWidth={1.4} /><Text style={styles.imageFallbackText}>{language === 'ar' ? 'الصورة غير متاحة' : 'Image unavailable'}</Text></View>}
-              {product.vendor ? <View style={styles.imageBadge}><ShieldCheck size={14} color={colors.primary} /><Text numberOfLines={1} style={styles.imageBadgeText}>{product.vendor}</Text></View> : null}
-            </View>
+            {wide ? (
+              <View style={[styles.imagePanel, { height: galleryHeight }, shadow]}>
+                {imageContent}
+              </View>
+            ) : null}
 
             {!!galleryImages.length && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbs}>
@@ -405,6 +447,12 @@ const styles = StyleSheet.create({
   topBarActions: { flexDirection: 'row', gap: 7 },
   iconButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   compareButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  heroBand: { paddingHorizontal: 16, paddingBottom: 28, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
+  heroTopRow: { minHeight: 56, alignItems: 'center', justifyContent: 'space-between' },
+  heroTopActions: { gap: 8 },
+  glassIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  glassIconActive: { backgroundColor: 'rgba(255,255,255,0.38)' },
+  heroImagePanel: { marginTop: 8, borderWidth: 0 },
   pressed: { opacity: 0.68 },
   primaryPressed: { opacity: 0.82 },
   content: { paddingBottom: 36 },
