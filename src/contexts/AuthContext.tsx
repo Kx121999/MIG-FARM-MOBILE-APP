@@ -29,6 +29,7 @@ type AuthValue = {
   ready: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (draft: ProfileDraft) => Promise<void>;
   uploadAvatar: (image: AvatarSelection) => Promise<void>;
@@ -158,6 +159,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await authService.register(name, email, password, language);
       await accept(result, version);
       return true;
+    },
+    loginWithGoogle: async (idToken) => {
+      const version = ++generation.current;
+      await accept(await authService.google(idToken), version);
     },
     logout,
     updateProfile: (draft) =>

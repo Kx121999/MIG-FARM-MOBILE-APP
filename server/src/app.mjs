@@ -279,6 +279,7 @@ export function createApp({
           ![
             'register',
             'login',
+            'google',
             'refresh',
             'logout',
             'logout-all',
@@ -297,6 +298,8 @@ export function createApp({
           return send(response, 201, await auth.register(body));
         if (action === 'login')
           return send(response, 200, await auth.login(body));
+        if (action === 'google')
+          return send(response, 200, await auth.google(body));
         if (action === 'refresh')
           return send(response, 200, await auth.refresh(body.refreshToken));
         if (action === 'logout') {

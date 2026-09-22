@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Eye, EyeOff, Mail, Phone, UserRound } from 'lucide-react-native';
@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { authService, customerError } from '@/services/customer';
 import { normalizePhone, validEmail } from '@/utils/customer';
+import { googleIdToken, useGoogleSignIn } from '@/services/googleSignIn';
 
 export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
   const { isRTL: ar } = useLanguage();
@@ -22,6 +23,19 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
     [visible, setVisible] = useState(false),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
+  const [googleRequest, googleResponse, promptGoogle] = useGoogleSignIn();
+  useEffect(() => {
+    const idToken = googleIdToken(googleResponse);
+    if (!idToken) return;
+    setBusy(true);
+    setMessage('');
+    auth
+      .loginWithGoogle(idToken)
+      .then(() => router.replace('/(tabs)/account'))
+      .catch((error) => setMessage(customerError(error, ar)))
+      .finally(() => setBusy(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleResponse]);
   const title =
     mode === 'login'
       ? ar
@@ -191,6 +205,17 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
         onPress={submit}
         disabled={busy}
       />
+      {mode !== 'forgot' && !phoneMode ? (
+        <AppButton
+          secondary
+          label={ar ? 'الدخول بحساب Google' : 'Continue with Google'}
+          onPress={() => {
+            setMessage('');
+            void promptGoogle();
+          }}
+          disabled={busy || !googleRequest}
+        />
+      ) : null}
       {mode === 'login' ? (
         <>
           <AccountRow

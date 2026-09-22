@@ -7,7 +7,9 @@
     "scheme": "migfarm",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon-mig-farm.png",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.migfarm.app",
@@ -43,7 +45,10 @@
       ],
       [
         "expo-secure-store",
-        { "configureAndroidBackup": true, "faceIDPermission": false }
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": false
+        }
       ],
       [
         "expo-notifications",
@@ -59,7 +64,8 @@
           "enableGooglePay": true
         }
       ],
-      "./plugins/withStripeAndroidVersion"
+      "./plugins/withStripeAndroidVersion",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

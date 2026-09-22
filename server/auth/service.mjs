@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { fail, text, email, phone, password } from '../lib/validation.mjs';
 import {
   token,
@@ -8,6 +9,12 @@ import {
   bearer,
 } from './security.mjs';
 import { emailDelivery, avatarStorage } from '../services/adapters.mjs';
+const googleAudiences = [
+  process.env.GOOGLE_ANDROID_CLIENT_ID,
+  process.env.GOOGLE_IOS_CLIENT_ID,
+  process.env.GOOGLE_WEB_CLIENT_ID,
+].filter(Boolean);
+const googleClient = googleAudiences.length ? new OAuth2Client() : null;
 export const profile = (row) => ({
   id: row.id,
   name: row.name,
@@ -210,6 +217,70 @@ export function createAuth(db, options = {}) {
         throw fail(401, 'invalid_credentials');
       return issue(client, current, randomUUID(), null, synced?.business || null);
     });
+  }
+  async function google(body) {
+    requireDb();
+    if (!googleClient) throw fail(503, 'google_sign_in_not_configured');
+    const idToken = text(body.idToken, 4096, true);
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience: googleAudiences,
+      });
+      payload = ticket.getPayload();
+    } catch {
+      throw fail(401, 'invalid_google_token');
+    }
+    if (!payload?.sub || !payload.email || !payload.email_verified)
+      throw fail(401, 'invalid_google_token');
+    const googleId = text(payload.sub, 64, true),
+      address = email(payload.email),
+      name = text(payload.name || address.split('@')[0], 120, true);
+    let user;
+    try {
+      user = await db.transaction(async (client) => {
+        const byGoogle = (
+          await client.query(
+            'SELECT * FROM mig_farm.users WHERE google_id=$1 AND deleted_at IS NULL',
+            [googleId],
+          )
+        ).rows[0];
+        if (byGoogle) return byGoogle;
+        const byEmail = (
+          await client.query(
+            'SELECT * FROM mig_farm.users WHERE email=$1 AND deleted_at IS NULL FOR UPDATE',
+            [address],
+          )
+        ).rows[0];
+        if (byEmail)
+          return (
+            await client.query(
+              'UPDATE mig_farm.users SET google_id=$2,email_verified_at=COALESCE(email_verified_at,now()),updated_at=now() WHERE id=$1 RETURNING *',
+              [byEmail.id, googleId],
+            )
+          ).rows[0];
+        const created = (
+          await client.query(
+            'INSERT INTO mig_farm.users(id,name,email,google_id,email_verified_at,language) VALUES($1,$2,$3,$4,now(),$5) RETURNING *',
+            [randomUUID(), name, address, googleId, 'en'],
+          )
+        ).rows[0];
+        await client.query(
+          'INSERT INTO mig_farm.notification_preferences(user_id) VALUES($1)',
+          [created.id],
+        );
+        return created;
+      });
+    } catch (error) {
+      if (error.code === '23505') throw fail(409, 'registration_unavailable');
+      throw error;
+    }
+    const synced = await syncCustomer(user, false);
+    const current = synced?.row || user;
+    return db.transaction((client) =>
+      issue(client, current, randomUUID(), null, synced?.business || null),
+    );
   }
   async function refresh(value) {
     requireDb();
@@ -505,6 +576,7 @@ export function createAuth(db, options = {}) {
     rate,
     register,
     login,
+    google,
     refresh,
     logout,
     logoutAll,

@@ -30,6 +30,7 @@ export const authService = {
     publicPost<AuthSession>('login', { email, password }),
   register: (name: string, email: string, password: string, language = 'en') =>
     publicPost<AuthSession>('register', { name, email, password, language }),
+  google: (idToken: string) => publicPost<AuthSession>('google', { idToken }),
   refresh: (refreshToken: string) =>
     publicPost<AuthSession>('refresh', { refreshToken }),
   logout: (refreshToken: string) =>
