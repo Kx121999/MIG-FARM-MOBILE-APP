@@ -1,16 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
-import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react-native';
+import { Trash2 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { AppHeader } from '@/components/AppHeader';
-import { AppIconButton } from '@/components/AppIconButton';
+import { MotionPressable } from '@/components/Motion';
 import { ProductCard } from '@/components/ProductCard';
 import { EmptyState, ScreenState } from '@/components/ScreenState';
 import { useProducts } from '@/hooks/useProducts';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ConfirmSheet, ui } from './AccountUI';
+import { AccountHeaderBar, ConfirmSheet, ui } from './AccountUI';
 import type { Product } from '@/types';
 
 export function SavedProductsScreen({ recent = false }: { recent?: boolean }) {
@@ -38,27 +38,21 @@ export function SavedProductsScreen({ recent = false }: { recent?: boolean }) {
   return (
     <SafeAreaView style={ui.safe} edges={['top', 'bottom']}>
       <AppHeader compact />
-      <View style={[ui.top, { flexDirection: ar ? 'row-reverse' : 'row' }]}>
-        <AppIconButton
-          icon={ar ? ArrowRight : ArrowLeft}
-          label={ar ? 'رجوع' : 'Back'}
-          onPress={() =>
-            router.canGoBack()
-              ? router.back()
-              : router.replace('/(tabs)/account')
-          }
-        />
-        <Text style={[ui.pageTitle, { textAlign: ar ? 'right' : 'left' }]}>
-          {title}
-        </Text>
-        {recent && ids.length ? (
-          <AppIconButton
-            icon={Trash2}
-            label={ar ? 'مسح السجل' : 'Clear history'}
-            onPress={() => setClear(true)}
-          />
-        ) : null}
-      </View>
+      <AccountHeaderBar
+        title={title}
+        right={
+          recent && ids.length ? (
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel={ar ? 'مسح السجل' : 'Clear history'}
+              style={ui.glassIcon}
+              onPress={() => setClear(true)}
+            >
+              <Trash2 size={18} color="#FFFFFF" />
+            </MotionPressable>
+          ) : undefined
+        }
+      />
       {loading || !hydrated || (!recent && favoritesLoading) ? (
         <View style={{ padding: 16 }}>
           <ScreenState loading />

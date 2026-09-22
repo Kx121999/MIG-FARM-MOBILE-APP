@@ -113,7 +113,6 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
     if (!normalized) return [];
     return categoryProducts.filter((product) => [product.title, product.title_ar, product.title_en, product.vendor, product.product_type, product.product_type_ar, product.product_type_en, product.tags.join(' ')].join(' ').toLowerCase().includes(normalized)).slice(0, 5);
   }, [categoryProducts, query]);
-  const featuredPreview = useMemo(() => categoryProducts.slice(0, 4), [categoryProducts]);
 
   useEffect(() => {
     setShownCount(20);
@@ -176,6 +175,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   const hasActiveFilters = brand !== 'all' || productType !== 'all' || minPrice !== '' || maxPrice !== '' || onlyAvailable || sort !== 'popular';
   const showCategorySections = !searchMode && Boolean(selectedCategory && childCategories.length) && !query.trim() && params.favorites !== '1' && !hasActiveFilters;
   const showTopLevelDepartments = !searchMode && !selectedCategory && !query.trim() && params.favorites !== '1' && !hasActiveFilters;
+  const showSearchLanding = searchMode && !query.trim();
   const bottomPadding = Math.max(104, insets.bottom + 92);
   const searchField = (
     <View style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -233,17 +233,13 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
                 </View>
               </View>
             ) : null}
-            <Text style={[styles.discoveryTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t('featuredProducts')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.discoveryProducts, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              {featuredPreview.map((product) => {
-                const title = localizedProductTitle(product, language);
-                const direction = textDirection(title, language);
-                return <Pressable key={product.id} onPress={() => { saveSearch(title); router.push({ pathname: '/product/[handle]', params: { handle: product.handle, ...(category !== 'all' ? { category: String(category) } : {}) } }); }} style={styles.discoveryProduct}>
-                  <Text numberOfLines={2} style={[styles.discoveryProductText, { textAlign: direction === 'rtl' ? 'right' : 'left', writingDirection: direction }]}>{title}</Text>
-                  <Text style={styles.discoveryProductPrice}>{productPriceNumber(product) > 0 ? `${productPriceNumber(product)} AED` : 'MIG FARM'}</Text>
-                </Pressable>;
-              })}
-            </ScrollView>
+            <Text style={[styles.discoveryTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{language === 'ar' ? 'تصفح حسب القسم' : 'Browse by category'}</Text>
+            {departmentSections.length ? (
+              <StoreDepartmentGrid
+                sections={departmentSections}
+                onOpenCategory={(categoryId) => router.push({ pathname: '/(tabs)/catalog', params: { category: String(categoryId) } })}
+              />
+            ) : null}
           </View>
         ) : null}
 
@@ -260,13 +256,15 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
           </View>
         ) : null}
 
-        <View style={[styles.controlRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <Text style={[styles.resultHint, { textAlign: isRTL ? 'right' : 'left' }]}>{onlyAvailable ? t('availableOnly') : sort === 'newest' ? t('newestSort') : sort === 'popular' ? t('popularSort') : sort === 'price_asc' ? t('priceLow') : sort === 'price_desc' ? t('priceHigh') : t('availableFirst')}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('filters')} onPress={openFilters} style={({ pressed }) => [styles.filterChip, pressed && styles.pressed]}>
-            <SlidersHorizontal size={15} color={colors.primary} />
-            <Text style={styles.filterChipText}>{t('filters')}</Text>
-          </Pressable>
-        </View>
+        {!showSearchLanding ? (
+          <View style={[styles.controlRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <Text style={[styles.resultHint, { textAlign: isRTL ? 'right' : 'left' }]}>{onlyAvailable ? t('availableOnly') : sort === 'newest' ? t('newestSort') : sort === 'popular' ? t('popularSort') : sort === 'price_asc' ? t('priceLow') : sort === 'price_desc' ? t('priceHigh') : t('availableFirst')}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('filters')} onPress={openFilters} style={({ pressed }) => [styles.filterChip, pressed && styles.pressed]}>
+              <SlidersHorizontal size={15} color={colors.primary} />
+              <Text style={styles.filterChipText}>{t('filters')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {!searchMode ? <View style={styles.categoryNavigation}>
           {selectedCategory ? <View style={[styles.breadcrumbRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -318,7 +316,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
           </Pressable>
         ) : null}
 
-        {showTopLevelDepartments ? (
+        {showSearchLanding ? null : showTopLevelDepartments ? (
           <ScrollView style={styles.productList} contentContainerStyle={[styles.products, { paddingBottom: bottomPadding }]} showsVerticalScrollIndicator={false}>
             <ScreenState loading={loading && !departmentSections.length} error={error} empty={!loading && !error && !departmentSections.length} onRetry={reload} />
             {departmentSections.length ? <StoreDepartmentGrid sections={departmentSections} onOpenCategory={selectCategory} /> : null}
@@ -333,7 +331,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
           emptyTitle={query ? (language === 'ar' ? 'لم نجد نتائج مطابقة' : 'No matching results') : (language === 'ar' ? 'لا توجد منتجات متاحة حالياً' : 'No products currently available')}
           emptyAction={query ? (language === 'ar' ? 'مسح البحث' : 'Clear search') : selectedCategory ? (language === 'ar' ? 'كل المنتجات' : 'All products') : t('resetFilters')}
           onEmptyAction={() => { if (query) setQuery(''); else if (selectedCategory) selectCategory('all'); else resetFilters(); }} /></ScrollView> : null}
-        {!showTopLevelDepartments && !showCategorySections && !loading && !error && visible.length ? (
+        {!showSearchLanding && !showTopLevelDepartments && !showCategorySections && !loading && !error && visible.length ? (
           <FlatList
             data={visible.slice(0, shownCount)}
             keyExtractor={(item) => String(item.id)}
