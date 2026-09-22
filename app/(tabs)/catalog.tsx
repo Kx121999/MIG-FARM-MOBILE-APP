@@ -10,7 +10,8 @@ import { CategoryIcon } from '@/components/CategoryIcon';
 import { ProductCard, ProductCardSkeleton } from '@/components/ProductCard';
 import { ScreenState } from '@/components/ScreenState';
 import { CategorySections } from '@/components/CategorySections';
-import { CategoryId, categoryDisplayName, categoryLineage, categorySubtreeIds, directChildCategories, localizedCategoryName, orderedStoreCategories, productMatchesCategory, productsInCategoryTree, storefrontDepartments } from '@/constants/categories';
+import { StoreDepartmentGrid } from '@/components/StoreDepartmentGrid';
+import { CategoryId, categoryDisplayName, categoryLineage, categorySubtreeIds, directChildCategories, localizedCategoryName, orderedStoreCategories, productMatchesCategory, productsInCategoryTree, storefrontDepartments, type StorefrontSection } from '@/constants/categories';
 import { colors, glow, radius, shadow, sizes, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -59,6 +60,15 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   }, [categories, departments]);
   const storefrontProducts = useMemo(() => products.filter((product) =>
     product.categories.some((assigned) => storefrontCategoryIds.has(assigned.id))), [products, storefrontCategoryIds]);
+  const departmentSections = useMemo<StorefrontSection[]>(
+    () => departments.map((department) => ({
+      category: department,
+      products: [],
+      productCount: productsInCategoryTree(storefrontProducts, categories, department.id).length,
+      kind: 'department',
+    })),
+    [categories, departments, storefrontProducts],
+  );
   const selectedCategory = useMemo(() => category === 'all' || !storefrontCategoryIds.has(category)
     ? null
     : categories.find((item) => item.id === category) || null, [categories, category, storefrontCategoryIds]);
@@ -165,6 +175,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   const TrailIcon = isRTL ? ChevronLeft : ChevronRight;
   const hasActiveFilters = brand !== 'all' || productType !== 'all' || minPrice !== '' || maxPrice !== '' || onlyAvailable || sort !== 'popular';
   const showCategorySections = !searchMode && Boolean(selectedCategory && childCategories.length) && !query.trim() && params.favorites !== '1' && !hasActiveFilters;
+  const showTopLevelDepartments = !searchMode && !selectedCategory && !query.trim() && params.favorites !== '1' && !hasActiveFilters;
   const bottomPadding = Math.max(104, insets.bottom + 92);
   const searchField = (
     <View style={[styles.search, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -307,7 +318,12 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
           </Pressable>
         ) : null}
 
-        {showCategorySections && selectedCategory ? <CategorySections
+        {showTopLevelDepartments ? (
+          <ScrollView style={styles.productList} contentContainerStyle={[styles.products, { paddingBottom: bottomPadding }]} showsVerticalScrollIndicator={false}>
+            <ScreenState loading={loading && !departmentSections.length} error={error} empty={!loading && !error && !departmentSections.length} onRetry={reload} />
+            {departmentSections.length ? <StoreDepartmentGrid sections={departmentSections} onOpenCategory={selectCategory} /> : null}
+          </ScrollView>
+        ) : showCategorySections && selectedCategory ? <CategorySections
           categoryId={selectedCategory.id}
           products={storefrontProducts}
           categories={categories}
@@ -317,7 +333,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
           emptyTitle={query ? (language === 'ar' ? 'لم نجد نتائج مطابقة' : 'No matching results') : (language === 'ar' ? 'لا توجد منتجات متاحة حالياً' : 'No products currently available')}
           emptyAction={query ? (language === 'ar' ? 'مسح البحث' : 'Clear search') : selectedCategory ? (language === 'ar' ? 'كل المنتجات' : 'All products') : t('resetFilters')}
           onEmptyAction={() => { if (query) setQuery(''); else if (selectedCategory) selectCategory('all'); else resetFilters(); }} /></ScrollView> : null}
-        {!showCategorySections && !loading && !error && visible.length ? (
+        {!showTopLevelDepartments && !showCategorySections && !loading && !error && visible.length ? (
           <FlatList
             data={visible.slice(0, shownCount)}
             keyExtractor={(item) => String(item.id)}
