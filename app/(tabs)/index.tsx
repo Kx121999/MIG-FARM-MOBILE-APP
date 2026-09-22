@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ImageBackground, Linking, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MessageCircle, Search, Truck } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/AppButton';
@@ -89,6 +90,11 @@ export default function HomeScreen() {
             style={[styles.hero, { height: 236 + 64 * (Math.min(1.5, Math.max(1, fontScale)) - 1) }]}
             imageStyle={styles.heroImage}
           >
+            <LinearGradient
+              style={StyleSheet.absoluteFill}
+              colors={['rgba(11, 31, 21, 0.05)', 'rgba(11, 31, 21, 0.55)', 'rgba(9, 26, 18, 0.82)']}
+              locations={[0, 0.55, 1]}
+            />
             <View style={[styles.heroContent, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
               <Text accessibilityRole="header" style={styles.heroBrand}>MIG FARM</Text>
               <Text style={[styles.heroTitle, { textAlign: isRTL ? 'right' : 'left' }]}>
@@ -147,9 +153,9 @@ const styles = StyleSheet.create({
   page: { width: '100%', maxWidth: sizes.page, alignSelf: 'center' },
   search: { minHeight: sizes.input, marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.lg, paddingHorizontal: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.md, alignItems: 'center', gap: spacing.md },
   searchText: { ...typography.secondary, color: colors.muted, flex: 1 },
-  hero: { marginHorizontal: spacing.lg, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.primaryDark },
-  heroImage: { borderRadius: radius.md },
-  heroContent: { flex: 1, padding: spacing.xl, backgroundColor: 'rgba(12, 38, 26, 0.46)', justifyContent: 'center' },
+  hero: { marginHorizontal: spacing.lg, overflow: 'hidden', borderRadius: radius.xl, backgroundColor: colors.primaryDark },
+  heroImage: { borderRadius: radius.xl },
+  heroContent: { flex: 1, padding: spacing.xl, justifyContent: 'center' },
   heroBrand: { ...typography.display, color: colors.surface, writingDirection: 'ltr' },
   heroTitle: { ...typography.section, color: colors.surface, marginTop: spacing.sm, marginBottom: spacing.lg },
   heroButton: { backgroundColor: colors.surface, minWidth: 136 },

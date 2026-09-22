@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Image, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Check, GitCompareArrows, Heart, ImageOff, Plus } from 'lucide-react-native';
-import { colors, radius, shadow, sizes, spacing, typography } from '@/constants/theme';
+import { colors, glow, radius, shadow, sizes, spacing, typography } from '@/constants/theme';
 import { MotionPressable } from '@/components/Motion';
 import { Skeleton } from '@/components/Skeleton';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -57,8 +58,10 @@ export function ProductCard({ product, wide = false, cardWidth, categoryId }: { 
           : <View style={styles.fallback}><ImageOff size={28} color={colors.textSubtle} strokeWidth={1.5} /><Text numberOfLines={2} style={styles.fallbackText}>{language === 'ar' ? 'الصورة غير متاحة' : 'Image unavailable'}</Text></View>}
       </View>
       <Text maxFontSizeMultiplier={1.6} numberOfLines={2} style={[styles.name, { height: metrics.titleHeight, textAlign: titleDirection === 'rtl' ? 'right' : 'left', writingDirection: titleDirection }]}>{title}</Text>
-      <View style={[styles.priceArea, { height: metrics.priceHeight, alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
-        <Text maxFontSizeMultiplier={1.6} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={styles.price}>{formatAED(variant?.price || productPrice(product))}</Text>
+      <View style={[styles.priceArea, { height: metrics.priceHeight, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <View style={styles.priceBadge}>
+          <Text maxFontSizeMultiplier={1.6} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={styles.price}>{formatAED(variant?.price || productPrice(product))}</Text>
+        </View>
         {discounted ? <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={styles.oldPrice}>{formatAED(variant.compare_at_price)}</Text> : null}
       </View>
       <View style={[styles.meta, { height: metrics.metaHeight, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -75,6 +78,14 @@ export function ProductCard({ product, wide = false, cardWidth, categoryId }: { 
         <GitCompareArrows size={20} color={compared ? colors.primary : colors.muted} />
       </MotionPressable>
       <MotionPressable accessibilityRole="button" accessibilityLabel={added ? t('added') : t('addToCart')} accessibilityState={{ disabled: !available }} disabled={!available} onPress={add} style={[styles.addButton, !available && styles.disabled]}>
+        {!available ? null : (
+          <LinearGradient
+            style={StyleSheet.absoluteFill}
+            colors={[colors.leaf, colors.primary, colors.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        )}
         {added ? <Check size={20} color={colors.surface} /> : <Plus size={20} color={colors.surface} />}
       </MotionPressable>
     </View>
@@ -93,7 +104,7 @@ export function ProductCardSkeleton({ wide = false }: { wide?: boolean }) {
   </View>;
 }
 const styles = StyleSheet.create({
-  card: { minWidth: 0, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.sm, overflow: 'hidden' },
+  card: { minWidth: 0, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.sm, overflow: 'hidden' },
   grid: { width: '48.4%', marginBottom: spacing.md },
   wide: { width: 180 },
   productTap: { minWidth: 0 },
@@ -103,8 +114,9 @@ const styles = StyleSheet.create({
   fallbackText: { ...typography.caption, color: colors.muted, textAlign: 'center' },
   favorite: { position: 'absolute', top: 8, width: sizes.touch, height: sizes.touch, borderRadius: sizes.touch / 2, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow },
   name: { ...typography.product, color: colors.text },
-  priceArea: { justifyContent: 'center', marginTop: spacing.xs },
-  price: { fontSize: 16, lineHeight: 23, fontWeight: '700', letterSpacing: 0, color: colors.danger, writingDirection: 'ltr' },
+  priceArea: { alignItems: 'center', marginTop: spacing.xs, gap: spacing.xs },
+  priceBadge: { backgroundColor: colors.primaryDark, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 3 },
+  price: { fontSize: 15, lineHeight: 21, fontWeight: '700', letterSpacing: 0, color: colors.surface, writingDirection: 'ltr' },
   oldPrice: { ...typography.caption, color: colors.textSubtle, textDecorationLine: 'line-through', writingDirection: 'ltr' },
   meta: { alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, overflow: 'hidden' },
   stock: { ...typography.caption, fontSize: 10, color: colors.muted, flexShrink: 1 },
@@ -113,7 +125,7 @@ const styles = StyleSheet.create({
   actions: { height: sizes.touch, alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm, gap: spacing.sm },
   compare: { width: sizes.touch, height: sizes.touch, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   compareActive: { backgroundColor: colors.primarySoft },
-  addButton: { width: sizes.touch, height: sizes.touch, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  addButton: { width: sizes.touch, height: sizes.touch, borderRadius: radius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...glow },
   disabled: { backgroundColor: colors.textSubtle, opacity: 0.5 },
   srOnly: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
 });

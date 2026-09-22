@@ -43,3 +43,8 @@ export const shadow = Platform.select({
   web: { boxShadow: '0 4px 12px rgba(24, 35, 28, 0.08)' },
   default: { shadowColor: colors.shadow, shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
 }) ?? {};
+
+export const glow = Platform.select({
+  web: { boxShadow: '0 8px 20px rgba(20, 61, 44, 0.32)' },
+  default: { shadowColor: colors.primaryDark, shadowOpacity: 0.32, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+}) ?? {};
