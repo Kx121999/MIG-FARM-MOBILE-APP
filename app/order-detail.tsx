@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, Circle } from 'lucide-react-native';
+import { Check, Clock3, PackageCheck, Truck, type LucideIcon } from 'lucide-react-native';
 import {
   AccountPage,
   AccountHeading,
@@ -11,6 +11,7 @@ import {
 import { OrderItems } from '@/components/account/OrderItems';
 import { AppButton } from '@/components/AppButton';
 import { ScreenState } from '@/components/ScreenState';
+import { colors, glow, radius, shadow, spacing } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCommerce } from '@/contexts/CommerceContext';
@@ -20,6 +21,55 @@ import { fulfillmentStatusLabel, paymentStatusLabel } from '@/utils/orders';
 import { planReorder } from '@/utils/customer';
 import { formatAED } from '@/services/catalog';
 import type { CustomerOrder } from '@/types/customer';
+
+const statusSteps: Array<{ key: 'received' | 'preparing' | 'out_for_delivery' | 'delivered'; icon: LucideIcon }> = [
+  { key: 'received', icon: PackageCheck },
+  { key: 'preparing', icon: Clock3 },
+  { key: 'out_for_delivery', icon: Truck },
+  { key: 'delivered', icon: Check },
+];
+
+function StatusTimeline({ status, ar }: { status: CustomerOrder['fulfillmentStatus']; ar: boolean }) {
+  const positions = statusSteps.map((step) => step.key);
+  const currentIndex = positions.indexOf(status as (typeof positions)[number]);
+  return (
+    <View style={timelineStyles.card}>
+      {statusSteps.map((step, index) => {
+        const Icon = step.icon;
+        const done = currentIndex >= 0 && index < currentIndex;
+        const current = index === currentIndex;
+        const state = done ? 'done' : current ? 'current' : 'future';
+        return (
+          <View key={step.key} style={[timelineStyles.row, { flexDirection: ar ? 'row-reverse' : 'row' }]}>
+            <View style={timelineStyles.rail}>
+              <View style={[timelineStyles.dot, state === 'done' && timelineStyles.dotDone, state === 'current' && timelineStyles.dotCurrent]}>
+                <Icon size={16} color={state === 'future' ? colors.textSubtle : '#FFFFFF'} strokeWidth={2.2} />
+              </View>
+              {index < statusSteps.length - 1 ? (
+                <View style={[timelineStyles.line, state === 'done' && timelineStyles.lineDone]} />
+              ) : null}
+            </View>
+            <Text style={[timelineStyles.label, state !== 'future' && timelineStyles.labelActive, { textAlign: ar ? 'right' : 'left' }]}>
+              {fulfillmentStatusLabel(step.key, ar)}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+const timelineStyles = StyleSheet.create({
+  card: { padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.surface, gap: 2, ...shadow },
+  row: { alignItems: 'flex-start', gap: spacing.md },
+  rail: { alignItems: 'center' },
+  dot: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  dotDone: { backgroundColor: colors.success },
+  dotCurrent: { backgroundColor: colors.primary, ...glow },
+  line: { width: 2, flex: 1, minHeight: 22, backgroundColor: colors.border, marginVertical: 2 },
+  lineDone: { backgroundColor: colors.success },
+  label: { flex: 1, paddingTop: 6, paddingBottom: spacing.md, color: colors.muted, fontSize: 13, fontWeight: '700' },
+  labelActive: { color: colors.text, fontWeight: '800' },
+});
 
 export default function OrderDetailScreen() {
   const { user } = useAuth();
@@ -85,19 +135,7 @@ function OrderDetailContent() {
             )}
           </Text>
           <AccountHeading>{ar ? 'حالة الطلب' : 'Order status'}</AccountHeading>
-          <Text style={[ui.label, { textAlign: ar ? 'right' : 'left' }]}>
-            {fulfillmentStatusLabel(order.fulfillmentStatus, ar)}
-          </Text>
-          {(['received', 'preparing', 'out_for_delivery', 'delivered'] as const).map((step) => {
-            const positions = ['received', 'preparing', 'out_for_delivery', 'delivered'];
-            const done = positions.indexOf(step) <= positions.indexOf(order.fulfillmentStatus);
-            return (
-              <View key={step} style={[ui.row, { flexDirection: ar ? 'row-reverse' : 'row' }]}>
-                {done ? <Check size={20} /> : <Circle size={20} />}
-                <Text style={ui.body}>{fulfillmentStatusLabel(step, ar)}</Text>
-              </View>
-            );
-          })}
+          <StatusTimeline status={order.fulfillmentStatus} ar={ar} />
           <AccountHeading>{ar ? 'الدفع' : 'Payment'}</AccountHeading>
           <Text style={[ui.body, { textAlign: ar ? 'right' : 'left' }]}>
             {paymentStatusLabel(order.paymentStatus, ar)}
