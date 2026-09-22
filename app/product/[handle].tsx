@@ -313,9 +313,9 @@ export default function ProductScreen() {
               </View>
             </View>
 
-            <View style={styles.serviceBand}>
+            <View style={[styles.serviceBand, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <ServiceBadge icon={Truck} text={language === 'ar' ? 'توصيل لكل الإمارات' : 'UAE delivery'} />
-              <ServiceBadge icon={ShieldCheck} text={language === 'ar' ? 'بيانات المنتج مباشرة من المتجر' : 'Live store product details'} />
+              <ServiceBadge icon={ShieldCheck} text={language === 'ar' ? 'بيانات مباشرة' : 'Live data'} />
             </View>
 
             {product.variants.length > 1 && optionGroups.length > 0 ? (
@@ -430,7 +430,7 @@ function ProductPageSkeleton({ label }: { label: string }) {
 }
 
 function ServiceBadge({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
-  return <View style={styles.serviceBadge}><Icon size={17} color={colors.primary} strokeWidth={2.2} /><Text style={styles.serviceText}>{text}</Text></View>;
+  return <View style={styles.serviceBadge}><View style={styles.serviceIcon}><Icon size={14} color={colors.primary} strokeWidth={2.3} /></View><Text numberOfLines={1} style={styles.serviceText}>{text}</Text></View>;
 }
 
 const styles = StyleSheet.create({
@@ -500,9 +500,10 @@ const styles = StyleSheet.create({
   stockMuted: { backgroundColor: colors.surfaceMuted },
   stockText: { color: colors.primary, fontSize: 10, fontWeight: '900' },
   stockTextMuted: { color: colors.muted },
-  serviceBand: { marginTop: 17, paddingVertical: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border, gap: 10 },
-  serviceBadge: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  serviceText: { color: colors.muted, fontSize: 11, fontWeight: '700' },
+  serviceBand: { marginTop: 17, flexWrap: 'wrap', gap: 8 },
+  serviceBadge: { height: 34, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.primarySoft, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  serviceIcon: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  serviceText: { color: colors.primaryDark, fontSize: 11, fontWeight: '800' },
   section: { marginTop: 20 },
   label: { color: colors.text, fontSize: 14, fontWeight: '900' },
   optionGroup: { gap: 8, marginBottom: 14 },
