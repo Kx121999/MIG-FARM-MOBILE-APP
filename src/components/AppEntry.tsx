@@ -6,6 +6,7 @@ import {
   LocalizedLaunchScreen,
   preloadLaunchImages,
 } from '@/components/LocalizedLaunchScreen';
+import { OnboardingCarousel } from '@/components/OnboardingCarousel';
 import { colors } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { completeOnboarding, hasCompletedOnboarding } from '@/utils/appEntry';
@@ -17,7 +18,7 @@ if (Platform.OS !== 'web') {
 let completedThisSession = false;
 export function AppEntry({ children }: { children: React.ReactNode }) {
   const { ready: languageReady, language, setLanguage } = useLanguage();
-  const [stage, setStage] = useState<'launch' | 'app'>('launch');
+  const [stage, setStage] = useState<'launch' | 'onboarding' | 'app'>('launch');
   const [completed, setCompleted] = useState<boolean | null>(null);
   const [assetsReady, setAssetsReady] = useState(false);
   useEffect(() => {
@@ -34,6 +35,10 @@ export function AppEntry({ children }: { children: React.ReactNode }) {
   }, []);
   const enterApp = () => {
     if (stage !== 'launch') return;
+    setStage('onboarding');
+  };
+  const finishOnboarding = () => {
+    if (stage === 'app') return;
     completedThisSession = true;
     setCompleted(true);
     setStage('app');
@@ -43,10 +48,10 @@ export function AppEntry({ children }: { children: React.ReactNode }) {
   return (
     <View {...(Platform.OS === 'web' ? { dir: 'ltr' } : {})} style={styles.app}>
       <View
-        style={[styles.app, { pointerEvents: stage === 'launch' ? 'none' : 'auto' }]}
-        accessibilityElementsHidden={stage === 'launch'}
+        style={[styles.app, { pointerEvents: stage === 'app' ? 'auto' : 'none' }]}
+        accessibilityElementsHidden={stage !== 'app'}
         importantForAccessibility={
-          stage === 'launch' ? 'no-hide-descendants' : 'auto'
+          stage !== 'app' ? 'no-hide-descendants' : 'auto'
         }
       >
         {completed !== null ? children : null}
@@ -59,6 +64,11 @@ export function AppEntry({ children }: { children: React.ReactNode }) {
             onComplete={enterApp}
             onLanguageChange={setLanguage}
           />
+        </View>
+      ) : null}
+      {stage === 'onboarding' ? (
+        <View style={StyleSheet.absoluteFill}>
+          <OnboardingCarousel onDone={finishOnboarding} />
         </View>
       ) : null}
     </View>
