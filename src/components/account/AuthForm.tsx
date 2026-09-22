@@ -1,16 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Eye, EyeOff, Mail, Phone, UserRound } from 'lucide-react-native';
 import { AccountPage, AccountField, AccountRow, Notice, ui } from './AccountUI';
 import { AppButton } from '@/components/AppButton';
 import { AppIconButton } from '@/components/AppIconButton';
 import { BrandLogo } from '@/components/BrandLogo';
+import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { authService, customerError } from '@/services/customer';
 import { normalizePhone, validEmail } from '@/utils/customer';
 import { googleIdToken, useGoogleSignIn } from '@/services/googleSignIn';
+import { colors, radius, shadow, spacing, typography } from '@/constants/theme';
+
+function Divider({ label }: { label: string }) {
+  return (
+    <View style={dividerStyles.row}>
+      <View style={dividerStyles.line} />
+      <Text style={dividerStyles.label}>{label}</Text>
+      <View style={dividerStyles.line} />
+    </View>
+  );
+}
+const dividerStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginVertical: spacing.xs },
+  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  label: { ...typography.caption, color: colors.muted },
+});
 
 export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
   const { isRTL: ar } = useLanguage();
@@ -119,8 +136,23 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
   };
   return (
     <AccountPage title={title}>
-      <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-        <BrandLogo width={132} />
+      <View style={heroStyles.hero}>
+        <View style={heroStyles.logoBadge}>
+          <BrandLogo width={104} />
+        </View>
+        <Text style={heroStyles.subtitle}>
+          {mode === 'register'
+            ? ar
+              ? 'انضم لعائلة ميج فارم في دقايق'
+              : 'Join MIG FARM in minutes'
+            : mode === 'forgot'
+              ? ar
+                ? 'هنساعدك تستعيد حسابك بسرعة'
+                : "We'll help you get back in quickly"
+              : ar
+                ? 'أهلاً بعودتك'
+                : 'Welcome back'}
+        </Text>
       </View>
       {mode === 'register' ? (
         <AccountField
@@ -206,15 +238,16 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
         disabled={busy}
       />
       {mode !== 'forgot' && !phoneMode ? (
-        <AppButton
-          secondary
-          label={ar ? 'الدخول بحساب Google' : 'Continue with Google'}
-          onPress={() => {
-            setMessage('');
-            void promptGoogle();
-          }}
-          disabled={busy || !googleRequest}
-        />
+        <>
+          <Divider label={ar ? 'أو' : 'or'} />
+          <GoogleSignInButton
+            onPress={() => {
+              setMessage('');
+              void promptGoogle();
+            }}
+            disabled={busy || !googleRequest}
+          />
+        </>
       ) : null}
       {mode === 'login' ? (
         <>
@@ -259,3 +292,14 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' | 'forgot' }) {
     </AccountPage>
   );
 }
+const heroStyles = StyleSheet.create({
+  hero: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
+  logoBadge: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.xl,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    ...shadow,
+  },
+  subtitle: { ...typography.body, color: colors.muted, textAlign: 'center' },
+});
