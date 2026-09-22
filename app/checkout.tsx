@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,7 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChoiceGroup } from '@/components/account/ChoiceGroup';
 import { Notice } from '@/components/account/AccountUI';
 import { CheckoutPayment } from '@/components/payments/CheckoutPayment';
-import { colors, radius } from '@/constants/theme';
+import { colors, glow, radius, shadow } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -296,6 +297,7 @@ export default function CheckoutScreen() {
               <CheckoutPayment session={paymentSession} customer={customer} language={language} onSuccess={paymentSubmitted} onError={(code) => setError(checkoutError(code || 'payment_error', language))} />
             ) : PAYMENT_ENABLED ? (
               <Pressable accessibilityRole="button" disabled={paymentBusy} style={({ pressed }) => [styles.continueButton, paymentBusy && styles.disabled, pressed && styles.primaryPressed]} onPress={startPayment}>
+                <LinearGradient style={StyleSheet.absoluteFill} colors={[colors.leaf, colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
                 <Text style={styles.continueButtonText}>{paymentBusy ? (language === 'ar' ? 'جاري تجهيز الدفع الآمن…' : 'Preparing secure payment…') : (language === 'ar' ? 'المتابعة إلى الدفع الآمن' : 'Continue to secure payment')}</Text>
               </Pressable>
             ) : (
@@ -306,6 +308,7 @@ export default function CheckoutScreen() {
             )
           ) : (
             <Pressable accessibilityRole="button" disabled={busy || !cart.length || !ORDER_PREPARE_ENABLED} style={({ pressed }) => [styles.continueButton, (busy || !cart.length || !ORDER_PREPARE_ENABLED) && styles.disabled, pressed && styles.primaryPressed]} onPress={prepareReview}>
+              <LinearGradient style={StyleSheet.absoluteFill} colors={[colors.leaf, colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
               <Text style={styles.continueButtonText}>{busy ? (language === 'ar' ? 'جاري التحقق مع Odoo…' : 'Verifying with Odoo…') : (language === 'ar' ? 'تجهيز المراجعة النهائية' : 'Prepare final review')}</Text>
             </Pressable>
           )}
@@ -362,12 +365,12 @@ const styles = StyleSheet.create({
   steps: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   stepDone: { alignItems: 'center', gap: 2 },
   stepDoneText: { color: colors.success, fontSize: 8, fontWeight: '900' },
-  stepActive: { height: 34, paddingHorizontal: 11, borderRadius: radius.pill, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  stepActive: { height: 34, paddingHorizontal: 11, borderRadius: radius.pill, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 5, ...glow },
   stepActiveText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   stepFuture: { alignItems: 'center', gap: 2 },
   stepFutureText: { color: colors.textSubtle, fontSize: 8, fontWeight: '800' },
   stepLine: { width: 34, height: 1, marginHorizontal: 7, backgroundColor: colors.borderStrong },
-  section: { padding: 12, borderRadius: radius.md, backgroundColor: colors.surface, gap: 9 },
+  section: { padding: 12, borderRadius: radius.xl, backgroundColor: colors.surface, gap: 9, ...shadow },
   sectionHeader: { alignItems: 'center', gap: 7, marginBottom: 1 },
   sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
   field: { gap: 5 },
@@ -385,7 +388,7 @@ const styles = StyleSheet.create({
   cartTitle: { color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '900' },
   cartVariant: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 2 },
   cartMeta: { color: colors.primary, fontSize: 10, fontWeight: '800', marginTop: 4 },
-  summary: { padding: 13, borderRadius: radius.md, backgroundColor: colors.primarySoft },
+  summary: { padding: 13, borderRadius: radius.xl, backgroundColor: colors.primarySoft, ...shadow },
   totalRow: { marginTop: 10, alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   totalLabel: { color: colors.muted, fontSize: 11 },
   totalValue: { color: colors.text, fontSize: 12, fontWeight: '800', writingDirection: 'ltr' },
@@ -394,14 +397,14 @@ const styles = StyleSheet.create({
   summaryDivider: { height: 1, backgroundColor: colors.borderStrong, marginTop: 12 },
   provisional: { color: colors.muted, fontSize: 10, lineHeight: 16, marginTop: 10 },
   priceChanged: { color: colors.primaryDark, fontSize: 10, lineHeight: 16, fontWeight: '900', marginTop: 10 },
-  preparedNotice: { padding: 13, borderRadius: radius.md, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  preparedNotice: { padding: 13, borderRadius: radius.xl, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 10, ...shadow },
   preparedTitle: { color: colors.primaryDark, fontSize: 13, fontWeight: '900' },
   preparedBody: { color: colors.muted, fontSize: 11, lineHeight: 18, marginTop: 3 },
   error: { color: colors.danger, fontSize: 11, lineHeight: 18, fontWeight: '800', textAlign: 'center', paddingHorizontal: 8 },
   stickyAction: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  continueButton: { height: 50, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  continueButton: { height: 50, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...glow },
   continueButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
-  stopPanel: { minHeight: 50, paddingHorizontal: 12, borderRadius: radius.md, backgroundColor: colors.primarySoft, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  stopPanel: { minHeight: 50, paddingHorizontal: 12, borderRadius: radius.xl, backgroundColor: colors.primarySoft, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   stopText: { flex: 1, color: colors.primaryDark, fontSize: 10, lineHeight: 16, fontWeight: '800', textAlign: 'center' },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.68 },
