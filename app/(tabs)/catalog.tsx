@@ -378,7 +378,10 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
             </Pressable>
             <View style={[styles.sheetActions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <Pressable accessibilityRole="button" onPress={resetFilters} style={styles.resetButton}><Text style={styles.resetText}>{t('resetFilters')}</Text></Pressable>
-              <Pressable accessibilityRole="button" onPress={() => { selectCategory(draftCategory); setBrand(draftBrand); setProductType(draftProductType); setMinPrice(draftMinPrice); setMaxPrice(draftMaxPrice); setSort(draftSort); setOnlyAvailable(draftOnlyAvailable); setFiltersOpen(false); }} style={styles.applyButton}><Text style={styles.applyText}>{t('applyFilters')}</Text></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => { selectCategory(draftCategory); setBrand(draftBrand); setProductType(draftProductType); setMinPrice(draftMinPrice); setMaxPrice(draftMaxPrice); setSort(draftSort); setOnlyAvailable(draftOnlyAvailable); setFiltersOpen(false); }} style={styles.applyButton}>
+                <LinearGradient style={StyleSheet.absoluteFill} colors={[colors.leaf, colors.primary, colors.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+                <Text style={styles.applyText}>{t('applyFilters')}</Text>
+              </Pressable>
             </View>
           </ScrollView>
         </View>
@@ -441,7 +444,7 @@ const styles = StyleSheet.create({
   filterSheetContent: { padding: 18, paddingBottom: 28 },
   sheetHeader: { alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
   sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  closeButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  closeButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   sheetLabel: { color: colors.muted, fontSize: 11, fontWeight: '900', marginBottom: 8 },
   sortOptions: { gap: 8 },
   sortOption: { minHeight: 44, paddingHorizontal: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, alignItems: 'center', gap: 9 },
@@ -464,6 +467,6 @@ const styles = StyleSheet.create({
   sheetActions: { gap: 9, marginTop: 16 },
   resetButton: { flex: 1, height: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center' },
   resetText: { color: colors.primaryDark, fontSize: 12, fontWeight: '900' },
-  applyButton: { flex: 1.5, height: 48, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  applyButton: { flex: 1.5, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...glow },
   applyText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
 });
