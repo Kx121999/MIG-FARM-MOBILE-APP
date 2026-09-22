@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react-native';
+import { RefreshCw } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AppIconButton } from '@/components/AppIconButton';
 import { AppButton } from '@/components/AppButton';
 import { MotionPressable } from '@/components/Motion';
 import { EmptyState, ScreenState } from '@/components/ScreenState';
 import { OrderThumbnail } from '@/components/account/OrderItems';
-import { Notice, ui } from '@/components/account/AccountUI';
+import { AccountHeaderBar, Notice, ui } from '@/components/account/AccountUI';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { customerService } from '@/services/customer';
@@ -65,27 +64,21 @@ function OrdersContent() {
   }, [load]);
   return (
     <SafeAreaView style={ui.safe} edges={['top', 'bottom']}>
-      <View style={[ui.top, { flexDirection: ar ? 'row-reverse' : 'row' }]}>
-        <AppIconButton
-          icon={ar ? ArrowRight : ArrowLeft}
-          label={ar ? 'رجوع' : 'Back'}
-          onPress={() =>
-            router.canGoBack()
-              ? router.back()
-              : router.replace('/(tabs)/account')
-          }
-        />
-        <Text style={[ui.pageTitle, { textAlign: ar ? 'right' : 'left' }]}>
-          {ar ? 'طلباتي' : 'My orders'}
-        </Text>
-        <AppIconButton
-          icon={RefreshCw}
-          label={ar ? 'تحديث الطلبات' : 'Refresh orders'}
-          onPress={() => {
-            if (!loading) void load();
-          }}
-        />
-      </View>
+      <AccountHeaderBar
+        title={ar ? 'طلباتي' : 'My orders'}
+        right={
+          <MotionPressable
+            accessibilityRole="button"
+            accessibilityLabel={ar ? 'تحديث الطلبات' : 'Refresh orders'}
+            style={ui.glassIcon}
+            onPress={() => {
+              if (!loading) void load();
+            }}
+          >
+            <RefreshCw size={18} color="#FFFFFF" />
+          </MotionPressable>
+        }
+      />
       {!user ? (
         <View style={{ paddingHorizontal: 16 }}>
           <Notice

@@ -11,6 +11,7 @@ import {
   type TextInputProps,
 } from 'react-native';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ArrowLeft,
   ArrowRight,
@@ -24,9 +25,43 @@ import { AppHeader } from '@/components/AppHeader';
 import { AppIconButton } from '@/components/AppIconButton';
 import { AppButton } from '@/components/AppButton';
 import { MotionPressable } from '@/components/Motion';
-import { colors, spacing, typography } from '@/constants/theme';
+import { colors, radius, shadow, spacing, typography } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+export function AccountHeaderBar({ title, right }: { title: string; right?: React.ReactNode }) {
+  const { isRTL } = useLanguage();
+  const BackIcon = isRTL ? ArrowRight : ArrowLeft;
+  return (
+    <LinearGradient
+      colors={[colors.leaf, colors.primary, colors.primaryDark]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={ui.top}
+    >
+      <View style={[ui.topRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <MotionPressable
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+          style={ui.glassIcon}
+          onPress={() =>
+            router.canGoBack()
+              ? router.back()
+              : router.replace('/(tabs)/account')
+          }
+        >
+          <BackIcon size={19} color="#FFFFFF" />
+        </MotionPressable>
+        <Text
+          accessibilityRole="header"
+          style={[ui.pageTitle, { textAlign: isRTL ? 'right' : 'left' }]}
+        >
+          {title}
+        </Text>
+        {right}
+      </View>
+    </LinearGradient>
+  );
+}
 export function AccountPage({
   title,
   children,
@@ -36,27 +71,10 @@ export function AccountPage({
   children: React.ReactNode;
   globalHeader?: boolean;
 }) {
-  const { isRTL } = useLanguage();
   return (
     <SafeAreaView style={ui.safe} edges={['top', 'bottom']}>
       {globalHeader ? <AppHeader compact /> : null}
-      <View style={[ui.top, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        <AppIconButton
-          icon={isRTL ? ArrowRight : ArrowLeft}
-          label={isRTL ? 'رجوع' : 'Back'}
-          onPress={() =>
-            router.canGoBack()
-              ? router.back()
-              : router.replace('/(tabs)/account')
-          }
-        />
-        <Text
-          accessibilityRole="header"
-          style={[ui.pageTitle, { textAlign: isRTL ? 'right' : 'left' }]}
-        >
-          {title}
-        </Text>
-      </View>
+      <AccountHeaderBar title={title} />
       <KeyboardAvoidingView
         style={ui.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -204,10 +222,10 @@ export function ConfirmSheet({
           accessibilityViewIsModal
         >
           <View
-            style={[ui.top, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            style={[ui.sheetTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
           >
             <Text
-              style={[ui.pageTitle, { textAlign: isRTL ? 'right' : 'left' }]}
+              style={[ui.sheetTitle, { textAlign: isRTL ? 'right' : 'left' }]}
             >
               {title}
             </Text>
@@ -238,13 +256,32 @@ export const ui = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   top: {
+    paddingTop: 6,
+    paddingBottom: 18,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
+  },
+  topRow: {
+    minHeight: 50,
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+  },
+  glassIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetTop: {
     minHeight: 56,
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 8,
-    backgroundColor: colors.surface,
   },
-  pageTitle: { ...typography.section, color: colors.text, flex: 1 },
+  sheetTitle: { ...typography.section, color: colors.text, flex: 1 },
+  pageTitle: { ...typography.section, color: '#FFFFFF', flex: 1 },
   page: {
     width: '100%',
     maxWidth: 680,
@@ -267,7 +304,7 @@ export const ui = StyleSheet.create({
     ...typography.body,
     minHeight: 46,
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: radius.lg,
     paddingHorizontal: 12,
     paddingVertical: 12,
     color: colors.text,
@@ -290,9 +327,10 @@ export const ui = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: radius.xl,
     padding: 16,
     gap: 8,
+    ...shadow,
   },
   scrim: {
     flex: 1,
@@ -306,5 +344,7 @@ export const ui = StyleSheet.create({
     maxWidth: 680,
     width: '100%',
     alignSelf: 'center',
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
   },
 });

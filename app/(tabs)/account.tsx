@@ -30,7 +30,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { colors, typography } from '@/constants/theme';
+import { colors, radius, shadow, typography } from '@/constants/theme';
 import { customerError } from '@/services/customer';
 
 export default function AccountScreen() {
@@ -143,11 +143,12 @@ export default function AccountScreen() {
               style={{
                 flex: 1,
                 minHeight: 48,
-                borderRadius: 8,
+                borderRadius: radius.lg,
                 backgroundColor:
                   language === value ? colors.primary : colors.surface,
                 alignItems: 'center',
                 justifyContent: 'center',
+                ...(language === value ? shadow : null),
               }}
             >
               <Text
@@ -206,6 +207,7 @@ const styles = StyleSheet.create({
   group: {
     paddingHorizontal: 12,
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: radius.xl,
+    ...shadow,
   },
 });
