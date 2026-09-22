@@ -85,22 +85,24 @@ test('storefront home resolves exactly four live Odoo roots and isolates their p
 });
 
 test('storefront stays single-fetch, ID-driven, brand-honest, and release-safe', async () => {
-  const [catalog, storefront, categories, tabs, odoo] = await Promise.all([
+  const [home, catalog, sections, categories, tabs, odoo] = await Promise.all([
+    readFile(new URL('../app/(tabs)/index.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../app/(tabs)/catalog.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../src/components/StorefrontHome.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/CategorySections.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/constants/categories.ts', import.meta.url), 'utf8'),
     readFile(new URL('../app/(tabs)/_layout.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../server/services/odoo.mjs', import.meta.url), 'utf8'),
   ]);
   assert.equal((catalog.match(/useProducts\(\)/g) || []).length, 1);
-  assert.match(catalog, /storefrontHomeSections\(storefrontProducts, categories\)/);
+  assert.match(home, /storefrontHomeSections\(products, categories, 1\)/);
+  assert.doesNotMatch(catalog, /storefrontHomeSections|StorefrontHome|isStorefrontHome/);
   assert.match(catalog, /productsInCategoryTree\(storefrontProducts, categories, category\)/);
-  assert.match(storefront, /onOpenCategory\(section\.category\.id\)/);
-  assert.match(storefront, /categoryId=\{section\.category\.id\}/);
-  assert.doesNotMatch(`${storefront}\n${categories}`, /fetch\(|product\.(?:title|vendor|description).*includes|vendor\s*===/);
+  assert.match(sections, /onOpenCategory\(section\.category\.id\)/);
+  assert.match(sections, /categoryId=\{section\.category\.id\}/);
+  assert.doesNotMatch(`${home}\n${sections}\n${categories}`, /fetch\(|product\.(?:title|vendor|description).*includes|vendor\s*===/);
   assert.doesNotMatch(odoo, /vendor: 'MIG FARM'/);
   assert.match(odoo, /vendor: brand\?\.name \|\| ''/);
   assert.match(categories, /STOREFRONT_DEPARTMENT_IDS = \[1, 9, 10, 11\]/);
   assert.match(tabs, /name="my-farm" options=\{\{ href: null \}\}/);
-  assert.doesNotMatch(`${catalog}\n${storefront}\n${categories}`, /stock\.quant|action_confirm|PaymentIntent|\/api\/orders/);
+  assert.doesNotMatch(`${home}\n${catalog}\n${sections}\n${categories}`, /stock\.quant|action_confirm|PaymentIntent|\/api\/orders/);
 });

@@ -56,5 +56,5 @@ export function CategorySections({
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  section: { marginBottom: spacing.xl },
+  section: { marginBottom: spacing.xl, overflow: 'visible' },
 });

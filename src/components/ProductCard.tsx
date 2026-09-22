@@ -14,7 +14,11 @@ import { Product } from '@/types';
 function useCardMetrics() {
   const { fontScale } = useWindowDimensions();
   const scale = Math.min(1.6, Math.max(1, fontScale));
-  return { titleHeight: 42 * scale, priceHeight: 42 * scale };
+  return {
+    titleHeight: 42 * scale,
+    priceHeight: 44 * scale,
+    metaHeight: 24 * scale,
+  };
 }
 
 export function ProductCard({ product, wide = false, cardWidth, categoryId }: { product: Product; wide?: boolean; cardWidth?: number; categoryId?: number }) {
@@ -50,14 +54,14 @@ export function ProductCard({ product, wide = false, cardWidth, categoryId }: { 
       <View style={styles.imageWrap}>
         {!imageLoaded && !imageFailed && uri ? <Skeleton style={StyleSheet.absoluteFill} /> : null}
         {uri && !imageFailed ? <Image accessibilityLabel={title} source={{ uri, cache: 'force-cache' }} style={styles.image} resizeMode="contain" onLoad={() => setImageLoaded(true)} onError={() => setImageFailed(true)} />
-          : <View style={styles.fallback}><ImageOff size={28} color={colors.textSubtle} strokeWidth={1.5} /><Text style={styles.fallbackText}>{language === 'ar' ? 'الصورة غير متاحة' : 'Image unavailable'}</Text></View>}
+          : <View style={styles.fallback}><ImageOff size={28} color={colors.textSubtle} strokeWidth={1.5} /><Text numberOfLines={2} style={styles.fallbackText}>{language === 'ar' ? 'الصورة غير متاحة' : 'Image unavailable'}</Text></View>}
       </View>
       <Text maxFontSizeMultiplier={1.6} numberOfLines={2} style={[styles.name, { height: metrics.titleHeight, textAlign: titleDirection === 'rtl' ? 'right' : 'left', writingDirection: titleDirection }]}>{title}</Text>
       <View style={[styles.priceArea, { height: metrics.priceHeight, alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
         <Text maxFontSizeMultiplier={1.6} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={styles.price}>{formatAED(variant?.price || productPrice(product))}</Text>
         {discounted ? <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={styles.oldPrice}>{formatAED(variant.compare_at_price)}</Text> : null}
       </View>
-      <View style={[styles.meta, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <View style={[styles.meta, { height: metrics.metaHeight, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <Text numberOfLines={1} style={[styles.stock, available && styles.stockAvailable]}>{available ? t('available') : t('unavailable')}</Text>
         {product.variants.length > 1 ? <Text numberOfLines={1} style={styles.variantCount}>{language === 'ar' ? `${product.variants.length} خيارات` : `${product.variants.length} options`}</Text> : null}
       </View>
@@ -84,11 +88,12 @@ export function ProductCardSkeleton({ wide = false }: { wide?: boolean }) {
     <Skeleton style={styles.imageWrap} />
     <View style={{ height: metrics.titleHeight, gap: 8, paddingTop: 4 }}><Skeleton style={{ height: 12, width: '92%' }} /><Skeleton style={{ height: 12, width: '66%' }} /></View>
     <View style={{ height: metrics.priceHeight, paddingTop: 8 }}><Skeleton style={{ height: 16, width: '48%' }} /></View>
-    <Skeleton style={{ height: sizes.touch, marginTop: 'auto' }} />
+    <View style={{ height: metrics.metaHeight }} />
+    <Skeleton style={{ height: sizes.touch, marginTop: spacing.sm }} />
   </View>;
 }
 const styles = StyleSheet.create({
-  card: { minWidth: 0, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm },
+  card: { minWidth: 0, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm, overflow: 'hidden' },
   grid: { width: '48.4%', marginBottom: spacing.md },
   wide: { width: 180 },
   productTap: { minWidth: 0 },
@@ -101,11 +106,11 @@ const styles = StyleSheet.create({
   priceArea: { justifyContent: 'center', marginTop: spacing.xs },
   price: { fontSize: 16, lineHeight: 23, fontWeight: '700', letterSpacing: 0, color: colors.danger, writingDirection: 'ltr' },
   oldPrice: { ...typography.caption, color: colors.textSubtle, textDecorationLine: 'line-through', writingDirection: 'ltr' },
-  meta: { minHeight: 22, alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs },
+  meta: { alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, overflow: 'hidden' },
   stock: { ...typography.caption, fontSize: 10, color: colors.muted, flexShrink: 1 },
   stockAvailable: { color: colors.success },
   variantCount: { ...typography.caption, fontSize: 10, color: colors.muted, flexShrink: 1 },
-  actions: { minHeight: sizes.touch, alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm, gap: spacing.sm },
+  actions: { height: sizes.touch, alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm, gap: spacing.sm },
   compare: { width: sizes.touch, height: sizes.touch, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   compareActive: { backgroundColor: colors.primarySoft },
   addButton: { width: sizes.touch, height: sizes.touch, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },

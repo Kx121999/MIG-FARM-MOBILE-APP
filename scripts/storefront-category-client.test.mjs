@@ -131,7 +131,9 @@ test('RTL rails, category fallbacks, and tab-safe content remain production-safe
   ]);
   assert.doesNotMatch(`${home}\n${rail}`, /inverted=\{isRTL\}/);
   assert.match(home, /flexDirection: isRTL \? 'row-reverse' : 'row'/);
-  assert.match(rail, /paddingStart: 2, paddingEnd: 2/);
+  assert.match(rail, /paddingStart: spacing\.xs/);
+  assert.match(rail, /paddingEnd: spacing\.xs/);
+  assert.doesNotMatch(rail, /FlatList/);
   assert.match(home, /Math\.max\(104, insets\.bottom \+ 92\)/);
   assert.match(catalog, /Math\.max\(104, insets\.bottom \+ 92\)/);
   assert.match(card, /<CategoryIcon id=\{category\.id\}/);

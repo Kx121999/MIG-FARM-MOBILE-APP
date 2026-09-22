@@ -1,0 +1,18 @@
+MIG FARM STOREFRONT V6 - CHANGED FILES
+
+app/(tabs)/catalog.tsx
+src/components/StoreDepartmentGrid.tsx
+src/components/ProductRail.tsx
+src/components/CategorySections.tsx
+src/components/ProductCard.tsx
+src/services/catalog.ts
+scripts/storefront-category-client.test.mjs
+scripts/storefront-v5.test.mjs
+scripts/storefront-v6.test.mjs
+scripts/welcome-storefront-v3.test.mjs
+assets/storefront/department-seeds.png
+assets/storefront/department-fertilizers.png
+assets/storefront/department-irrigation.png
+assets/storefront/department-tools.png
+delivery/STOREFRONT_V6_ODOO_DATA_AUDIT.md
+delivery/STOREFRONT_V6_CHANGED_FILES.txt

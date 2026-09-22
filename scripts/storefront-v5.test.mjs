@@ -47,26 +47,27 @@ test('V5 department identity, localization, counts, and hierarchy remain ID-driv
   assert.deepEqual(sections[1].products.map((item) => item.id), [2, 3]);
 });
 
-test('V5 Home and Store use the shared premium 2x2 departments and trusted curation only', async () => {
-  const [home, catalog, storefront, departmentGrid] = await Promise.all([
+test('V6 Home and Store use separate architectures with trusted curation only', async () => {
+  const [home, catalog, departmentGrid] = await Promise.all([
     source('../app/(tabs)/index.tsx'),
     source('../app/(tabs)/catalog.tsx'),
-    source('../src/components/StorefrontHome.tsx'),
     source('../src/components/StoreDepartmentGrid.tsx'),
   ]);
   assert.match(home, /<StoreDepartmentGrid sections=\{departmentSections\}/);
-  assert.match(storefront, /<StoreDepartmentGrid sections=\{sections\}/);
+  assert.match(home, /heroSource/);
+  assert.match(home, /COMPANY\.whatsapp/);
+  assert.doesNotMatch(catalog, /StorefrontHome|isStorefrontHome|heroSource|COMPANY\.whatsapp/);
+  assert.match(catalog, /numColumns=\{2\}/);
+  assert.match(catalog, /!showCategorySections && !loading/);
   assert.match(departmentGrid, /width: '47\.5%'/);
-  assert.match(departmentGrid, /category-seeds\.webp/);
-  assert.match(departmentGrid, /category-fertilizers\.webp/);
-  assert.match(departmentGrid, /category-irrigation\.webp/);
-  assert.match(departmentGrid, /category-tools\.webp/);
+  assert.match(departmentGrid, /department-seeds\.png/);
+  assert.match(departmentGrid, /department-fertilizers\.png/);
+  assert.match(departmentGrid, /department-irrigation\.png/);
+  assert.match(departmentGrid, /department-tools\.png/);
   assert.match(home, /section\.kind === 'featured'/);
   assert.match(home, /featuredSection\.productIds/);
   assert.doesNotMatch(home, /sortProducts\(|slice\(0, 6\)|MIG FARM selection/);
-  assert.match(home, /COMPANY\.whatsapp/);
-  assert.match(catalog, /storefrontProducts\.length/);
-  assert.match(catalog, /Browse by department/);
+  assert.match(catalog, /visible\.length/);
 });
 
 test('V5 category and product surfaces preserve RTL bounds, exact names, variants, and safe padding', async () => {
@@ -88,6 +89,9 @@ test('V5 category and product surfaces preserve RTL bounds, exact names, variant
   assert.match(card, /addToCart\(product, variant, 1\)/);
   assert.match(card, /resizeMode="contain"/);
   assert.doesNotMatch(rail, /inverted=\{isRTL\}/);
+  assert.doesNotMatch(rail, /FlatList/);
+  assert.match(rail, /<ScrollView/);
+  assert.doesNotMatch(rail, /height\s*:/);
   assert.match(tabs, /name="my-farm" options=\{\{ href: null \}\}/);
 });
 
