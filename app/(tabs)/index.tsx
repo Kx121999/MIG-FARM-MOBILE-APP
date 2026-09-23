@@ -9,8 +9,13 @@ import { ActiveOrderCard } from '@/components/ActiveOrderCard';
 import { AppButton } from '@/components/AppButton';
 import { AppHeader } from '@/components/AppHeader';
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { FarmTodayCard } from '@/components/FarmTodayCard';
 import { MotionPressable } from '@/components/Motion';
+import { NeedTodayGrid } from '@/components/NeedTodayGrid';
 import { ProductRail } from '@/components/ProductRail';
+import { QuickActionsRail } from '@/components/QuickActionsRail';
+import { RecommendedRail } from '@/components/RecommendedRail';
+import { ReorderRail } from '@/components/ReorderRail';
 import { ScreenState } from '@/components/ScreenState';
 import { SeasonalGrowingTip } from '@/components/SeasonalGrowingTip';
 import { SectionTitle } from '@/components/SectionTitle';
@@ -78,6 +83,10 @@ export default function HomeScreen() {
     .filter((product) => Boolean(product.published_at))
     .sort((a, b) => new Date(b.published_at as string).getTime() - new Date(a.published_at as string).getTime())
     .slice(0, 10), [products]);
+  const shownProductIds = useMemo(
+    () => [...picks, ...recentlyViewed, ...newArrivals].map((product) => product.id),
+    [newArrivals, picks, recentlyViewed],
+  );
 
   const openCategory = (category: number) => router.push({
     pathname: '/(tabs)/catalog',
@@ -138,6 +147,8 @@ export default function HomeScreen() {
             </MotionPressable>
           </View>
 
+          <NeedTodayGrid />
+
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.quickCategories, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             {quickCategories.map((item) => (
               <MotionPressable
@@ -153,12 +164,16 @@ export default function HomeScreen() {
             ))}
           </ScrollView>
 
+          <QuickActionsRail />
+
           <View style={[styles.delivery, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Truck size={17} color={colors.primary} />
             <Text style={styles.deliveryText}>{language === 'ar' ? 'توصيل لكل الإمارات' : 'Delivery across the UAE'}</Text>
             <View style={styles.deliveryDivider} />
             <Text style={styles.deliveryText}>{language === 'ar' ? 'كتالوج مباشر من Odoo' : 'Live Odoo catalog'}</Text>
           </View>
+
+          <FarmTodayCard />
 
           <SeasonalGrowingTip />
 
@@ -167,6 +182,10 @@ export default function HomeScreen() {
             <ScreenState loading={loading && !departmentSections.length} error={error} empty={!loading && !error && !departmentSections.length} onRetry={reload} />
             {departmentSections.length ? <StoreDepartmentGrid sections={departmentSections} onOpenCategory={openCategory} /> : null}
           </View>
+
+          <RecommendedRail products={products} categories={categories} recentProductIds={recentProductIds} excludeIds={shownProductIds} />
+
+          <ReorderRail products={products} />
 
           {picks.length ? (
             <View style={styles.section}>
