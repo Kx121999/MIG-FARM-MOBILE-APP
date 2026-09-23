@@ -7,10 +7,11 @@ import { Check, GitCompareArrows, Heart, ImageOff, Plus } from 'lucide-react-nat
 import { colors, glow, radius, shadow, sizes, spacing, typography } from '@/constants/theme';
 import { MotionPressable } from '@/components/Motion';
 import { Skeleton } from '@/components/Skeleton';
+import { VariantSelectorModal } from '@/components/VariantSelectorModal';
 import { useCommerce } from '@/contexts/CommerceContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatAED, localizedProductTitle, productImage, productPrice, textDirection } from '@/services/catalog';
-import { Product } from '@/types';
+import { Product, ProductVariant } from '@/types';
 
 function useCardMetrics() {
   const { fontScale } = useWindowDimensions();
@@ -29,9 +30,11 @@ export function ProductCard({ product, wide = false, cardWidth, categoryId }: { 
   const [added, setAdded] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const uri = productImage(product);
-  const variant = product.variants.find((item) => item.available === true) || product.variants[0];
+  const purchasableVariants = product.variants.filter((item) => item.available === true);
+  const variant = purchasableVariants[0] || product.variants[0];
   const favorite = isFavorite(product.id);
   const compared = isCompared(product.id);
   const available = Boolean(variant && variant.available === true);
@@ -41,13 +44,18 @@ export function ProductCard({ product, wide = false, cardWidth, categoryId }: { 
   useEffect(() => { setImageLoaded(false); setImageFailed(false); }, [uri]);
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
-  const add = () => {
-    if (!available || !variant) return;
+  const commitAdd = (variant: ProductVariant) => {
     addToCart(product, variant, 1);
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
     setAdded(true);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setAdded(false), 1500);
+  };
+
+  const add = () => {
+    if (!available || !variant) return;
+    if (purchasableVariants.length > 1) { setPickerVisible(true); return; }
+    commitAdd(variant);
   };
 
   return <View testID="product-card" style={[styles.card, shadow, wide ? styles.wide : styles.grid, cardWidth ? { width: cardWidth } : null]}>
@@ -90,6 +98,12 @@ export function ProductCard({ product, wide = false, cardWidth, categoryId }: { 
       </MotionPressable>
     </View>
     <Text accessibilityLiveRegion="polite" style={styles.srOnly}>{added ? (language === 'ar' ? 'تمت إضافة المنتج إلى السلة' : 'Product added to cart') : ''}</Text>
+    <VariantSelectorModal
+      visible={pickerVisible}
+      product={pickerVisible ? product : null}
+      onClose={() => setPickerVisible(false)}
+      onConfirm={(chosenVariant) => { setPickerVisible(false); commitAdd(chosenVariant); }}
+    />
   </View>;
 }
 

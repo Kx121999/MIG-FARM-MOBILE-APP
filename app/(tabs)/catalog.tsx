@@ -111,7 +111,7 @@ export default function CatalogScreen({ searchMode = false }: { searchMode?: boo
   const suggestions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return [];
-    return categoryProducts.filter((product) => [product.title, product.title_ar, product.title_en, product.vendor, product.product_type, product.product_type_ar, product.product_type_en, product.tags.join(' ')].join(' ').toLowerCase().includes(normalized)).slice(0, 5);
+    return categoryProducts.filter((product) => [product.title, product.title_ar, product.title_en, product.vendor, product.product_type, product.product_type_ar, product.product_type_en, product.tags.join(' '), product.variants.map((variant) => variant.sku).filter(Boolean).join(' ')].join(' ').toLowerCase().includes(normalized)).slice(0, 5);
   }, [categoryProducts, query]);
 
   useEffect(() => {

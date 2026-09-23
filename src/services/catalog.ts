@@ -288,7 +288,7 @@ export function filterProducts(products: Product[], query: string, category: Cat
   return products.filter((product) => {
     if (!productMatchesCategory(product, category)) return false;
     if (!normalizedQuery) return true;
-    return [product.title, product.title_ar, product.title_en, product.vendor, product.product_type, product.product_type_ar, product.product_type_en, product.tags.join(' '), stripHtml(product.body_html), stripHtml(product.body_html_ar || ''), stripHtml(product.body_html_en || '')]
+    return [product.title, product.title_ar, product.title_en, product.vendor, product.product_type, product.product_type_ar, product.product_type_en, product.tags.join(' '), product.variants.map((variant) => variant.sku).filter(Boolean).join(' '), stripHtml(product.body_html), stripHtml(product.body_html_ar || ''), stripHtml(product.body_html_en || '')]
       .join(' ')
       .toLowerCase()
       .includes(normalizedQuery);
